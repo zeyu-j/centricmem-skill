@@ -4,8 +4,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { slugify } from "./core.js";
-import { importBundle, type ImportResult } from "./import.js";
-import type { ImportBundle } from "./import-schema.js";
+import { importBundle, type ImportResult, type ImportBundle } from "./import.js";
 import { UNCLASSIFIED, discoverMigrateSources } from "./workspace.js";
 
 export interface MigrateResult {

@@ -6,7 +6,7 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const indexer = await import(pathToFileURL(path.join(here, "..", "dist", "indexer.js")).href);
-const route = await import(pathToFileURL(path.join(here, "..", "dist", "route.js")).href);
+const route = await import(pathToFileURL(path.join(here, "..", "dist", "retrieve.js")).href);
 
 const cases = [
   ["why did we choose redis", "decision"],

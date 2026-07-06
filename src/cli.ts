@@ -15,6 +15,7 @@ import {
   promoteToRules,
   logDecision,
   logLesson,
+  logSession,
 } from "./memory.js";
 import { listTemplates, applyTemplate } from "./templates.js";
 import { migrate } from "./migrate.js";
@@ -27,6 +28,8 @@ import {
   searchAll,
   classifyIntent,
   dismissChunk,
+  getLinks,
+  decisionId,
 } from "./indexer.js";
 import { parseImportBundle, importBundle } from "./import.js";
 import {
@@ -36,16 +39,14 @@ import {
   classifyMemory,
   getCurrentProjectSlug,
   suggestClassify,
+  workspaceHealth,
 } from "./workspace.js";
-import { workspaceHealth } from "./workspace-health.js";
 import { runSetup, printSetupSummary, installCursorHooks } from "./setup.js";
-import { logSession } from "./session.js";
-import { routeQuery } from "./route.js";
-import { buildAmbient, writeAmbientFile } from "./ambient.js";
+import { routeQuery, buildAmbient, writeAmbientFile } from "./retrieve.js";
 import { isEmbeddingEnabled } from "./embedding.js";
 
 const program = new Command();
-program.name("centricmem").description("Cross-agent project memory layer (workspace hub)").version("0.9.0");
+program.name("centricmem").description("Cross-agent project memory layer (workspace hub)").version("0.10.0");
 
 function requireWorkspace(): string {
   const root = findWorkspaceRoot();
@@ -346,10 +347,11 @@ program
   .option("--consequences <text>", "trade-offs / follow-ups")
   .option("--tags <tags>", "comma-separated tags")
   .option("--supersedes <seq>", "sequence number this replaces")
+  .option("--refs <seqs>", "comma-separated decision numbers this references, e.g. \"1,4\"")
   .option("-p, --project <slug>", "project slug")
   .action((opts: {
     title: string; context: string; decision: string; consequences?: string;
-    tags?: string; supersedes?: string; project?: string;
+    tags?: string; supersedes?: string; refs?: string; project?: string;
   }) => {
     const ws = requireWorkspace();
     const r = logDecision(ws, {
@@ -359,6 +361,10 @@ program
       consequences: opts.consequences,
       tags: opts.tags?.split(",").map((t) => t.trim()).filter(Boolean),
       supersedes: opts.supersedes ? parseInt(opts.supersedes, 10) : undefined,
+      refs: opts.refs
+        ?.split(",")
+        .map((s) => parseInt(s.trim(), 10))
+        .filter((n) => Number.isInteger(n) && n > 0),
     }, opts.project);
     buildIndex(resolvePaths(ws, opts.project));
     console.log(`Decision #${r.seq} logged: ${r.file}`);
@@ -431,6 +437,33 @@ program
     const r = promoteToRules(ws, opts.pattern, { confirm: opts.confirm, projectSlug: slug });
     console.log(r.message);
     if (r.promoted) buildIndex(resolvePaths(ws, slug));
+  });
+
+program
+  .command("refs <seq>")
+  .description("Show link neighborhood of a decision (refs / mentions / supersedes)")
+  .option("--depth <n>", "hops to expand (1-3)", "1")
+  .option("-p, --project <slug>", "project slug")
+  .action((seqArg: string, opts: { depth?: string; project?: string }) => {
+    const ws = requireWorkspace();
+    const seq = parseInt(seqArg.replace(/^#/, ""), 10);
+    if (!Number.isInteger(seq) || seq < 1) {
+      console.error("Provide a decision sequence number, e.g. `centricmem refs 3`.");
+      process.exit(1);
+    }
+    const depth = Math.min(Math.max(parseInt(opts.depth ?? "1", 10) || 1, 1), 3);
+    const graph = getLinks(resolvePaths(ws, opts.project), seq, depth);
+    const root = graph.get(decisionId(seq));
+    if (!root || (!root.out.length && !root.in.length && graph.size <= 1)) {
+      console.log(`No links found for decision #${String(seq).padStart(4, "0")}. Links come from **Supersedes**, **Refs**, or inline #NNNN mentions (run \`centricmem index\` after editing).`);
+      return;
+    }
+    for (const [id, n] of graph) {
+      console.log(`\n${id}${id === decisionId(seq) ? "  (root)" : ""}`);
+      for (const e of n.out) console.log(`  → ${e.rel.padEnd(10)} ${e.toId}`);
+      for (const e of n.in) console.log(`  ← ${e.rel.padEnd(10)} ${e.fromFile}`);
+      if (!n.out.length && !n.in.length) console.log("  (no links)");
+    }
   });
 
 program

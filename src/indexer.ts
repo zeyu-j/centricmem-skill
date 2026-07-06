@@ -197,6 +197,136 @@ export function chunkFile(memDir: string, relPath: string): MemoryChunk[] {
 }
 
 // ---------------------------------------------------------------------------
+// Memory Links — typed edges extracted from decision Markdown
+// ---------------------------------------------------------------------------
+
+export type LinkRel = "supersedes" | "refs" | "mentions";
+
+export interface MemoryLink {
+  fromFile: string; // relative path of the source file
+  rel: LinkRel;
+  toId: string;     // normalized target, e.g. "decision:0001"
+}
+
+/** Normalize a decision sequence number to its canonical node id. */
+export function decisionId(seq: number | string): string {
+  return `decision:${String(seq).padStart(4, "0")}`;
+}
+
+/** Extract seq from a decisions/NNNN-slug.md path, or null. */
+export function seqFromDecisionPath(relPath: string): number | null {
+  const m = /^decisions[\\/](\d{4})-/.exec(relPath);
+  return m ? parseInt(m[1], 10) : null;
+}
+
+/**
+ * Extract typed links from a decision file:
+ * - `**Supersedes**: #NNNN`        → rel=supersedes
+ * - `- **Refs**: #NNNN, #NNNN`     → rel=refs (explicit curation)
+ * - inline `#NNNN` in the body     → rel=mentions (automatic, zero effort)
+ * Self-references and duplicate (rel, target) pairs are dropped; an explicit
+ * ref suppresses the weaker mentions edge for the same target.
+ */
+export function extractDecisionLinks(relPath: string, content: string): MemoryLink[] {
+  const selfSeq = seqFromDecisionPath(relPath);
+  const from = normalizeRelPath(relPath);
+  const links = new Map<string, MemoryLink>();
+  const add = (rel: LinkRel, seq: number) => {
+    if (selfSeq !== null && seq === selfSeq) return;
+    const toId = decisionId(seq);
+    links.set(`${rel}|${toId}`, { fromFile: from, rel, toId });
+  };
+
+  const supersedes = /^- \*\*Supersedes\*\*:\s*#?(\d+)/m.exec(content);
+  if (supersedes) add("supersedes", parseInt(supersedes[1], 10));
+
+  const refsLine = /^- \*\*Refs\*\*:\s*(.+)$/m.exec(content);
+  if (refsLine) {
+    for (const m of refsLine[1].matchAll(/#?(\d{1,4})\b/g)) add("refs", parseInt(m[1], 10));
+  }
+
+  // Body mentions: skip metadata bullet lines so Supersedes/Refs/Superseded-by
+  // pointers don't double-count as mentions.
+  const body = content
+    .split("\n")
+    .filter((l) => !/^- \*\*(Status|Logged at|Logged by|Tags|Supersedes|Superseded by|Refs)\*\*:/.test(l))
+    .join("\n");
+  for (const m of body.matchAll(/#(\d{4})\b/g)) {
+    const seq = parseInt(m[1], 10);
+    const toId = decisionId(seq);
+    if (links.has(`refs|${toId}`) || links.has(`supersedes|${toId}`)) continue;
+    add("mentions", seq);
+  }
+
+  return [...links.values()];
+}
+
+export interface LinkNeighbors {
+  /** Edges going out of this decision (what it points to). */
+  out: { rel: LinkRel; toId: string }[];
+  /** Edges coming in (who points at this decision). */
+  in: { rel: LinkRel; fromFile: string }[];
+}
+
+/**
+ * Read the link neighborhood of a decision from the index, expanding outward
+ * up to `depth` hops (depth applies to outgoing edges; incoming edges are
+ * reported for the root node only).
+ */
+export function getLinks(
+  paths: MemPaths,
+  seq: number,
+  depth = 1,
+): Map<string, LinkNeighbors> {
+  const db = openDb(paths);
+  try {
+    const outStmt = db.prepare("SELECT rel, to_id FROM links WHERE from_file LIKE ?");
+    const inStmt = db.prepare("SELECT rel, from_file FROM links WHERE to_id = ?");
+    const fileFor = (s: number): string | null => {
+      const row = db
+        .prepare("SELECT DISTINCT file FROM chunks WHERE file LIKE ? LIMIT 1")
+        .get(`decisions/${String(s).padStart(4, "0")}-%`) as { file: string } | undefined;
+      return row?.file ?? null;
+    };
+
+    const result = new Map<string, LinkNeighbors>();
+    const maxDepth = Math.min(Math.max(depth, 1), 3);
+    let frontier = [seq];
+    const visited = new Set<number>();
+
+    for (let d = 0; d < maxDepth && frontier.length; d++) {
+      const next: number[] = [];
+      for (const s of frontier) {
+        if (visited.has(s)) continue;
+        visited.add(s);
+        const id = decisionId(s);
+        const file = fileFor(s);
+        const out = file
+          ? (outStmt.all(`decisions/${String(s).padStart(4, "0")}-%`) as { rel: LinkRel; to_id: string }[])
+              .map((r) => ({ rel: r.rel, toId: r.to_id }))
+          : [];
+        const inbound = (inStmt.all(id) as { rel: LinkRel; from_file: string }[])
+          .map((r) => ({ rel: r.rel, fromFile: r.from_file }));
+        result.set(id, { out, in: inbound });
+        for (const e of out) {
+          const m = /^decision:(\d{4})$/.exec(e.toId);
+          if (m) next.push(parseInt(m[1], 10));
+        }
+        // Follow inbound edges too so "who references me" chains are walkable.
+        for (const e of inbound) {
+          const s2 = seqFromDecisionPath(e.fromFile);
+          if (s2 !== null) next.push(s2);
+        }
+      }
+      frontier = next.filter((s) => !visited.has(s));
+    }
+    return result;
+  } finally {
+    db.close();
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Database — schema and connection helpers
 // ---------------------------------------------------------------------------
 
@@ -234,6 +364,15 @@ CREATE TABLE IF NOT EXISTS chunk_feedback (
   downvotes INTEGER NOT NULL DEFAULT 0,
   PRIMARY KEY (file, heading)
 );
+-- Memory Links: typed edges between memory units, extracted from Markdown
+-- (Supersedes line, explicit Refs line, and inline #NNNN mentions in decision
+-- bodies). Fully derivative — rebuilt from source files on every index pass.
+CREATE TABLE IF NOT EXISTS links (
+  from_file TEXT NOT NULL,
+  rel TEXT NOT NULL,
+  to_id TEXT NOT NULL,
+  PRIMARY KEY (from_file, rel, to_id)
+);
 -- Standalone FTS table (not content=chunks): we index a CJK-bigram-segmented
 -- copy of the text in 'seg' so compound CJK queries match, while 'heading' and
 -- 'content' hold the raw text for snippets. Kept in sync manually in buildIndex.
@@ -243,7 +382,7 @@ CREATE VIRTUAL TABLE IF NOT EXISTS chunks_fts USING fts5(
 `;
 
 /** Schema version: bump when the FTS layout changes to force a clean rebuild. */
-const SCHEMA_VERSION = 3;
+const SCHEMA_VERSION = 4;
 
 /** Open (or create) the index database and apply the schema. */
 export function openDb(paths: MemPaths): Database.Database {
@@ -259,6 +398,7 @@ export function openDb(paths: MemPaths): Database.Database {
       DROP TRIGGER IF EXISTS chunks_ai;
       DROP TRIGGER IF EXISTS chunks_ad;
       DROP TABLE IF EXISTS chunk_embeddings;
+      DROP TABLE IF EXISTS links;
       DROP TABLE IF EXISTS chunks;
       DROP TABLE IF EXISTS files;
     `);
@@ -433,6 +573,10 @@ export function buildIndex(paths: MemPaths): IndexStats {
     "INSERT INTO chunks(file, heading, content, doc_type, logged_at, agent, status, superseded_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?)"
   );
   const insFts = db.prepare("INSERT INTO chunks_fts(rowid, heading, content, seg) VALUES (?, ?, ?, ?)");
+  const delLinks = db.prepare("DELETE FROM links WHERE from_file = ?");
+  const insLink = db.prepare(
+    "INSERT INTO links(from_file, rel, to_id) VALUES (?, ?, ?) ON CONFLICT(from_file, rel, to_id) DO NOTHING"
+  );
 
   const tx = db.transaction(() => {
     for (const rel of files) {
@@ -441,10 +585,14 @@ export function buildIndex(paths: MemPaths): IndexStats {
       const row = getHash.get(rel) as { hash: string } | undefined;
       if (row && row.hash === hash) continue;
       delChunks(rel);
+      delLinks.run(rel);
       for (const c of chunkFile(paths.memDir, rel)) {
         const info = insChunk.run(c.file, c.heading, c.content, c.docType, c.loggedAt, c.agent, c.status, c.supersededBy);
         insFts.run(info.lastInsertRowid, c.heading, c.content, segmentCjk(`${c.heading}\n${c.content}`));
         stats.chunks++;
+      }
+      if (classifyDocType(rel) === "decision") {
+        for (const l of extractDecisionLinks(rel, content)) insLink.run(l.fromFile, l.rel, l.toId);
       }
       upsertFile.run(rel, hash, new Date().toISOString());
       stats.indexed++;
@@ -453,6 +601,7 @@ export function buildIndex(paths: MemPaths): IndexStats {
     for (const p of known) {
       if (!files.includes(p)) {
         delChunks(p);
+        delLinks.run(p);
         db.prepare("DELETE FROM files WHERE path = ?").run(p);
         stats.removed++;
       }
@@ -724,6 +873,7 @@ export function search(
     }[];
 
     const getRef = conn.prepare("SELECT ref_count FROM refs WHERE file = ? AND heading = ?");
+    const getInbound = conn.prepare("SELECT COUNT(*) AS n FROM links WHERE to_id = ?");
     const getEmb = conn.prepare("SELECT embedding FROM chunk_embeddings WHERE chunk_id = ?");
 
     // Semantic mode needs a precomputed query vector (searchAsync embeds it).
@@ -746,7 +896,15 @@ export function search(
       const statusPenalty = r.status === "active" ? 1 : 0.1;
       const refRow = getRef.get(r.file, r.heading) as { ref_count: number } | undefined;
       const refCount = refRow?.ref_count ?? 0;
-      const refBoost = 1 + config.ref_weight * Math.log(1 + refCount);
+      // Structural in-degree: decisions referenced by other decisions (links
+      // table) are more load-bearing than mere search-hit counts, so they
+      // weigh double inside the same ref_boost signal.
+      let inbound = 0;
+      const seq = seqFromDecisionPath(r.file);
+      if (seq !== null) {
+        inbound = (getInbound.get(decisionId(seq)) as { n: number }).n;
+      }
+      const refBoost = 1 + config.ref_weight * Math.log(1 + refCount + 2 * inbound);
       const ib = intentBoost(intent, r.doc_type);
       const fb = feedbackPenalty(conn, r.file, r.heading);
       const score = relevance * td * statusPenalty * refBoost * ib * fb;

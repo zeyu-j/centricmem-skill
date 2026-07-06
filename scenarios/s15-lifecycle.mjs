@@ -5,7 +5,7 @@ import { tmpdir, runCli, importDist } from "./_lib.mjs";
 
 const ws = tmpdir("s15");
 const { initProject, logDecision, logLesson, updateContext, healthCheck, listDecisions } = await importDist("memory.js");
-const { logSession } = await importDist("session.js");
+const { logSession } = await importDist("memory.js");
 const { buildIndex, search } = await importDist("indexer.js");
 const { resolvePaths } = await importDist("core.js");
 

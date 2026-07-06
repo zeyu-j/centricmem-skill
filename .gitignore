@@ -1,5 +1,8 @@
 node_modules/
-dist/
-.centricmem/
-*.log
+*.tgz
 .DS_Store
+.centricmem/.index/
+*.db
+*.db-journal
+*.db-wal
+*.db-shm

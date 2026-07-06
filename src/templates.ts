@@ -88,17 +88,21 @@ export function decisionTemplate(opts: {
   loggedAt: string;
   tags?: string[];
   supersedes?: number;
+  refs?: number[];
 }): string {
   const id = String(opts.seq).padStart(4, "0");
   const tagsLine = opts.tags?.length ? `\n- **Tags**: ${opts.tags.join(", ")}` : "";
   const supersedesLine = opts.supersedes
     ? `\n- **Supersedes**: #${String(opts.supersedes).padStart(4, "0")}`
     : "";
+  const refsLine = opts.refs?.length
+    ? `\n- **Refs**: ${opts.refs.map((r) => `#${String(r).padStart(4, "0")}`).join(", ")}`
+    : "";
   return `# ${id}. ${opts.title}
 
 - **Status**: Accepted
 - **Logged at**: ${opts.loggedAt}
-- **Logged by**: ${opts.agent}${tagsLine}${supersedesLine}
+- **Logged by**: ${opts.agent}${tagsLine}${supersedesLine}${refsLine}
 
 ## Context
 

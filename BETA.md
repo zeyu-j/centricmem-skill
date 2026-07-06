@@ -1,10 +1,10 @@
-# CentricMem Beta Guide (v0.9)
+# CentricMem Beta Guide (v0.10)
 
 ## Install from source
 
 ```bash
 git clone https://github.com/zeyu-j/centricmem-skill.git
-cd centricmem-skill
+cd centricmem
 npm install
 npm run build
 npm link
@@ -13,7 +13,7 @@ npm link
 ## Workspace setup
 
 ```bash
-cd <your-workspace-root>
+cd <your-workspace-root>   # e.g. E:\Reasonix
 centricmem setup --link-all --migrate-discover --install-skill --install-hooks
 ```
 
@@ -46,13 +46,20 @@ It is **not** the local indexer. Local search always uses `centricmem search` + 
 
 `centricmem-mcp` is optional/legacy for Cursor users who want tool-based access.
 
-### Environment
+### Reasonix config
 
-Point agents at your workspace root:
+Edit `~/.reasonix/config.json`:
 
-```bash
-CENTRICMEM_WORKSPACE=/path/to/your/workspace
-CENTRICMEM_PROJECT=<optional-current-slug>
+```json
+{
+  "projects": {
+    "E:\\Reasonix": {
+      "env": {
+        "CENTRICMEM_WORKSPACE": "E:\\Reasonix"
+      }
+    }
+  }
+}
 ```
 
 Optional Drive MCP — run `centricmem setup --drive-mcp-hint` for a template.
@@ -60,8 +67,8 @@ Optional Drive MCP — run `centricmem setup --drive-mcp-hint` for a template.
 ## Multi-project
 
 ```bash
-centricmem link my-app
-centricmem use my-app
+centricmem link icegreen-bots
+centricmem use icegreen-bots
 centricmem projects
 centricmem search "redis" --all
 ```
@@ -86,7 +93,7 @@ centricmem search "redis" --all
 
 ```bash
 centricmem import bundle.json
-centricmem classify decisions/0001-use-redis.md --to my-app
+centricmem classify decisions/0001-use-redis.md --to icegreen-bots
 ```
 
 ## Migrating from v0.7 (single .centricmem/)

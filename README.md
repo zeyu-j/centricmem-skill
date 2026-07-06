@@ -1,107 +1,141 @@
 # CentricMem
 
-Cross-agent **workspace memory** — Skill-first, local Markdown + SQLite FTS5 (+ optional semantic search).
+**Give your AI agents a memory that outlives the chat.**
 
-```text
-Agent (Skill) → centricmem CLI → .centricmem/projects/<name>/ → local indexer
-Optional: Drive MCP syncs projects/ to cloud (see SYNC.md)
+Every time you start a new conversation, the agent forgets what you decided last week, what pitfalls you hit, and what the project is actually about. CentricMem fixes that — locally, on your machine, in plain files you can read and version-control.
+
+---
+
+## What it is
+
+CentricMem is a **project memory layer** for AI coding agents (Cursor, Claude Code, and others). It stores what matters about your work — decisions, lessons, current focus, session notes — and helps agents find the right context at the right time.
+
+Think of it as a **shared project journal** that any agent can read and contribute to, without sending your history to a cloud memory service.
+
+```
+You + Agent  →  CentricMem  →  .centricmem/  (Markdown on disk)
+                    ↑
+              remembers across sessions
 ```
 
-## Workspace layout
+---
 
-```text
+## Why memory needs structure
+
+Not all memories are the same. CentricMem organizes them by *what they are for*, not just by keyword:
+
+| Kind of memory | What it holds | Example |
+|----------------|---------------|---------|
+| **Context** | What you're working on *right now* | "Refactoring auth module" |
+| **Decisions** | Choices you made and *why* | "We chose SQLite because offline-first" |
+| **Lessons** | Mistakes and how to avoid them | "Don't use sync writes on the hot path" |
+| **Sessions** | What happened in a work session | "Shipped login flow, tests still flaky" |
+| **Rules** | Stable conventions for the project | "Always run tests before commit" |
+
+Agents don't need to memorize your stack — they read this structure and stay aligned.
+
+---
+
+## Memory that connects
+
+Decisions don't live in isolation. When one choice builds on another, CentricMem tracks the link:
+
+- Mention `#0003` in a decision → the connection is indexed automatically
+- Ask *"what does decision 5 depend on?"* → `centricmem refs 5` walks the graph
+- Frequently referenced decisions surface first in search
+
+**Tags** group by topic (`auth`, `database`). **Supersedes** shows how ideas evolve over time. **Links** show how ideas relate. Three layers, one coherent picture.
+
+---
+
+## Implicit memory (it just works)
+
+Good memory shouldn't require saying "remember this" every five minutes.
+
+- **Session start** — a short preflight summary loads automatically (`centricmem ambient`)
+- **Session end** — progress can be logged with one line (`centricmem log-session`)
+- **Hooks** — optional Cursor hooks handle ambient + indexing without you thinking about it
+
+High-value moments (architecture choices, hard lessons) still get curated explicitly. Everything else is captured lightly in the background.
+
+---
+
+## Get started
+
+```bash
+git clone https://github.com/zeyu-j/centricmem-skill.git
+cd centricmem-skill
+npm install && npm run build && npm link
+
+cd <your-project-folder>
+centricmem setup --install-skill --install-hooks
+```
+
+That's it. Your agent reads `skills/centricmem-agent/SKILL.md` and knows how to use memory from there.
+
+**Typical workflow:**
+
+1. Agent loads context at session start (automatic with hooks)
+2. Before big assumptions → search memory: `centricmem search "auth strategy"`
+3. After a significant choice → log it: `centricmem log-decision --title "..." --context "..." --decision "..."`
+4. Before ending → `centricmem log-session "what we accomplished"`
+
+---
+
+## Multi-project workspaces
+
+One folder can hold memory for several projects (monorepo, side projects, client work):
+
+```
 .centricmem/
   workspace.json
   projects/
-    unclassified/       # default import bucket
-    my-app/             # linked projects
-      AGENTS.md
-      decisions/
-      sessions/
-      .index/memory.db
+    my-app/
+    another-service/
+    unclassified/    ← imports land here first, then you classify
 ```
 
-## Quick Start
+Link a subfolder: `centricmem link ./my-app`  
+Switch focus: `centricmem use my-app`  
+Search everywhere: `centricmem search "redis" --all`
 
-```bash
-npm install
-npm run build
-npm link
+---
 
-cd <workspace-root>
-centricmem setup --link-all --migrate-discover --install-skill --install-hooks
-```
+## For agents vs for humans
 
-See [BETA.md](./BETA.md) for the full beta guide.
+| | Agents | Humans |
+|---|--------|--------|
+| **Primary path** | Read the Skill → use CLI commands | Browse `.centricmem/projects/<name>/` in your editor |
+| **Decisions** | `centricmem log-decision` | Read `decisions/0001-*.md` — plain Markdown, git-friendly |
+| **Deep dive** | `centricmem route "your question"` suggests how to retrieve | [PRODUCT.md](./PRODUCT.md) explains the full memory model |
 
-### Core commands
+MCP and cloud sync are **optional** — for backing up or syncing memory to Drive. The core works fully offline.
 
-```bash
-centricmem ambient                    # session-start preflight (implicit memory)
-centricmem search "redis" --all       # BM25; add --semantic for hybrid, --explain for scores
-centricmem log-decision --title "Use Redis" --context "..." --decision "..."
-centricmem log-session "Migrated auth to NextAuth"
-centricmem import bundle.json
-centricmem suggest-classify decisions/0001-x.md
-centricmem classify decisions/0001-x.md --to my-app
-centricmem promote --from-distill     # then --pattern "..." --confirm
-centricmem status --workspace         # unclassified backlog + per-project health
-```
+---
 
-## Agent integration (recommended)
+## What's in the box
 
-Follow **`skills/centricmem-agent/SKILL.md`** (installed by `centricmem setup --install-skill`):
+- Local-first storage (Markdown + searchable index)
+- Cross-agent memory (Cursor today, others tomorrow)
+- Decision history with evolution chains (supersede, not delete)
+- Memory links between related decisions
+- Import from Cursor rules, memory-bank, and other formats
+- Workspace hub for multiple projects
 
-- Session start: `centricmem ambient` (hooks can automate this)
-- Search via `centricmem search` (local indexer)
-- Curate high-value memory: decisions, lessons, session summaries
-- Import any source via **ImportBundle** → `centricmem import`
+---
 
-## MCP
+## Documentation
 
-| Role | What |
-|------|------|
-| **Drive / cloud MCP** | Optional — sync `.centricmem/projects/` to external storage ([SYNC.md](./SYNC.md)) |
-| **centricmem-mcp** | Optional/legacy tool wrapper. Prefer Skill + CLI. |
+| Doc | For |
+|-----|-----|
+| [BETA.md](./BETA.md) | Install, configure, troubleshoot |
+| [PRODUCT.md](./PRODUCT.md) | Memory architecture (design source of truth) |
+| [ARCHITECTURE.md](./ARCHITECTURE.md) | Technical implementation |
+| [SYNC.md](./SYNC.md) | Optional cloud sync contract |
 
-Env: `CENTRICMEM_WORKSPACE`, `CENTRICMEM_PROJECT`
-
-## Features
-
-- Workspace multi-project hub with `unclassified` staging
-- Episodic `sessions/` layer + implicit `ambient` preflight
-- ImportBundle generic import (decisions/lessons/rules/sessions/research)
-- Local FTS5 + BM25 + intent router + temporal decay + negative feedback (`dismiss`)
-- Optional hybrid semantic search (`--semantic`, OpenAI-compatible embedding API)
-- Decision supersede chains, promote-to-rules workflow, Memory Map
-
-## Semantic search (optional)
-
-Per-project `config.json`:
-
-```json
-{
-  "embedding": {
-    "provider": "openai",
-    "model": "text-embedding-3-small",
-    "api_key_env": "OPENAI_API_KEY",
-    "hybrid_alpha": 0.6
-  }
-}
-```
-
-Then `centricmem index --embed` and `centricmem search "..." --semantic`.
-API keys are read from env only — never stored in memory files.
-
-## Known limitations
-
-- Emoji not searchable (FTS5 unicode61)
-- Semantic mode requires network + API key (BM25 works offline)
-- No cross-project memory graph yet (roadmap)
+---
 
 ## License
 
-[PolyForm Noncommercial 1.0.0](./LICENSE) — free for personal, research, and noncommercial use.
-Copies must retain the license and the Required Notice (attribution). **Commercial use is not permitted** without a separate license from the author.
-
-Design: [PRODUCT.md](./PRODUCT.md) · Implementation: [ARCHITECTURE.md](./ARCHITECTURE.md) · Sync: [SYNC.md](./SYNC.md) · Beta: [BETA.md](./BETA.md)
+[PolyForm Noncommercial 1.0.0](./LICENSE) — free for personal, research, and noncommercial use.  
+Copies must retain the license and attribution. **Commercial use requires a separate license.**

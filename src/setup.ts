@@ -102,7 +102,7 @@ export function printDriveMcpHint(workspaceRoot: string): void {
   console.log("MCP is for external sync only (not local indexing).");
   console.log("Add a Drive MCP server to your agent config, then sync:");
   console.log(`  ${path.join(workspaceRoot, ".centricmem", "projects")}`);
-  console.log("\nAgent MCP config example:");
+  console.log("\nReasonix (~/.reasonix/config.json) example:");
   console.log(JSON.stringify(
     {
       mcpServers: {

@@ -187,12 +187,10 @@ test("searchAll finds across projects", () => {
   assert.ok(hits.some((h: { projectSlug?: string }) => h.projectSlug === slug));
 });
 
-const { logSession, readRecentSessions } = await import(toImport(path.join(distDir, "session.js")));
-const { routeQuery } = await import(toImport(path.join(distDir, "route.js")));
-const { promoteToRules, distill } = await import(toImport(path.join(distDir, "memory.js")));
-const { dismissChunk } = await import(toImport(path.join(distDir, "indexer.js")));
+const { logSession, readRecentSessions, promoteToRules, distill } = await import(toImport(path.join(distDir, "memory.js")));
+const { routeQuery, buildAmbient } = await import(toImport(path.join(distDir, "retrieve.js")));
+const { dismissChunk, extractDecisionLinks, getLinks, decisionId } = await import(toImport(path.join(distDir, "indexer.js")));
 const { suggestClassify } = await import(toImport(path.join(distDir, "workspace.js")));
-const { buildAmbient } = await import(toImport(path.join(distDir, "ambient.js")));
 
 test("logSession appends to sessions/", () => {
   const ws = freshDir("t14-session");
@@ -209,6 +207,63 @@ test("route returns retrieval action", () => {
   assert.strictEqual(r.intent, "decision");
   const c = routeQuery("当前在做什么");
   assert.strictEqual(c.action, "read_context");
+  const l = routeQuery("0003 依赖哪些决策");
+  assert.strictEqual(l.action, "refs");
+});
+
+test("extractDecisionLinks parses supersedes, refs and mentions", () => {
+  const content = [
+    "# 0003. Use Redis",
+    "",
+    "- **Status**: Accepted",
+    "- **Supersedes**: #0002",
+    "- **Refs**: #0001",
+    "",
+    "## Decision",
+    "",
+    "延续 #0001 的缓存策略，同时参考 #0004 的连接池设置。也提到自身 #0003。",
+  ].join("\n");
+  const links = extractDecisionLinks("decisions/0003-use-redis.md", content);
+  const byKey = new Map(links.map((l: { rel: string; toId: string }) => [`${l.rel}|${l.toId}`, l]));
+  assert.ok(byKey.has("supersedes|decision:0002"));
+  assert.ok(byKey.has("refs|decision:0001"), "explicit ref extracted");
+  assert.ok(!byKey.has("mentions|decision:0001"), "explicit ref suppresses mentions edge");
+  assert.ok(byKey.has("mentions|decision:0004"), "inline mention extracted");
+  assert.ok(![...byKey.keys()].some((k) => (k as string).endsWith("decision:0003")), "self-reference dropped");
+});
+
+test("links land in index and getLinks walks both directions", () => {
+  const ws = freshDir("t23-links");
+  initProject(ws);
+  logDecision(ws, { title: "Base cache strategy", context: "c", decision: "d", agent: "test" });
+  logDecision(ws, { title: "Redis rate limit", context: "builds on #0001", decision: "redis", agent: "test", refs: [1] });
+  const paths = resolvePaths(ws);
+  buildIndex(paths);
+
+  const fromTwo = getLinks(paths, 2);
+  const rootOut = fromTwo.get(decisionId(2))?.out ?? [];
+  assert.ok(rootOut.some((e: { rel: string; toId: string }) => e.rel === "refs" && e.toId === "decision:0001"));
+
+  const fromOne = getLinks(paths, 1);
+  const rootIn = fromOne.get(decisionId(1))?.in ?? [];
+  assert.ok(rootIn.some((e: { fromFile: string }) => e.fromFile.includes("0002")), "inbound edge visible from target");
+});
+
+test("refs boost ranking of referenced decisions", () => {
+  const ws = freshDir("t24-refboost");
+  initProject(ws);
+  logDecision(ws, { title: "CachePolicy alpha", context: "x", decision: "y", agent: "test" });
+  logDecision(ws, { title: "CachePolicy beta", context: "x", decision: "y", agent: "test", refs: [1] });
+  const paths = resolvePaths(ws);
+  buildIndex(paths);
+  const results = search(paths, "CachePolicy", 5, undefined, undefined, { explain: true });
+  const alpha = results.find((r: { heading: string }) => r.heading.includes("alpha"));
+  const beta = results.find((r: { heading: string }) => r.heading.includes("beta"));
+  assert.ok(alpha && beta);
+  assert.ok(
+    alpha!.explain!.refBoost > beta!.explain!.refBoost,
+    `referenced decision should have higher refBoost (${alpha!.explain!.refBoost} vs ${beta!.explain!.refBoost})`,
+  );
 });
 
 test("promote requires confirm", () => {
@@ -249,16 +304,16 @@ test("dismiss down-ranks chunk", () => {
 test("suggestClassify scores projects", () => {
   const ws = freshDir("t18-classify");
   initProject(ws);
-  fs.mkdirSync(path.join(ws, "acme-app"));
-  fs.writeFileSync(path.join(ws, "acme-app", "package.json"), "{}");
-  linkProject(ws, "acme-app");
+  fs.mkdirSync(path.join(ws, "icegreen-bots"));
+  fs.writeFileSync(path.join(ws, "icegreen-bots", "package.json"), "{}");
+  linkProject(ws, "icegreen-bots");
   const bundle = parseImportBundle({
     version: 1,
     project: UNCLASSIFIED,
-    decisions: [{ title: "acme-app deployment", context: "deploy", decision: "k8s" }],
+    decisions: [{ title: "icegreen-bots deployment", context: "deploy", decision: "k8s" }],
   });
   importBundle(ws, bundle);
-  const suggestions = suggestClassify(ws, "decisions/0001-acme-app-deployment.md");
+  const suggestions = suggestClassify(ws, "decisions/0001-icegreen-bots-deployment.md");
   assert.ok(suggestions.length > 0);
 });
 

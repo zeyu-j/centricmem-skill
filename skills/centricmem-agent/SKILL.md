@@ -3,7 +3,7 @@ name: centricmem-agent
 description: CentricMem workspace memory — implicit-first local memory OS. Ambient context loads automatically; curate high-value memories only.
 ---
 
-# CentricMem Agent Skill v0.9
+# CentricMem Agent Skill v0.10
 
 > **设计真源**：[PRODUCT.md](../../PRODUCT.md) — 记忆架构、存储、检索、隐式记忆原则。
 
@@ -42,6 +42,7 @@ Session start: run `centricmem ambient` (or read `.centricmem/.ambient.md`).
 | 「为什么选 X」 | `centricmem search` (intent=decision) |
 | 「当前在做什么」 | read active_context |
 | 「踩过什么坑」 | `search` + type=lessons |
+| 「X 依赖/引用什么」 | `centricmem refs <seq>` (link traversal) |
 | 调研/外部资料 | `search` + type=imported |
 | 不确定关键词 | Memory Map → refine → search |
 | 跨项目 | `centricmem search --all` |
@@ -66,6 +67,8 @@ Follow recorded decisions unless human overrides. Do not write memory on every t
 | **Rules** | repeated pattern | `centricmem promote --from-distill` then `--confirm` |
 
 Sessions auto-capture; decisions need human alignment. **Always `log-session` before ending a session.**
+
+**Memory Links**: mention `#NNNN` in a decision body and the link is indexed automatically. For curated references use `--refs "1,4"`. Walk the graph with `centricmem refs <seq>`.
 
 ## Generic Import
 
