@@ -17,6 +17,99 @@ import { sha256, ensureDir, loadConfig, resolvePaths } from "./core.js";
 import { loadWorkspace } from "./workspace.js";
 import { embedTexts, isEmbeddingEnabled, vectorToBlob, blobToVector, cosineSimilarity, } from "./embedding.js";
 // ---------------------------------------------------------------------------
+// YAML frontmatter (corpus metadata)
+// ---------------------------------------------------------------------------
+const HOT_COLUMN_SQL = {
+    civilization: "meta_civilization",
+    type: "meta_type",
+    has_incantation: "meta_has_incantation",
+};
+/** Parse a minimal YAML block (scalars, booleans, inline lists). */
+function parseSimpleYaml(yaml) {
+    const meta = {};
+    for (const line of yaml.split("\n")) {
+        const trimmed = line.trim();
+        if (!trimmed || trimmed.startsWith("#"))
+            continue;
+        const m = /^([a-zA-Z_][\w-]*)\s*:\s*(.+)$/.exec(trimmed);
+        if (!m)
+            continue;
+        const key = m[1];
+        let val = m[2].trim();
+        if (val.startsWith("[") && val.endsWith("]")) {
+            meta[key] = val
+                .slice(1, -1)
+                .split(",")
+                .map((s) => s.trim().replace(/^['"]|['"]$/g, ""))
+                .filter(Boolean);
+        }
+        else if (val === "true" || val === "false") {
+            meta[key] = val === "true";
+        }
+        else {
+            meta[key] = val.replace(/^['"]|['"]$/g, "");
+        }
+    }
+    return meta;
+}
+/** Split leading `---` YAML frontmatter from markdown body. */
+export function parseYamlFrontmatter(content) {
+    if (!content.startsWith("---"))
+        return { meta: {}, body: content };
+    const end = content.indexOf("\n---", 3);
+    if (end === -1)
+        return { meta: {}, body: content };
+    const yamlBlock = content.slice(3, end).trim();
+    const body = content.slice(end + 4).replace(/^\n/, "");
+    return { meta: parseSimpleYaml(yamlBlock), body };
+}
+function hotColumnValues(meta, hotCols) {
+    let civilization = null;
+    let type = null;
+    let has_incantation = null;
+    if (hotCols.includes("civilization") && typeof meta.civilization === "string")
+        civilization = meta.civilization;
+    if (hotCols.includes("type") && typeof meta.type === "string")
+        type = meta.type;
+    if (hotCols.includes("has_incantation")) {
+        const v = meta.has_incantation;
+        if (v === true || v === "true" || v === 1 || v === "1")
+            has_incantation = 1;
+        else if (v === false || v === "false" || v === 0 || v === "0")
+            has_incantation = 0;
+    }
+    return { civilization, type, has_incantation };
+}
+function domainBoostForFile(file, query, config) {
+    const dims = config.domain_boost?.dimensions;
+    if (!dims)
+        return 1;
+    const q = query.toLowerCase();
+    const normFile = normalizeRelPath(file);
+    const defaultBoost = config.domain_boost?.default_boost ?? 1.5;
+    let boost = 1;
+    for (const dim of Object.values(dims)) {
+        const prefix = dim.path_prefix.replace(/\\/g, "/");
+        const hit = dim.keywords.some((kw) => q.includes(kw.toLowerCase()));
+        if (hit && normFile.startsWith(prefix))
+            boost = Math.max(boost, dim.boost ?? defaultBoost);
+    }
+    return boost;
+}
+function metaFilterSql(key, value, hotEnabled, hotCols) {
+    const hotCol = hotEnabled && hotCols.includes(key) ? HOT_COLUMN_SQL[key] : undefined;
+    if (hotCol === "meta_has_incantation") {
+        const n = value === "true" || value === "1" ? 1 : 0;
+        return { sql: `c.${hotCol} = ?`, param: n };
+    }
+    if (hotCol)
+        return { sql: `c.${hotCol} = ?`, param: value };
+    if (value === "true" || value === "false") {
+        return { sql: `json_extract(cm.meta_json, '$.${key}') = ?`, param: value === "true" ? 1 : 0 };
+    }
+    return { sql: `json_extract(cm.meta_json, '$.${key}') = ?`, param: value };
+}
+// ---------------------------------------------------------------------------
 // Chunking
 // ---------------------------------------------------------------------------
 function classifyDocType(relPath) {
@@ -81,21 +174,24 @@ function splitByHeadings(content) {
 }
 export function chunkFile(memDir, relPath) {
     const abs = path.join(memDir, relPath);
-    const content = fs.readFileSync(abs, "utf8");
+    const raw = fs.readFileSync(abs, "utf8");
+    const { meta: fmMeta, body } = parseYamlFrontmatter(raw);
+    const content = Object.keys(fmMeta).length ? body : raw;
     const docType = classifyDocType(relPath);
-    const meta = extractMeta(content);
+    const meta = Object.keys(fmMeta).length ? fmMeta : undefined;
+    const metaExtract = extractMeta(content);
     const mtime = fs.statSync(abs).mtime.toISOString();
-    const loggedAt = meta.loggedAt || mtime;
-    const agent = meta.agent || "unknown";
-    const status = meta.status || "active";
-    const supersededBy = meta.supersededBy || "";
+    const loggedAt = metaExtract.loggedAt || mtime;
+    const agent = metaExtract.agent || "unknown";
+    const status = metaExtract.status || "active";
+    const supersededBy = metaExtract.supersededBy || "";
     if (docType === "decision") {
         const h1 = content.split("\n").find((l) => l.startsWith("# "));
         // Strip the H1 and metadata bullet lines from the indexed body so FTS5
         // snippets start at the real content (Context/Decision) instead of
         // "- **Status**: Accepted - **Logged at**: …". Metadata stays searchable
         // via the heading and structured columns.
-        const body = content
+        const bodyText = content
             .split("\n")
             .filter((l) => !l.startsWith("# ") && !/^- \*\*(Status|Logged at|Logged by|Tags|Supersedes|Superseded by)\*\*:/.test(l))
             .join("\n")
@@ -106,7 +202,7 @@ export function chunkFile(memDir, relPath) {
         const tagsText = tagsLine
             ? "\ntags: " + tagsLine[1].split(",").map((t) => t.trim()).filter(Boolean).join(" ")
             : "";
-        return [{ file: relPath, heading: h1 ? h1.slice(2).trim() : relPath, content: (body || content) + tagsText, docType, loggedAt, agent, status, supersededBy }];
+        return [{ file: relPath, heading: h1 ? h1.slice(2).trim() : relPath, content: (bodyText || content) + tagsText, docType, loggedAt, agent, status, supersededBy, meta }];
     }
     return splitByHeadings(content).map((c) => {
         // Per-chunk agent attribution: imported rule blocks carry their own
@@ -114,7 +210,7 @@ export function chunkFile(memDir, relPath) {
         const imp = /\(imported\s+(\S+?)\s+by\s+([\w-]+)\)/.exec(c.body);
         return {
             file: relPath, heading: c.heading, content: c.body, docType,
-            loggedAt: imp?.[1] ?? loggedAt, agent: imp?.[2] ?? agent, status, supersededBy,
+            loggedAt: imp?.[1] ?? loggedAt, agent: imp?.[2] ?? agent, status, supersededBy, meta,
         };
     });
 }
@@ -241,7 +337,14 @@ CREATE TABLE IF NOT EXISTS chunks (
   logged_at TEXT NOT NULL,
   agent TEXT NOT NULL,
   status TEXT NOT NULL DEFAULT 'active',
-  superseded_by TEXT NOT NULL DEFAULT ''
+  superseded_by TEXT NOT NULL DEFAULT '',
+  meta_civilization TEXT,
+  meta_type TEXT,
+  meta_has_incantation INTEGER
+);
+CREATE TABLE IF NOT EXISTS chunk_meta (
+  chunk_id INTEGER PRIMARY KEY,
+  meta_json TEXT NOT NULL
 );
 CREATE TABLE IF NOT EXISTS refs (
   file TEXT NOT NULL,
@@ -277,7 +380,7 @@ CREATE VIRTUAL TABLE IF NOT EXISTS chunks_fts USING fts5(
 );
 `;
 /** Schema version: bump when the FTS layout changes to force a clean rebuild. */
-const SCHEMA_VERSION = 4;
+const SCHEMA_VERSION = 5;
 /** Open (or create) the index database and apply the schema. */
 export function openDb(paths) {
     ensureDir(paths.indexDir);
@@ -291,6 +394,7 @@ export function openDb(paths) {
       DROP TABLE IF EXISTS chunks_fts;
       DROP TRIGGER IF EXISTS chunks_ai;
       DROP TRIGGER IF EXISTS chunks_ad;
+      DROP TABLE IF EXISTS chunk_meta;
       DROP TABLE IF EXISTS chunk_embeddings;
       DROP TABLE IF EXISTS links;
       DROP TABLE IF EXISTS chunks;
@@ -443,22 +547,28 @@ export function updateMemoryMap(paths, stats) {
 /** Incrementally (re)build the index. Always opens its own connection and closes it. */
 export function buildIndex(paths) {
     const db = openDb(paths);
+    const config = loadConfig(paths);
+    const hotEnabled = config.metadata?.hot_columns_enabled ?? false;
+    const hotCols = config.metadata?.hot_columns ?? ["civilization", "type", "has_incantation"];
     const files = listMarkdownFiles(paths.memDir);
     const stats = { scanned: files.length, indexed: 0, removed: 0, chunks: 0 };
     const getHash = db.prepare("SELECT hash FROM files WHERE path = ?");
     const upsertFile = db.prepare("INSERT INTO files(path, hash, indexed_at) VALUES (?, ?, ?) ON CONFLICT(path) DO UPDATE SET hash=excluded.hash, indexed_at=excluded.indexed_at");
     const selChunkIds = db.prepare("SELECT id FROM chunks WHERE file = ?");
+    const delMeta = db.prepare("DELETE FROM chunk_meta WHERE chunk_id = ?");
     const delEmb = db.prepare("DELETE FROM chunk_embeddings WHERE chunk_id = ?");
     const delFts = db.prepare("DELETE FROM chunks_fts WHERE rowid = ?");
     const delChunksStmt = db.prepare("DELETE FROM chunks WHERE file = ?");
     const delChunks = (rel) => {
         for (const r of selChunkIds.all(rel)) {
+            delMeta.run(r.id);
             delFts.run(r.id);
             delEmb.run(r.id);
         }
         delChunksStmt.run(rel);
     };
-    const insChunk = db.prepare("INSERT INTO chunks(file, heading, content, doc_type, logged_at, agent, status, superseded_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
+    const insChunk = db.prepare("INSERT INTO chunks(file, heading, content, doc_type, logged_at, agent, status, superseded_by, meta_civilization, meta_type, meta_has_incantation) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+    const insMeta = db.prepare("INSERT INTO chunk_meta(chunk_id, meta_json) VALUES (?, ?)");
     const insFts = db.prepare("INSERT INTO chunks_fts(rowid, heading, content, seg) VALUES (?, ?, ?, ?)");
     const delLinks = db.prepare("DELETE FROM links WHERE from_file = ?");
     const insLink = db.prepare("INSERT INTO links(from_file, rel, to_id) VALUES (?, ?, ?) ON CONFLICT(from_file, rel, to_id) DO NOTHING");
@@ -472,8 +582,13 @@ export function buildIndex(paths) {
             delChunks(rel);
             delLinks.run(rel);
             for (const c of chunkFile(paths.memDir, rel)) {
-                const info = insChunk.run(c.file, c.heading, c.content, c.docType, c.loggedAt, c.agent, c.status, c.supersededBy);
-                insFts.run(info.lastInsertRowid, c.heading, c.content, segmentCjk(`${c.heading}\n${c.content}`));
+                const hot = c.meta && hotEnabled ? hotColumnValues(c.meta, hotCols) : { civilization: null, type: null, has_incantation: null };
+                const info = insChunk.run(c.file, c.heading, c.content, c.docType, c.loggedAt, c.agent, c.status, c.supersededBy, hot.civilization, hot.type, hot.has_incantation);
+                const chunkId = info.lastInsertRowid;
+                if (c.meta && Object.keys(c.meta).length) {
+                    insMeta.run(chunkId, JSON.stringify(c.meta));
+                }
+                insFts.run(chunkId, c.heading, c.content, segmentCjk(`${c.heading}\n${c.content}`));
                 stats.chunks++;
             }
             if (classifyDocType(rel) === "decision") {
@@ -700,11 +815,14 @@ export function search(paths, query, limit, filters, db, options) {
     const rawMax = limit ?? config.max_results;
     const max = Number.isFinite(Number(rawMax)) && Number(rawMax) > 0 ? Math.floor(Number(rawMax)) : config.max_results;
     const intent = classifyIntent(query);
+    const hotEnabled = config.metadata?.hot_columns_enabled ?? false;
+    const hotCols = config.metadata?.hot_columns ?? ["civilization", "type", "has_incantation"];
     const ownDb = !db;
     const conn = db ?? openDb(paths);
     const alpha = config.embedding?.hybrid_alpha ?? 0.6;
     const useSemantic = options?.semantic && (options.queryEmbedding?.length || isEmbeddingEnabled(config));
     try {
+        const needsMetaJoin = Boolean(filters?.meta && Object.keys(filters.meta).length);
         const conds = ["chunks_fts MATCH ?"];
         const params = [toFtsQuery(query)];
         if (filters?.type) {
@@ -719,12 +837,21 @@ export function search(paths, query, limit, filters, db, options) {
             conds.push("c.agent = ?");
             params.push(filters.agent.toLowerCase());
         }
+        if (filters?.meta) {
+            for (const [key, value] of Object.entries(filters.meta)) {
+                const { sql, param } = metaFilterSql(key, value, hotEnabled, hotCols);
+                conds.push(sql);
+                params.push(param);
+            }
+        }
         params.push(max * 5);
+        const joinMeta = needsMetaJoin ? "LEFT JOIN chunk_meta cm ON cm.chunk_id = c.id" : "";
         const rows = conn
             .prepare(`SELECT c.id, c.file, c.heading, c.doc_type, c.logged_at, c.agent, c.status, c.superseded_by,
                 snippet(chunks_fts, 1, '**', '**', ' … ', 24) AS snip,
                 bm25(chunks_fts, 4.0, 2.0, 1.0) AS rank
          FROM chunks_fts JOIN chunks c ON c.id = chunks_fts.rowid
+         ${joinMeta}
          WHERE ${conds.join(" AND ")}
          ORDER BY rank LIMIT ?`)
             .all(...params);
@@ -760,8 +887,9 @@ export function search(paths, query, limit, filters, db, options) {
             }
             const refBoost = 1 + config.ref_weight * Math.log(1 + refCount + 2 * inbound);
             const ib = intentBoost(intent, r.doc_type);
+            const dbBoost = domainBoostForFile(r.file, query, config);
             const fb = feedbackPenalty(conn, r.file, r.heading);
-            const score = relevance * td * statusPenalty * refBoost * ib * fb;
+            const score = relevance * td * statusPenalty * refBoost * ib * dbBoost * fb;
             const result = {
                 file: r.file,
                 heading: r.heading,
@@ -782,6 +910,7 @@ export function search(paths, query, limit, filters, db, options) {
                     statusPenalty,
                     refBoost,
                     intentBoost: ib,
+                    domainBoost: dbBoost,
                     feedbackPenalty: fb,
                     final: score,
                 };

@@ -21,6 +21,7 @@ const scenarios = [
   "s13-decay.mjs",
   "s14-intent.mjs",
   "s15-lifecycle.mjs",
+  "s16-academic-filter.mjs",
 ];
 
 let failures = 0;

@@ -1,4 +1,4 @@
-# CentricMem Architecture (v0.10)
+# CentricMem Architecture (v0.11.1)
 
 > **设计真源**：[PRODUCT.md](./PRODUCT.md)（记忆架构 / 存储 / 检索）  
 > 本文档描述**技术实现**与模块划分。
@@ -29,7 +29,7 @@ L2  External (optional)              — Drive MCP sync only; see SYNC.md
         .index/memory.db   # derivative — safe to delete and rebuild
 ```
 
-## Components (12 modules)
+## Components (13 modules)
 
 | Module | Role |
 |--------|------|
@@ -42,6 +42,7 @@ L2  External (optional)              — Drive MCP sync only; see SYNC.md
 | `import.ts` | ImportBundle v1 schema (Zod) + materialization |
 | `migrate.ts` | Legacy formats → ImportBundle |
 | `setup.ts` | Guided onboarding (skill + hooks install) |
+| `skill.ts` | Bundled vs installed Skill status (`skill status`) |
 | `templates.ts` | Markdown templates (decision, AGENTS, pointers) |
 | `cli.ts` | Primary user/agent surface |
 | `mcp-server.ts` | Optional legacy MCP tools (not the primary path) |
@@ -72,15 +73,23 @@ Typed edges between decisions, extracted from Markdown at index time (schema v4,
 ```text
 relevance = bm25_norm                        (default)
           = α·bm25_norm + (1-α)·cosine        (--semantic, α = embedding.hybrid_alpha)
-score     = relevance × time_decay × status_penalty × ref_boost × intent_boost × feedback_penalty
+score     = relevance × time_decay × status_penalty × ref_boost × intent_boost × domain_boost × feedback_penalty
 ```
 
 `search --explain` prints every signal. `centricmem dismiss` feeds `feedback_penalty`.
 `ref_boost = 1 + ref_weight · ln(1 + search_hits + 2·link_indegree)`.
+`domain_boost` — project `config.json` maps dimension keywords → `path_prefix` under `imported/` (default ×1.5).
+
+## Corpus metadata (schema v5)
+
+- YAML frontmatter on imported docs → `chunk_meta.meta_json`
+- Optional hot columns on `chunks` (`meta_civilization`, `meta_type`, `meta_has_incantation`) when `metadata.hot_columns_enabled`
+- CLI/MCP: `--filter key=value` / `meta: { key: value }`
+- ImportBundle `imported[].meta` + `rel_path` preserve corpus directory layout
 
 ## Index invariants
 
-- The SQLite index is fully derivative: schema bump (`SCHEMA_VERSION`) drops and rebuilds.
+- The SQLite index is fully derivative: schema bump (`SCHEMA_VERSION` = 5) drops and rebuilds.
 - Chunk paths are normalized to forward slashes (cross-platform).
 - Embeddings are cached by content hash; only stale chunks re-embed.
 - Links are re-extracted per file on every index pass (no stale edges).

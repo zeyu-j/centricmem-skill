@@ -2,7 +2,46 @@
 
 All notable changes to CentricMem will be documented in this file.
 
-## [0.10.0] - Memory Links + Architecture Consolidation (Current)
+## [0.11.1] - Skill Status
+
+### Added
+- **`centricmem skill status [name]`** — compare bundled vs installed Skill (`--json`, `--path`)
+- Status values: `ok` | `outdated` | `missing` | `modified` | `incompatible`
+- Skill frontmatter contract: `version`, `compatible_cli`, `changelog_url`
+- **`ambient`** appends one-line hint when Skill is not `ok`
+- `src/skill.ts`; 7 integration tests
+
+### Changed
+- `centricmem-agent` / `academic-db-agent` SKILL frontmatter updated to v0.11.1
+
+---
+
+## [0.11.0] - Corpus Metadata + Academic Domain
+
+### Added
+- **YAML frontmatter parsing** for imported corpus docs → `chunk_meta` table (schema v5)
+- **Generic metadata filter**: `centricmem search --filter civilization=chinese --filter type=recipe`
+- MCP `centricmem_search` optional `meta` parameter
+- **`domain_boost`** in project `config.json` — dimension keywords + `path_prefix` ranking signal
+- **P2 hot columns** (`meta_civilization`, `meta_type`, `meta_has_incantation`) — default off via `metadata.hot_columns_enabled`
+- ImportBundle: `imported[].meta`, `imported[].rel_path` (preserves corpus subdirs under `imported/`)
+- **`skills/academic-db-agent/SKILL.md`** + `setup --install-academic-skill`
+- **`templates/config.ancient-medicine.json`** — 15 comparison dimensions (L1 example config)
+- Academic routing in `retrieve.ts` (corpus / crosswalk query hints)
+- Scenario `s16-academic-filter.mjs`; 32 integration tests
+
+### Changed
+
+- PRODUCT §2.1 **Adapter in, not Platform out** — core does not bind specific Agent brands
+
+### Removed
+
+- Agent session directory discovery from core (`discoverAgentSessionDirs`); session observability stays out of L0
+
+### Docs
+- [ACADEMIC_DB_REPORT.md](./ACADEMIC_DB_REPORT.md) — academic corpus optimization report (9 sections)
+
+## [0.10.0] - Memory Links + Architecture Consolidation
 
 ### Added
 - **Memory Links layer** (PRODUCT §3.6): typed edges between decisions, extracted from Markdown at index time

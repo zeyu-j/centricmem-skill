@@ -29,6 +29,10 @@ export function runSetup(opts = {}) {
     if (opts.installSkill) {
         skillInstalled = installSkillToWorkspace(workspaceRoot);
     }
+    let academicSkillInstalled = false;
+    if (opts.installAcademicSkill) {
+        academicSkillInstalled = installAcademicSkillToWorkspace(workspaceRoot);
+    }
     let hooksInstalled = false;
     if (opts.installHooks) {
         hooksInstalled = installCursorHooks(workspaceRoot);
@@ -37,7 +41,17 @@ export function runSetup(opts = {}) {
         printDriveMcpHint(workspaceRoot);
     }
     buildIndexAll(workspaceRoot);
-    return { workspaceRoot, linked, migrated, skillInstalled, hooksInstalled };
+    return { workspaceRoot, linked, migrated, skillInstalled, academicSkillInstalled, hooksInstalled };
+}
+function installAcademicSkillToWorkspace(workspaceRoot) {
+    const here = path.dirname(fileURLToPath(import.meta.url));
+    const skillSrc = path.resolve(here, "../skills/academic-db-agent/SKILL.md");
+    if (!fs.existsSync(skillSrc))
+        return false;
+    const destDir = path.join(workspaceRoot, ".cursor", "skills", "academic-db-agent");
+    fs.mkdirSync(destDir, { recursive: true });
+    fs.copyFileSync(skillSrc, path.join(destDir, "SKILL.md"));
+    return true;
 }
 function installSkillToWorkspace(workspaceRoot) {
     const here = path.dirname(fileURLToPath(import.meta.url));

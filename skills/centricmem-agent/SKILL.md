@@ -1,9 +1,12 @@
 ---
 name: centricmem-agent
+version: 0.11.1
+compatible_cli: ">=0.11.0"
+changelog_url: https://github.com/zeyu-j/centricmem-skill/blob/main/CHANGELOG.md
 description: CentricMem workspace memory — implicit-first local memory OS. Ambient context loads automatically; curate high-value memories only.
 ---
 
-# CentricMem Agent Skill v0.10
+# CentricMem Agent Skill v0.11.1
 
 > **设计真源**：[PRODUCT.md](../../PRODUCT.md) — 记忆架构、存储、检索、隐式记忆原则。
 
@@ -14,7 +17,8 @@ Local memory: `.centricmem/projects/<slug>/`. Default import: `unclassified`.
 ## Setup
 
 ```bash
-npm install -g centricmem
+git clone https://github.com/zeyu-j/centricmem-skill.git
+cd centricmem-skill && npm install && npm run build && npm link
 cd <workspace-root>
 centricmem setup --link-all --migrate-discover --install-skill --install-hooks
 ```
@@ -33,6 +37,8 @@ Env: `CENTRICMEM_WORKSPACE`, `CENTRICMEM_PROJECT`.
 ## Step 1 — Load context (implicit)
 
 Session start: run `centricmem ambient` (or read `.centricmem/.ambient.md`).
+
+If `centricmem skill status` reports `outdated` or `missing`, tell the user once — run `centricmem setup --install-skill`. **Never** overwrite `.cursor/skills/` without confirmation. If `modified`, the user edited the Skill locally — respect their copy.
 
 **Retrieval routing** (or `centricmem route "<query>"`):
 
@@ -72,7 +78,19 @@ Sessions auto-capture; decisions need human alignment. **Always `log-session` be
 
 ## Generic Import
 
-See v0.8 ImportBundle workflow. New types: `sessions[]`, `research[]`.
+**契约**：任意来源 → 字段映射 → **ImportBundle v1**（或 `log-*` / 带 frontmatter 的 Markdown）。  
+核心不扫描你的 Agent 安装目录；**你的 Skill 负责映射**。
+
+| 来源类型 | Agent/Skill 做什么 | CentricMem 接收 |
+|----------|-------------------|-----------------|
+| 外部 DB / corpus | 写导出脚本 → JSON bundle | `import` + `meta` + `rel_path` |
+| 旧规则文件 | 映射为 rules / decisions | `migrate` 或 bundle |
+| 会话摘要 | 提炼后写入 | `log-session` / bundle `sessions[]` |
+| 领域过滤 | 在 Skill 里选 `--filter` / config | 通用 `--filter key=value` |
+
+域 Skill（如 `academic-db-agent`）仅示范一种 L1 映射，可复制改写成你自己的适配器。
+
+See v0.8 ImportBundle workflow. New types: `sessions[]`, `research[]`, `imported[].meta`, `imported[].rel_path`.
 
 ## Classify unclassified
 

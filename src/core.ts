@@ -116,12 +116,30 @@ export interface EmbeddingConfig {
   hybrid_alpha?: number;
 }
 
+export interface DomainBoostDimension {
+  keywords: string[];
+  path_prefix: string;
+  boost?: number;
+}
+
+export interface DomainBoostConfig {
+  default_boost?: number;
+  dimensions: Record<string, DomainBoostDimension>;
+}
+
+export interface MetadataConfig {
+  hot_columns?: string[];
+  hot_columns_enabled?: boolean;
+}
+
 export interface MemConfig {
   decay_rate: number;
   max_results: number;
   ref_weight: number;
   embedding: EmbeddingConfig;
   remote_index_url?: string;
+  domain_boost?: DomainBoostConfig;
+  metadata?: MetadataConfig;
 }
 
 export const DEFAULT_CONFIG: MemConfig = {
@@ -129,6 +147,10 @@ export const DEFAULT_CONFIG: MemConfig = {
   max_results: 5,
   ref_weight: 0.1,
   embedding: { provider: "none", hybrid_alpha: 0.6 },
+  metadata: {
+    hot_columns: ["civilization", "type", "has_incantation"],
+    hot_columns_enabled: false,
+  },
 };
 
 export function loadConfig(paths: MemPaths): MemConfig {
@@ -139,6 +161,8 @@ export function loadConfig(paths: MemPaths): MemConfig {
       ...DEFAULT_CONFIG,
       ...raw,
       embedding: { ...DEFAULT_CONFIG.embedding, ...(raw.embedding || {}) },
+      metadata: { ...DEFAULT_CONFIG.metadata, ...(raw.metadata || {}) },
+      domain_boost: raw.domain_boost,
     };
   } catch {
     return { ...DEFAULT_CONFIG };

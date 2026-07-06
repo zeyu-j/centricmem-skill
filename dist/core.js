@@ -87,6 +87,10 @@ export const DEFAULT_CONFIG = {
     max_results: 5,
     ref_weight: 0.1,
     embedding: { provider: "none", hybrid_alpha: 0.6 },
+    metadata: {
+        hot_columns: ["civilization", "type", "has_incantation"],
+        hot_columns_enabled: false,
+    },
 };
 export function loadConfig(paths) {
     const file = path.join(paths.memDir, "config.json");
@@ -96,6 +100,8 @@ export function loadConfig(paths) {
             ...DEFAULT_CONFIG,
             ...raw,
             embedding: { ...DEFAULT_CONFIG.embedding, ...(raw.embedding || {}) },
+            metadata: { ...DEFAULT_CONFIG.metadata, ...(raw.metadata || {}) },
+            domain_boost: raw.domain_boost,
         };
     }
     catch {

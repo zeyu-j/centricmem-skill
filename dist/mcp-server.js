@@ -34,7 +34,7 @@ function getWorkspace() {
 function getProjectSlug(ws) {
     return process.env.CENTRICMEM_PROJECT || getCurrentProjectSlug(ws);
 }
-const server = new McpServer({ name: "centricmem", version: "0.10.0" });
+const server = new McpServer({ name: "centricmem", version: "0.11.1" });
 // ---------------------------------------------------------------------------
 // centricmem_search
 // ---------------------------------------------------------------------------
@@ -53,18 +53,20 @@ server.registerTool("centricmem_search", {
             .optional()
             .describe("Filter by status"),
         agent: z.string().optional().describe("Filter by source agent, e.g. 'cursor', 'claude-code', 'migration'"),
+        meta: z.record(z.string(), z.string()).optional().describe("Metadata filters, e.g. { civilization: 'chinese', type: 'recipe' }"),
         explain: z.boolean().optional().describe("Include score breakdown per result"),
         semantic: z.boolean().optional().describe("Hybrid BM25 + embedding search"),
     },
-}, async ({ query, limit, type, status, agent, explain, semantic }) => {
+}, async ({ query, limit, type, status, agent, meta, explain, semantic }) => {
     try {
         const ws = getWorkspace();
         const slug = getProjectSlug(ws);
         const paths = resolvePaths(ws, slug);
         const db = getDb(paths);
+        const filters = { type, status, agent, meta };
         const results = semantic
-            ? await searchAsync(paths, query, limit, { type, status, agent }, { explain, semantic })
-            : search(paths, query, limit, { type, status, agent }, db, { explain, semantic });
+            ? await searchAsync(paths, query, limit, filters, { explain, semantic })
+            : search(paths, query, limit, filters, db, { explain, semantic });
         if (!results.length) {
             return { content: [{ type: "text", text: `No memory found for "${query}". BM25 needs at least one overlapping content word — try broader or alternative keywords (e.g. the technology name instead of a synonym), or call centricmem_read_context to see the Memory Map overview.` }] };
         }
@@ -220,4 +222,4 @@ process.on("exit", () => { try {
 catch { /* ignore */ } });
 const transport = new StdioServerTransport();
 await server.connect(transport);
-console.error("CentricMem MCP server v0.10.0 running (stdio, optional/legacy)");
+console.error("CentricMem MCP server v0.11.1 running (stdio, optional/legacy)");

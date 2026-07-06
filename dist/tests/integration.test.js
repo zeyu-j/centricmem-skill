@@ -11,7 +11,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const distDir = path.resolve(__dirname, "..");
 const toImport = (p) => pathToFileURL(p).href;
 const { initProject, logDecision, updateContext, readContext, healthCheck } = await import(toImport(path.join(distDir, "memory.js")));
-const { buildIndex, buildIndexAll, search, searchAll } = await import(toImport(path.join(distDir, "indexer.js")));
+const { buildIndex, buildIndexAll, search, searchAll, chunkFile, parseYamlFrontmatter } = await import(toImport(path.join(distDir, "indexer.js")));
 const { migrate } = await import(toImport(path.join(distDir, "migrate.js")));
 const { listTemplates, applyTemplate } = await import(toImport(path.join(distDir, "templates.js")));
 const { resolvePaths } = await import(toImport(path.join(distDir, "core.js")));
@@ -324,4 +324,143 @@ test("distill surfaces patterns with enough decisions", () => {
     }
     const d = distill(ws);
     assert.ok(d.patterns.some((p) => p.keyword === "redis"));
+});
+test("parseYamlFrontmatter extracts metadata and body", () => {
+    const raw = "---\ncivilization: babylonian\ntype: recipe\nhas_incantation: true\n---\n# Title\n\nBody text.\n";
+    const { meta, body } = parseYamlFrontmatter(raw);
+    assert.strictEqual(meta.civilization, "babylonian");
+    assert.strictEqual(meta.type, "recipe");
+    assert.strictEqual(meta.has_incantation, true);
+    assert.ok(body.includes("# Title"));
+    assert.ok(!body.startsWith("---"));
+});
+test("search --filter meta matches imported frontmatter", () => {
+    const ws = freshDir("t25-meta-filter");
+    initProject(ws);
+    const paths = resolvePaths(ws);
+    const importedDir = path.join(paths.memDir, "imported", "recipes");
+    fs.mkdirSync(importedDir, { recursive: true });
+    fs.writeFileSync(path.join(importedDir, "sample-recipe.md"), "---\ncivilization: babylonian\ntype: recipe\nhas_incantation: true\n---\n# Hemorrhoid salve\n\nApply oil to affected area.\n", "utf8");
+    buildIndex(paths);
+    const hits = search(paths, "hemorrhoid", 5, { meta: { civilization: "babylonian", type: "recipe" } });
+    assert.ok(hits.length > 0);
+    const miss = search(paths, "hemorrhoid", 5, { meta: { civilization: "chinese" } });
+    assert.strictEqual(miss.length, 0);
+});
+test("domain_boost elevates path_prefix matches", () => {
+    const ws = freshDir("t26-domain-boost");
+    initProject(ws);
+    const paths = resolvePaths(ws);
+    fs.mkdirSync(path.join(paths.memDir, "imported", "recipes"), { recursive: true });
+    fs.mkdirSync(path.join(paths.memDir, "imported", "references"), { recursive: true });
+    fs.writeFileSync(path.join(paths.memDir, "imported", "recipes", "herb-a.md"), "# Herb A\n\npharmacology formula\n", "utf8");
+    fs.writeFileSync(path.join(paths.memDir, "imported", "references", "ref-b.md"), "# Ref B\n\npharmacology mention\n", "utf8");
+    fs.writeFileSync(path.join(paths.memDir, "config.json"), JSON.stringify({
+        domain_boost: {
+            default_boost: 2,
+            dimensions: {
+                "03": { keywords: ["pharmacology", "药物"], path_prefix: "imported/recipes/" },
+            },
+        },
+    }), "utf8");
+    buildIndex(paths);
+    const results = search(paths, "pharmacology", 5, undefined, undefined, { explain: true });
+    const herb = results.find((r) => r.file.includes("recipes/herb-a"));
+    const ref = results.find((r) => r.file.includes("references/ref-b"));
+    assert.ok(herb && ref);
+    assert.ok(herb.explain.domainBoost > ref.explain.domainBoost);
+});
+test("crosswalk file remains single chunk", () => {
+    const ws = freshDir("t27-crosswalk");
+    initProject(ws);
+    const paths = resolvePaths(ws);
+    const crossDir = path.join(paths.memDir, "imported", "crosswalks");
+    fs.mkdirSync(crossDir, { recursive: true });
+    const rows = Array.from({ length: 40 }, (_, i) => `| row${i} | data${i} |`).join("\n");
+    const rel = "imported/crosswalks/disease-map.md";
+    fs.writeFileSync(path.join(paths.memDir, rel), `# Disease map\n\n| id | note |\n|----|------|\n${rows}\n`, "utf8");
+    assert.strictEqual(chunkFile(paths.memDir, rel).length, 1);
+    buildIndex(paths);
+    const hits = search(paths, "row39");
+    assert.ok(hits.length > 0);
+});
+test("route academic corpus queries", () => {
+    const r = routeQuery("crosswalk 疾病维度对照");
+    assert.strictEqual(r.action, "search");
+    assert.strictEqual(r.suggestedType, "imported");
+});
+test("import bundle writes meta frontmatter and rel_path", () => {
+    const ws = freshDir("t28-import-meta");
+    initProject(ws);
+    const bundle = parseImportBundle({
+        version: 1,
+        imported: [{
+                title: "Test doc",
+                rel_path: "corpus/recipes/test.md",
+                meta: { civilization: "chinese", type: "recipe" },
+                body: "Recipe body content.",
+                external_id: "test-1",
+            }],
+    });
+    importBundle(ws, bundle);
+    const file = path.join(projectDir(ws), "imported", "corpus", "recipes", "test.md");
+    assert.ok(fs.existsSync(file));
+    const content = fs.readFileSync(file, "utf8");
+    assert.ok(content.startsWith("---\ncivilization: chinese"));
+    buildIndex(resolvePaths(ws));
+    const hits = search(resolvePaths(ws), "Recipe", 5, { meta: { civilization: "chinese" } });
+    assert.ok(hits.length > 0);
+});
+const { skillStatus, compareSemver, satisfiesCliRange, bundledSkillPath, readSkillInfo, } = await import(toImport(path.join(distDir, "skill.js")));
+test("compareSemver orders versions", () => {
+    assert.ok(compareSemver("0.11.1", "0.11.0") > 0);
+    assert.strictEqual(compareSemver("1.0.0", "1.0.0"), 0);
+});
+test("satisfiesCliRange supports >=", () => {
+    assert.ok(satisfiesCliRange("0.11.1", ">=0.11.0"));
+    assert.ok(!satisfiesCliRange("0.10.0", ">=0.11.0"));
+});
+test("skill status reports missing installed skill", () => {
+    const ws = freshDir("t29-skill-missing");
+    initProject(ws);
+    const r = skillStatus(ws);
+    assert.strictEqual(r.status, "missing");
+});
+test("skill status reports outdated installed skill", () => {
+    const ws = freshDir("t30-skill-outdated");
+    initProject(ws);
+    const destDir = path.join(ws, ".cursor", "skills", "centricmem-agent");
+    fs.mkdirSync(destDir, { recursive: true });
+    fs.writeFileSync(path.join(destDir, "SKILL.md"), "---\nname: centricmem-agent\nversion: 0.0.1\ncompatible_cli: \">=0.11.0\"\n---\n# Old skill\n", "utf8");
+    const r = skillStatus(ws);
+    assert.strictEqual(r.status, "outdated");
+    assert.ok(r.bundled.version && compareSemver(r.bundled.version, "0.0.1") > 0);
+});
+test("skill status reports modified when body differs at same version", () => {
+    const ws = freshDir("t31-skill-modified");
+    initProject(ws);
+    const bundled = readSkillInfo(bundledSkillPath("centricmem-agent"));
+    assert.ok(bundled?.version);
+    const destDir = path.join(ws, ".cursor", "skills", "centricmem-agent");
+    fs.mkdirSync(destDir, { recursive: true });
+    fs.writeFileSync(path.join(destDir, "SKILL.md"), `---\nname: centricmem-agent\nversion: ${bundled.version}\n---\n# User edited copy\n`, "utf8");
+    const r = skillStatus(ws);
+    assert.strictEqual(r.status, "modified");
+});
+test("skill status reports incompatible cli via install path", () => {
+    const ws = freshDir("t32-skill-incompat");
+    initProject(ws);
+    const fixture = path.join(ws, "fake-skill.md");
+    fs.writeFileSync(fixture, "---\nname: test-skill\nversion: 1.0.0\ncompatible_cli: \">=99.0.0\"\n---\n# x\n", "utf8");
+    const r = skillStatus(ws, { name: "test-skill", installPath: fixture });
+    assert.strictEqual(r.status, "incompatible");
+});
+test("ambient includes skill hint when outdated", () => {
+    const ws = freshDir("t33-ambient-skill");
+    initProject(ws);
+    const destDir = path.join(ws, ".cursor", "skills", "centricmem-agent");
+    fs.mkdirSync(destDir, { recursive: true });
+    fs.writeFileSync(path.join(destDir, "SKILL.md"), "---\nname: centricmem-agent\nversion: 0.0.1\n---\n# Old\n", "utf8");
+    const block = buildAmbient(ws);
+    assert.ok(block.text.includes("Skill:") && block.text.includes("outdated"));
 });

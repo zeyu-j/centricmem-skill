@@ -1,16 +1,28 @@
 # CentricMem Test Results
 
 **Date**: July 2026  
-**Version**: 0.10.0  
+**Version**: 0.11.1  
 **Status**: Beta-ready
 
 ## Automated suites (`npm run test:all`)
 
 | Suite | Result |
 |-------|--------|
-| Integration (`npm test`) | 26/26 pass |
+| Integration (`npm test`) | 39/39 pass |
 | MCP smoke (`npm run test:mcp`) | 15/15 pass |
-| Scenarios (`npm run test:scenarios`) | 13/13 pass (S1–S5, S7, S9–S15) |
+| Scenarios (`npm run test:scenarios`) | 14/14 pass (S1–S5, S7, S9–S16) |
+
+## v0.11.1 coverage
+
+- **Skill status**: missing / outdated / modified / incompatible; ambient hint line
+
+## v0.11 coverage
+
+- **Corpus metadata**: `parseYamlFrontmatter`, `chunk_meta`, `--filter` / MCP `meta`, hot columns (schema, default off)
+- **domain_boost**: path_prefix + keyword boost in explain breakdown
+- **ImportBundle**: `meta` + `rel_path` under `imported/`
+- **Academic routing**: crosswalk/corpus queries → search + imported type
+- **crosswalk**: 1 file = 1 chunk (no row splitting)
 
 ## v0.10 coverage
 
@@ -29,5 +41,5 @@
 
 ## Known test gaps
 
-- Live embedding API path (mocked only)
-- npm publish not in scope
+- Live embedding API (requires key; semantic path covered with mocks)
+- Full 4,674-doc corpus re-import (manual Reasonix validation)

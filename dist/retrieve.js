@@ -7,7 +7,9 @@ import path from "node:path";
 import { classifyIntent } from "./indexer.js";
 import { healthCheck, listDecisions, readRecentSessions } from "./memory.js";
 import { getCurrentProjectSlug } from "./workspace.js";
+import { skillStatus, skillStatusHintLine } from "./skill.js";
 const RESEARCH_PATTERNS = /调研|研究|survey|research|external|文献|对比/i;
+const ACADEMIC_PATTERNS = /维度|对照|crosswalk|语料|corpus|文明|civilization|incantation|咒语|马王堆|巴比伦/i;
 const CROSS_PROJECT = /跨项目|其他项目|all projects|cross.?project|别的项目/i;
 const UNCERTAIN = /不确定|不知道|忘了|记不清|maybe|not sure/i;
 const LINKS_PATTERNS = /依赖|引用|关联|相关决策|depends on|references|referenced|linked|related decisions?/i;
@@ -19,6 +21,14 @@ export function routeQuery(query) {
             action: "refs",
             intent: "decision",
             reason: "Dependency/reference query → walk memory links (`centricmem refs <seq>`)",
+        };
+    }
+    if (ACADEMIC_PATTERNS.test(q)) {
+        return {
+            action: "search",
+            intent: "research",
+            suggestedType: "imported",
+            reason: "Academic/corpus query → search imported docs with --filter; read crosswalk files in full",
         };
     }
     if (RESEARCH_PATTERNS.test(q)) {
@@ -83,12 +93,16 @@ export function buildAmbient(workspaceRoot, projectSlug) {
     const sessions = readRecentSessions(workspaceRoot, 7, 3, slug);
     const sessionTail = sessions.map((s) => `${s.heading}: ${s.summary.slice(0, 80)}`);
     const issues = h.issues.filter((i) => i.severity === "warn").map((i) => i.message);
+    const skillHint = skillStatusHintLine(skillStatus(workspaceRoot));
     const text = [
         `CentricMem: project=${slug} | Health=${h.score}`,
         recentDecisions.length ? `Recent decisions: ${recentDecisions.join("; ")}` : "Recent decisions: (none)",
         sessionTail.length ? `Session tail: ${sessionTail.join(" | ")}` : "Session tail: (none)",
         issues.length ? `Conflicts: ${issues.join("; ")}` : "Conflicts: none",
-    ].join(" | ");
+        skillHint ?? "",
+    ]
+        .filter(Boolean)
+        .join(" | ");
     return { project: slug, health: h.score, recentDecisions, sessionTail, issues, text };
 }
 export function writeAmbientFile(workspaceRoot, block) {

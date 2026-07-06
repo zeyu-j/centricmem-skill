@@ -1,10 +1,10 @@
-# CentricMem Beta Guide (v0.10)
+# CentricMem Beta Guide (v0.11.1)
 
 ## Install from source
 
 ```bash
 git clone https://github.com/zeyu-j/centricmem-skill.git
-cd centricmem
+cd centricmem-skill
 npm install
 npm run build
 npm link
@@ -35,8 +35,18 @@ Agents should follow `.cursor/skills/centricmem-agent/SKILL.md`:
 
 - Load: read `projects/<current>/AGENTS.md` + `active_context.md`
 - Search: `centricmem search "keywords"` (local indexer, not MCP)
+- Filter corpus: `centricmem search "…" --filter civilization=chinese --filter type=recipe`
 - Import: map any source → ImportBundle JSON → `centricmem import bundle.json`
 - Classify: `centricmem classify decisions/0001-x.md --to my-project`
+
+## Skill updates (pull-based)
+
+```bash
+centricmem skill status
+centricmem skill status centricmem-agent --json
+```
+
+Compares bundled vs installed Skill (`ok` | `outdated` | `missing` | `modified` | `incompatible`). `ambient` appends a hint when not `ok`.
 
 ## MCP = external sync only
 
@@ -119,6 +129,7 @@ centricmem index --all
 npm run test:all
 centricmem projects
 centricmem status
+centricmem skill status
 ```
 
 ## Feedback

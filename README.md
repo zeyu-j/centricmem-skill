@@ -8,7 +8,7 @@ Every time you start a new conversation, the agent forgets what you decided last
 
 ## What it is
 
-CentricMem is a **project memory layer** for AI coding agents (Cursor, Claude Code, and others). It stores what matters about your work — decisions, lessons, current focus, session notes — and helps agents find the right context at the right time.
+CentricMem is a **project memory layer** for all agents (Cursor, Claude Code, and others). It stores what matters about your work — decisions, lessons, current focus, session notes — and helps agents find the right context at the right time.
 
 Think of it as a **shared project journal** that any agent can read and contribute to, without sending your history to a cloud memory service.
 
@@ -52,7 +52,7 @@ Decisions don't live in isolation. When one choice builds on another, CentricMem
 
 Good memory shouldn't require saying "remember this" every five minutes.
 
-- **Session start** — a short preflight summary loads automatically (`centricmem ambient`)
+- **Session start** — a short preflight summary loads automatically (`centricmem ambient`); warns if the Skill is outdated (`centricmem skill status`)
 - **Session end** — progress can be logged with one line (`centricmem log-session`)
 - **Hooks** — optional Cursor hooks handle ambient + indexing without you thinking about it
 
@@ -79,6 +79,8 @@ That's it. Your agent reads `skills/centricmem-agent/SKILL.md` and knows how to 
 2. Before big assumptions → search memory: `centricmem search "auth strategy"`
 3. After a significant choice → log it: `centricmem log-decision --title "..." --context "..." --decision "..."`
 4. Before ending → `centricmem log-session "what we accomplished"`
+
+After upgrading CentricMem: `centricmem setup --install-skill` then `centricmem skill status` (should show `ok`).
 
 ---
 
@@ -113,13 +115,15 @@ MCP and cloud sync are **optional** — for backing up or syncing memory to Driv
 
 ---
 
-## What's in the box
+## What's in the box (v0.11.1)
 
 - Local-first storage (Markdown + searchable index)
-- Cross-agent memory (Cursor today, others tomorrow)
+- **Any agent via Skill** — your Skill maps data in; core does not bind to one IDE
 - Decision history with evolution chains (supersede, not delete)
-- Memory links between related decisions
-- Import from Cursor rules, memory-bank, and other formats
+- Memory links between related decisions (`centricmem refs`)
+- **Corpus metadata** — `--filter key=value` on imported docs with YAML frontmatter
+- **Skill status** — `centricmem skill status` (pull-based updates, no push)
+- Import via **ImportBundle** (decisions, lessons, corpus with `meta` + `rel_path`)
 - Workspace hub for multiple projects
 
 ---
@@ -131,6 +135,7 @@ MCP and cloud sync are **optional** — for backing up or syncing memory to Driv
 | [BETA.md](./BETA.md) | Install, configure, troubleshoot |
 | [PRODUCT.md](./PRODUCT.md) | Memory architecture (design source of truth) |
 | [ARCHITECTURE.md](./ARCHITECTURE.md) | Technical implementation |
+| [ACADEMIC_DB_REPORT.md](./ACADEMIC_DB_REPORT.md) | L1 corpus adapter example (optional) |
 | [SYNC.md](./SYNC.md) | Optional cloud sync contract |
 
 ---

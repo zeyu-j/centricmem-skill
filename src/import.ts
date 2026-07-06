@@ -42,6 +42,9 @@ export const ImportDocSchema = z.object({
   title: z.string().min(1),
   body: z.string().default(""),
   external_id: z.string().optional(),
+  /** Relative path under imported/ (preserves corpus subdirs for domain_boost). */
+  rel_path: z.string().optional(),
+  meta: z.record(z.string(), z.union([z.string(), z.array(z.string()), z.boolean()])).optional(),
 });
 
 export const ImportSessionSchema = z.object({
@@ -106,6 +109,21 @@ function loadIdempotency(memDir: string): Set<string> {
 
 function saveIdempotency(memDir: string, keys: Set<string>): void {
   fs.writeFileSync(path.join(memDir, IDEMPOTENCY_FILE), JSON.stringify([...keys], null, 2) + "\n", "utf8");
+}
+
+function formatMetaYaml(meta: Record<string, string | string[] | boolean>): string {
+  const lines: string[] = [];
+  for (const [k, v] of Object.entries(meta)) {
+    if (Array.isArray(v)) lines.push(`${k}: [${v.join(", ")}]`);
+    else if (typeof v === "boolean") lines.push(`${k}: ${v}`);
+    else lines.push(`${k}: ${v}`);
+  }
+  return lines.join("\n");
+}
+
+function formatImportedDoc(title: string, body: string, meta?: Record<string, string | string[] | boolean>): string {
+  const fm = meta && Object.keys(meta).length ? `---\n${formatMetaYaml(meta)}\n---\n\n` : "";
+  return `${fm}# ${title}\n\n${body.trim()}\n\n<!-- centricmem:meta imported_at=${nowISO()} updated_by=migration -->\n`;
 }
 
 function appendToAgents(agentsFile: string, sectionTitle: string, body: string, source: string): void {
@@ -201,10 +219,10 @@ export function importBundle(
       continue;
     }
     const importedDir = path.join(paths.memDir, "imported");
-    ensureDir(importedDir);
-    const name = `${slugify(doc.title)}.md`;
-    const dest = path.join(importedDir, name);
-    const content = `# ${doc.title}\n\n${doc.body.trim()}\n\n<!-- centricmem:meta imported_at=${nowISO()} updated_by=migration -->\n`;
+    const rel = doc.rel_path?.replace(/\\/g, "/") ?? `${slugify(doc.title)}.md`;
+    const dest = path.join(importedDir, rel);
+    ensureDir(path.dirname(dest));
+    const content = formatImportedDoc(doc.title, doc.body, doc.meta);
     fs.writeFileSync(dest, content, "utf8");
     if (key) idem.add(key);
     imported++;

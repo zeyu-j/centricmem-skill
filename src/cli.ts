@@ -44,9 +44,21 @@ import {
 import { runSetup, printSetupSummary, installCursorHooks } from "./setup.js";
 import { routeQuery, buildAmbient, writeAmbientFile } from "./retrieve.js";
 import { isEmbeddingEnabled } from "./embedding.js";
+import { skillStatus, formatSkillStatusText, skillStatusHintLine } from "./skill.js";
 
 const program = new Command();
-program.name("centricmem").description("Cross-agent project memory layer (workspace hub)").version("0.10.0");
+program.name("centricmem").description("Cross-agent project memory layer (workspace hub)").version("0.11.1");
+
+function parseMetaFilters(pairs: string[] | undefined): Record<string, string> | undefined {
+  if (!pairs?.length) return undefined;
+  const meta: Record<string, string> = {};
+  for (const pair of pairs) {
+    const eq = pair.indexOf("=");
+    if (eq <= 0) throw new Error(`Invalid --filter (expected key=value): ${pair}`);
+    meta[pair.slice(0, eq).trim()] = pair.slice(eq + 1).trim();
+  }
+  return meta;
+}
 
 function requireWorkspace(): string {
   const root = findWorkspaceRoot();
@@ -127,6 +139,7 @@ program
   .option("--link-all", "link subdirectories with .git or package.json")
   .option("--migrate-discover", "import discovered cursor-rules / memory-bank into unclassified")
   .option("--install-skill", "copy SKILL.md to .cursor/skills/centricmem-agent/")
+  .option("--install-academic-skill", "copy academic-db-agent SKILL to .cursor/skills/")
   .option("--install-hooks", "install Cursor session hooks for implicit memory")
   .option("--drive-mcp-hint", "print Drive MCP sync configuration hint")
   .action((opts: {
@@ -134,6 +147,7 @@ program
     linkAll?: boolean;
     migrateDiscover?: boolean;
     installSkill?: boolean;
+    installAcademicSkill?: boolean;
     installHooks?: boolean;
     driveMcpHint?: boolean;
   }) => {
@@ -142,6 +156,7 @@ program
       linkAll: opts.linkAll,
       migrateDiscover: opts.migrateDiscover,
       installSkill: opts.installSkill,
+      installAcademicSkill: opts.installAcademicSkill,
       installHooks: opts.installHooks,
       driveMcpHint: opts.driveMcpHint,
     });
@@ -149,6 +164,7 @@ program
     if (result.linked.length) console.log(`Linked: ${result.linked.join(", ")}`);
     if (result.migrated) console.log(`Migrated ${result.migrated} source(s) → unclassified`);
     if (result.skillInstalled) console.log("Skill installed to .cursor/skills/centricmem-agent/");
+    if (result.academicSkillInstalled) console.log("Academic skill installed to .cursor/skills/academic-db-agent/");
     if (result.hooksInstalled) console.log("Cursor hooks installed to .cursor/hooks/");
   });
 
@@ -264,12 +280,13 @@ program
   .option("-t, --type <type>", "decision | rule | lesson | context | session | imported")
   .option("-s, --status <status>", "active | superseded | ...")
   .option("-a, --agent <agent>", "filter by agent")
+  .option("-f, --filter <pair>", "metadata filter key=value (repeatable)", (v, acc: string[]) => { acc.push(v); return acc; }, [])
   .option("-p, --project <slug>", "search one project")
   .option("--all", "search all projects")
   .option("--semantic", "hybrid BM25 + embedding search (requires API key)")
   .option("--explain", "show score breakdown")
   .action(async (queryParts: string[], opts: {
-    limit?: string; type?: string; status?: string; agent?: string;
+    limit?: string; type?: string; status?: string; agent?: string; filter?: string[];
     project?: string; all?: boolean; semantic?: boolean; explain?: boolean;
   }) => {
     const ws = requireWorkspace();
@@ -277,7 +294,14 @@ program
     const intent = classifyIntent(query);
     if (intent !== "general") console.log(`(intent: ${intent})`);
     const limit = opts.limit ? parseInt(opts.limit, 10) : undefined;
-    const filters = { type: opts.type, status: opts.status, agent: opts.agent };
+    let meta: Record<string, string> | undefined;
+    try {
+      meta = parseMetaFilters(opts.filter);
+    } catch (err) {
+      console.error((err as Error).message);
+      process.exit(1);
+    }
+    const filters = { type: opts.type, status: opts.status, agent: opts.agent, meta };
     const searchOpts = { semantic: opts.semantic, explain: opts.explain };
 
     if (opts.semantic && !opts.all && !isEmbeddingEnabled(loadConfig(resolvePaths(ws, opts.project)))) {
@@ -303,7 +327,7 @@ program
       if (r.explain) {
         const e = r.explain;
         console.log(
-          `  explain: bm25=${e.bm25.toFixed(3)} cos=${e.cosine.toFixed(3)} rel=${e.relevance.toFixed(3)} time=${e.timeDecay.toFixed(3)} status=${e.statusPenalty} ref=${e.refBoost.toFixed(3)} intent=${e.intentBoost} fb=${e.feedbackPenalty.toFixed(3)}`,
+          `  explain: bm25=${e.bm25.toFixed(3)} cos=${e.cosine.toFixed(3)} rel=${e.relevance.toFixed(3)} time=${e.timeDecay.toFixed(3)} status=${e.statusPenalty} ref=${e.refBoost.toFixed(3)} intent=${e.intentBoost} domain=${e.domainBoost.toFixed(3)} fb=${e.feedbackPenalty.toFixed(3)}`,
         );
       }
     }
@@ -320,6 +344,7 @@ program
       console.log(`action: ${r.action}`);
       console.log(`intent: ${r.intent}`);
       if (r.suggestedType) console.log(`suggested_type: ${r.suggestedType}`);
+      if (r.suggestedMeta) console.log(`suggested_meta: ${JSON.stringify(r.suggestedMeta)}`);
       console.log(`reason: ${r.reason}`);
     }
   });
@@ -385,6 +410,24 @@ program
     }
     buildIndex(resolvePaths(ws, opts.project));
     console.log(`Lesson "${opts.title}" appended to lessons.md`);
+  });
+
+const skillCmd = program.command("skill").description("Installed Skill vs bundled copy (pull-based updates)");
+
+skillCmd
+  .command("status [name]")
+  .description("Compare installed Skill to the CLI bundle")
+  .option("--path <file>", "installed SKILL.md path (overrides default)")
+  .option("--json", "machine-readable output")
+  .action((name: string | undefined, opts: { path?: string; json?: boolean }) => {
+    const ws = requireWorkspace();
+    const result = skillStatus(ws, { name: name || undefined, installPath: opts.path });
+    if (opts.json) {
+      console.log(JSON.stringify(result, null, 2));
+      return;
+    }
+    console.log(formatSkillStatusText(result));
+    if (result.status !== "ok") process.exitCode = 1;
   });
 
 program
