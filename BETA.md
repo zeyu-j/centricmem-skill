@@ -1,4 +1,4 @@
-# CentricMem Beta Guide (v0.11.1)
+# CentricMem Beta Guide (v0.12.0)
 
 ## Install from source
 
@@ -10,20 +10,26 @@ npm run build
 npm link
 ```
 
+This is the public release repo (Skill-first README). Development also happens in the private [centricmem](https://github.com/zeyu-j/centricmem) monorepo.
+
 ## Workspace setup
 
 ```bash
-cd <your-workspace-root>   # e.g. E:\Reasonix
-centricmem setup --link-all --migrate-discover --install-skill --install-hooks
+cd <your-workspace-root>
+centricmem setup --link-all --migrate-discover --install-skill
 ```
 
-`--install-hooks` copies Cursor session hooks (`sessionStart` → `centricmem ambient --write`) for implicit memory.
+Optional (Cursor only): `centricmem setup --install-hooks` — wires session lifecycle per `skills/centricmem-agent/integrations/`.
+
+First setup or `centricmem index` on a large import may take a minute or more — wait until you see **Index complete**.
 
 This creates:
 
 ```text
 .centricmem/
   workspace.json
+  skills/
+    centricmem-agent/SKILL.md
   projects/
     unclassified/     # default import target
     <linked-projects>/
@@ -31,9 +37,10 @@ This creates:
 
 ## Skill-first workflow
 
-Agents should follow `.cursor/skills/centricmem-agent/SKILL.md`:
+Agents should follow **`.centricmem/skills/centricmem-agent/SKILL.md`**:
 
 - Load: read `projects/<current>/AGENTS.md` + `active_context.md`
+- Session start: `centricmem ambient` (or lifecycle hooks — see `integrations/`)
 - Search: `centricmem search "keywords"` (local indexer, not MCP)
 - Filter corpus: `centricmem search "…" --filter civilization=chinese --filter type=recipe`
 - Import: map any source → ImportBundle JSON → `centricmem import bundle.json`
@@ -48,37 +55,28 @@ centricmem skill status centricmem-agent --json
 
 Compares bundled vs installed Skill (`ok` | `outdated` | `missing` | `modified` | `incompatible`). `ambient` appends a hint when not `ok`.
 
+### Migrating from pre-0.12 (`.cursor/skills/`)
+
+```bash
+centricmem setup --install-skill
+# Optional Cursor hooks: centricmem setup --install-hooks
+```
+
 ## MCP = external sync only
 
 MCP (e.g. Google Drive) is **optional** and used to **sync** `.centricmem/projects/` to cloud storage.
 
 It is **not** the local indexer. Local search always uses `centricmem search` + SQLite FTS5.
 
-`centricmem-mcp` is optional/legacy for Cursor users who want tool-based access.
+`centricmem-mcp` is optional for agents that prefer tool-based access. See `skills/centricmem-agent/integrations/mcp-config.snippet.json`.
 
-### Reasonix config
-
-Edit `~/.reasonix/config.json`:
-
-```json
-{
-  "projects": {
-    "E:\\Reasonix": {
-      "env": {
-        "CENTRICMEM_WORKSPACE": "E:\\Reasonix"
-      }
-    }
-  }
-}
-```
-
-Optional Drive MCP — run `centricmem setup --drive-mcp-hint` for a template.
+Run `centricmem setup --drive-mcp-hint` for a generic MCP template.
 
 ## Multi-project
 
 ```bash
-centricmem link icegreen-bots
-centricmem use icegreen-bots
+centricmem link my-app/
+centricmem use my-app
 centricmem projects
 centricmem search "redis" --all
 ```
@@ -103,7 +101,7 @@ centricmem search "redis" --all
 
 ```bash
 centricmem import bundle.json
-centricmem classify decisions/0001-use-redis.md --to icegreen-bots
+centricmem classify decisions/0001-use-redis.md --to my-app
 ```
 
 ## Migrating from v0.7 (single .centricmem/)

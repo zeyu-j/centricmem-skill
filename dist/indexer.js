@@ -16,6 +16,14 @@ import Database from "better-sqlite3";
 import { sha256, ensureDir, loadConfig, resolvePaths } from "./core.js";
 import { loadWorkspace } from "./workspace.js";
 import { embedTexts, isEmbeddingEnabled, vectorToBlob, blobToVector, cosineSimilarity, } from "./embedding.js";
+/** User-facing hint before a potentially slow index pass. */
+export function logIndexStart(scope) {
+    console.log(`\nIndexing ${scope} — building the search index. First run or large imports may take a minute or more; please wait…`);
+}
+export function logIndexDone(stats) {
+    const emb = stats.embedded ? `, ${stats.embedded} embedded` : "";
+    console.log(`Index complete: ${stats.scanned} file(s) scanned, ${stats.indexed} updated, ${stats.chunks} chunk(s)${emb}.`);
+}
 // ---------------------------------------------------------------------------
 // YAML frontmatter (corpus metadata)
 // ---------------------------------------------------------------------------
@@ -672,16 +680,21 @@ export async function buildIndexAsync(paths, opts) {
     return stats;
 }
 /** Index every project registered in the workspace. */
-export function buildIndexAll(workspaceRoot) {
+export function buildIndexAll(workspaceRoot, opts) {
     const ws = loadWorkspace(workspaceRoot);
+    const slugs = Object.keys(ws.projects);
+    if (!opts?.quiet)
+        logIndexStart(`${slugs.length} project(s)`);
     const total = { scanned: 0, indexed: 0, removed: 0, chunks: 0 };
-    for (const slug of Object.keys(ws.projects)) {
+    for (const slug of slugs) {
         const s = buildIndex(resolvePaths(workspaceRoot, slug));
         total.scanned += s.scanned;
         total.indexed += s.indexed;
         total.removed += s.removed;
         total.chunks += s.chunks;
     }
+    if (!opts?.quiet)
+        logIndexDone(total);
     return total;
 }
 /** Search across all projects in a workspace; merges and re-ranks results. */

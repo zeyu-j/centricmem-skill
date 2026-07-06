@@ -1,0 +1,10 @@
+{
+  "mcpServers": {
+    "centricmem": {
+      "command": "centricmem-mcp",
+      "env": {
+        "CENTRICMEM_WORKSPACE": "<your-workspace-root>"
+      }
+    }
+  }
+}

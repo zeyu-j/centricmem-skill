@@ -93,6 +93,24 @@ export interface IndexStats {
   embedded?: number;
 }
 
+export interface BuildIndexAllOptions {
+  quiet?: boolean;
+}
+
+/** User-facing hint before a potentially slow index pass. */
+export function logIndexStart(scope: string): void {
+  console.log(
+    `\nIndexing ${scope} — building the search index. First run or large imports may take a minute or more; please wait…`,
+  );
+}
+
+export function logIndexDone(stats: IndexStats): void {
+  const emb = stats.embedded ? `, ${stats.embedded} embedded` : "";
+  console.log(
+    `Index complete: ${stats.scanned} file(s) scanned, ${stats.indexed} updated, ${stats.chunks} chunk(s)${emb}.`,
+  );
+}
+
 export interface BuildIndexOptions {
   embed?: boolean;
   mockEmbeddings?: number[][];
@@ -795,16 +813,19 @@ export async function buildIndexAsync(paths: MemPaths, opts?: BuildIndexOptions)
 }
 
 /** Index every project registered in the workspace. */
-export function buildIndexAll(workspaceRoot: string): IndexStats {
+export function buildIndexAll(workspaceRoot: string, opts?: BuildIndexAllOptions): IndexStats {
   const ws = loadWorkspace(workspaceRoot);
+  const slugs = Object.keys(ws.projects);
+  if (!opts?.quiet) logIndexStart(`${slugs.length} project(s)`);
   const total: IndexStats = { scanned: 0, indexed: 0, removed: 0, chunks: 0 };
-  for (const slug of Object.keys(ws.projects)) {
+  for (const slug of slugs) {
     const s = buildIndex(resolvePaths(workspaceRoot, slug));
     total.scanned += s.scanned;
     total.indexed += s.indexed;
     total.removed += s.removed;
     total.chunks += s.chunks;
   }
+  if (!opts?.quiet) logIndexDone(total);
   return total;
 }
 

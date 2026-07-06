@@ -1,16 +1,21 @@
 # CentricMem Test Results
 
 **Date**: July 2026  
-**Version**: 0.11.1  
+**Version**: 0.12.0  
 **Status**: Beta-ready
 
 ## Automated suites (`npm run test:all`)
 
 | Suite | Result |
 |-------|--------|
-| Integration (`npm test`) | 39/39 pass |
+| Integration (`npm test`) | 40/40 pass |
 | MCP smoke (`npm run test:mcp`) | 15/15 pass |
 | Scenarios (`npm run test:scenarios`) | 14/14 pass (S1–S5, S7, S9–S16) |
+
+## v0.12.0 coverage
+
+- **Agent-agnostic Skill path**: `.centricmem/skills/` canonical install; legacy `.cursor/skills/` detection hint
+- **Lifecycle integrations**: `skills/centricmem-agent/integrations/` reference recipes
 
 ## v0.11.1 coverage
 
@@ -42,4 +47,4 @@
 ## Known test gaps
 
 - Live embedding API (requires key; semantic path covered with mocks)
-- Full 4,674-doc corpus re-import (manual Reasonix validation)
+- Large corpus re-import (manual validation on representative datasets)

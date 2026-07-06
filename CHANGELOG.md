@@ -2,6 +2,26 @@
 
 All notable changes to CentricMem will be documented in this file.
 
+## [0.12.0] - Agent-agnostic Skill
+
+### Changed (breaking)
+- **Canonical skill path** is now `.centricmem/skills/<name>/SKILL.md` (was `.cursor/skills/`)
+- `setup --install-skill` installs to `.centricmem/skills/`; pointer files (`.cursorrules`, `CLAUDE.md`) reference the new path
+- `--install-hooks` is Cursor-only convenience; lifecycle contract documented in `skills/centricmem-agent/integrations/`
+- `skill status` no longer treats legacy `.cursor/skills/` as installed — run `centricmem setup --install-skill` to migrate
+
+### Added
+- `skills/centricmem-agent/integrations/` — lifecycle README + Cursor, Claude Code, and MCP reference snippets
+- Legacy install detection hint when `.cursor/skills/` exists but canonical path is missing
+
+### Migration
+```bash
+centricmem setup --install-skill
+# Optional Cursor hooks: centricmem setup --install-hooks
+```
+
+---
+
 ## [0.11.1] - Skill Status
 
 ### Added

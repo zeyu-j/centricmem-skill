@@ -41,8 +41,13 @@ export function bundledSkillPath(name: string): string {
   return path.join(packageRoot(), "skills", name, "SKILL.md");
 }
 
-/** Default path written by `setup --install-skill`. */
+/** Canonical path written by `setup --install-skill`. */
 export function defaultInstalledSkillPath(workspaceRoot: string, name: string): string {
+  return path.join(workspaceRoot, ".centricmem", "skills", name, "SKILL.md");
+}
+
+/** Pre-0.12 install location; used only to detect legacy installs. */
+export function legacyInstalledSkillPath(workspaceRoot: string, name: string): string {
   return path.join(workspaceRoot, ".cursor", "skills", name, "SKILL.md");
 }
 
@@ -128,7 +133,11 @@ export function skillStatus(
     hint = `Upgrade CLI: npm update -g centricmem (need ${compatible}, have ${cli})`;
   } else if (!installedRaw) {
     status = "missing";
-    hint = "centricmem setup --install-skill";
+    const legacyExists =
+      !opts?.installPath && readSkillInfo(legacyInstalledSkillPath(workspaceRoot, name));
+    hint = legacyExists
+      ? "centricmem setup --install-skill (legacy .cursor/skills/ detected; reinstall to .centricmem/skills/)"
+      : "centricmem setup --install-skill";
   } else if (!bundled) {
     status = "ok";
   } else if (!installedRaw.version || !bundled.version) {

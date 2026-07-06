@@ -1,18 +1,18 @@
 ---
 name: centricmem-agent
-version: 0.11.1
-compatible_cli: ">=0.11.0"
+version: 0.12.0
+compatible_cli: ">=0.12.0"
 changelog_url: https://github.com/zeyu-j/centricmem-skill/blob/main/CHANGELOG.md
 description: CentricMem workspace memory — implicit-first local memory OS. Ambient context loads automatically; curate high-value memories only.
 ---
 
-# CentricMem Agent Skill v0.11.1
+# CentricMem Agent Skill v0.12.0
 
 > **设计真源**：[PRODUCT.md](../../PRODUCT.md) — 记忆架构、存储、检索、隐式记忆原则。
 
 **记忆是隐式的** — 默认 `centricmem ambient` 已注入上下文，用户无需说「记一下」。你负责在高价值时刻**策展（Curate）**。
 
-Local memory: `.centricmem/projects/<slug>/`. Default import: `unclassified`.
+Local memory: `.centricmem/projects/<slug>/`. Canonical skill: `.centricmem/skills/centricmem-agent/SKILL.md`. Default import: `unclassified`.
 
 ## Setup
 
@@ -20,10 +20,32 @@ Local memory: `.centricmem/projects/<slug>/`. Default import: `unclassified`.
 git clone https://github.com/zeyu-j/centricmem-skill.git
 cd centricmem-skill && npm install && npm run build && npm link
 cd <workspace-root>
-centricmem setup --link-all --migrate-discover --install-skill --install-hooks
+centricmem setup --link-all --migrate-discover --install-skill
 ```
 
+Optional (Cursor only): `centricmem setup --install-hooks` — see [integrations/README.md](./integrations/README.md).
+
 Env: `CENTRICMEM_WORKSPACE`, `CENTRICMEM_PROJECT`.
+
+## Implicit memory (lifecycle)
+
+Wherever your agent supports session lifecycle hooks, wire:
+
+| Event | Command |
+|-------|---------|
+| Session start | `centricmem ambient --write` |
+| Session end | `centricmem log-session "<summary>"` then `centricmem index --all --quiet` |
+
+No hooks? Run Step 1 manually each session. Copy-paste recipes: `skills/centricmem-agent/integrations/` (or `.centricmem/skills/centricmem-agent/integrations/` after install).
+
+## Agent integration (optional)
+
+CentricMem does not install agent-specific files except the canonical skill under `.centricmem/skills/`. After reading this Skill:
+
+- **Cursor** — symlink or copy to `.cursor/skills/`, or use `centricmem setup --install-hooks`
+- **Claude Code** — merge `integrations/claude-code-settings.snippet.json` into `.claude/settings.json`
+- **MCP agents** — add `centricmem-mcp` per `integrations/mcp-config.snippet.json`
+- **Other** — point your agent's rules at `.centricmem/skills/centricmem-agent/SKILL.md`
 
 ## Step 0 — Classify the request
 
@@ -38,7 +60,7 @@ Env: `CENTRICMEM_WORKSPACE`, `CENTRICMEM_PROJECT`.
 
 Session start: run `centricmem ambient` (or read `.centricmem/.ambient.md`).
 
-If `centricmem skill status` reports `outdated` or `missing`, tell the user once — run `centricmem setup --install-skill`. **Never** overwrite `.cursor/skills/` without confirmation. If `modified`, the user edited the Skill locally — respect their copy.
+If `centricmem skill status` reports `outdated` or `missing`, tell the user once — run `centricmem setup --install-skill`. **Never** overwrite `.centricmem/skills/` without confirmation. If `modified`, the user edited the Skill locally — respect their copy.
 
 **Retrieval routing** (or `centricmem route "<query>"`):
 

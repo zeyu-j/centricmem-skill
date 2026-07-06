@@ -1,12 +1,12 @@
 ---
 name: academic-db-agent
-version: 0.11.1
-compatible_cli: ">=0.11.0"
+version: 0.12.0
+compatible_cli: ">=0.12.0"
 changelog_url: https://github.com/zeyu-j/centricmem-skill/blob/main/CHANGELOG.md
 description: Cross-civilization academic corpus — search, filter, synthesize comparison tables via CentricMem ancient-medicine project.
 ---
 
-# Academic DB Agent Skill (v0.11.1)
+# Academic DB Agent Skill (v0.12.0)
 
 > **L1 域适配器示例** — 展示如何把一种外部 corpus 映射到 CentricMem 契约。  
 > 不是核心能力；其他领域应复制此模式写自己的 Skill + 导出脚本。
@@ -61,7 +61,7 @@ MCP: `centricmem_search` with `meta: { civilization: "chinese", type: "recipe" }
 Project `config.json` maps comparison dimensions → keywords + `path_prefix` under `imported/`.
 Query hits keywords → chunks under matching paths rank higher (default ×1.5).
 
-## Reasonix fallback
+## External index fallback
 
 If this CentricMem project is not set up, use your **source system's** index (e.g. local `_index.md`).  
 That fallback belongs in **your** Skill — not in CentricMem core.

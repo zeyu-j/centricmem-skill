@@ -10,15 +10,15 @@ import { findWorkspaceRoot, resolvePaths, loadConfig } from "./core.js";
 import { initProject, distill, healthCheck, listDecisions, promoteToRules, logDecision, logLesson, logSession, } from "./memory.js";
 import { listTemplates, applyTemplate } from "./templates.js";
 import { migrate } from "./migrate.js";
-import { buildIndex, buildIndexAll, buildIndexAsync, search, searchAsync, searchAll, classifyIntent, dismissChunk, getLinks, decisionId, } from "./indexer.js";
+import { buildIndex, buildIndexAll, buildIndexAsync, logIndexStart, logIndexDone, search, searchAsync, searchAll, classifyIntent, dismissChunk, getLinks, decisionId, } from "./indexer.js";
 import { parseImportBundle, importBundle } from "./import.js";
 import { linkProject, useProject, listProjects, classifyMemory, getCurrentProjectSlug, suggestClassify, workspaceHealth, } from "./workspace.js";
 import { runSetup, printSetupSummary } from "./setup.js";
 import { routeQuery, buildAmbient, writeAmbientFile } from "./retrieve.js";
 import { isEmbeddingEnabled } from "./embedding.js";
-import { skillStatus, formatSkillStatusText } from "./skill.js";
+import { skillStatus, formatSkillStatusText, cliVersion } from "./skill.js";
 const program = new Command();
-program.name("centricmem").description("Cross-agent project memory layer (workspace hub)").version("0.11.1");
+program.name("centricmem").description("Cross-agent project memory layer (workspace hub)").version(cliVersion());
 function parseMetaFilters(pairs) {
     if (!pairs?.length)
         return undefined;
@@ -108,9 +108,9 @@ program
     .option("--workspace <path>", "workspace root", process.cwd())
     .option("--link-all", "link subdirectories with .git or package.json")
     .option("--migrate-discover", "import discovered cursor-rules / memory-bank into unclassified")
-    .option("--install-skill", "copy SKILL.md to .cursor/skills/centricmem-agent/")
-    .option("--install-academic-skill", "copy academic-db-agent SKILL to .cursor/skills/")
-    .option("--install-hooks", "install Cursor session hooks for implicit memory")
+    .option("--install-skill", "install bundled skills to .centricmem/skills/")
+    .option("--install-academic-skill", "install academic-db-agent SKILL to .centricmem/skills/")
+    .option("--install-hooks", "install Cursor session hooks (optional; see integrations/)")
     .option("--drive-mcp-hint", "print Drive MCP sync configuration hint")
     .action((opts) => {
     const result = runSetup({
@@ -128,9 +128,9 @@ program
     if (result.migrated)
         console.log(`Migrated ${result.migrated} source(s) → unclassified`);
     if (result.skillInstalled)
-        console.log("Skill installed to .cursor/skills/centricmem-agent/");
+        console.log("Skill installed to .centricmem/skills/centricmem-agent/");
     if (result.academicSkillInstalled)
-        console.log("Academic skill installed to .cursor/skills/academic-db-agent/");
+        console.log("Academic skill installed to .centricmem/skills/academic-db-agent/");
     if (result.hooksInstalled)
         console.log("Cursor hooks installed to .cursor/hooks/");
 });
@@ -210,6 +210,11 @@ program
     }
     else {
         console.log(`Imported into ${r.project}: +${r.decisions} decisions, +${r.lessons} lessons, +${r.rules} rules, +${r.imported} docs, +${r.sessions} sessions, +${r.research} research (${r.skipped} skipped)`);
+        const newDocs = r.decisions + r.lessons + r.rules + r.imported + r.sessions + r.research;
+        if (newDocs > 0) {
+            console.log(`\nNext: centricmem index -p ${r.project}`);
+            console.log("First index of a large import may take a minute or more — please wait until it finishes before searching.");
+        }
     }
 });
 program
@@ -529,22 +534,31 @@ program
     const ws = requireWorkspace();
     let stats;
     if (opts.all) {
-        stats = buildIndexAll(ws);
+        stats = buildIndexAll(ws, { quiet: opts.quiet });
         if (opts.embed) {
+            if (!opts.quiet) {
+                console.log("Embedding chunks via API — this may take a while; please wait…");
+            }
             let embedded = 0;
             for (const p of listProjects(ws)) {
                 embedded += (await buildIndexAsync(resolvePaths(ws, p.slug), { embed: true })).embedded ?? 0;
             }
             stats.embedded = embedded;
+            if (!opts.quiet)
+                console.log(`Embedding complete: ${embedded} chunk(s).`);
         }
     }
     else {
         const paths = resolvePaths(ws, opts.project);
+        const slug = opts.project ?? "current project";
+        if (!opts.quiet) {
+            logIndexStart(`project "${slug}"`);
+            if (opts.embed)
+                console.log("Including API embeddings — please wait…");
+        }
         stats = opts.embed ? await buildIndexAsync(paths, { embed: true }) : buildIndex(paths);
-    }
-    if (!opts.quiet) {
-        const emb = stats.embedded ? `, ${stats.embedded} embedded` : "";
-        console.log(`Scanned ${stats.scanned}: ${stats.indexed} indexed, ${stats.removed} removed, ${stats.chunks} chunks${emb}.`);
+        if (!opts.quiet)
+            logIndexDone(stats);
     }
 });
 program.parse();

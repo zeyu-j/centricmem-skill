@@ -19,6 +19,7 @@ import { findWorkspaceRoot, resolvePaths } from "./core.js";
 import { getCurrentProjectSlug } from "./workspace.js";
 import { initProject, logDecision, updateContext, readContext, logLesson, logSession } from "./memory.js";
 import { buildIndex, getDb, search, searchAsync, classifyIntent, closeAllCached } from "./indexer.js";
+import { cliVersion } from "./skill.js";
 function getWorkspace() {
     const env = process.env.CENTRICMEM_WORKSPACE || process.env.CENTRICMEM_ROOT;
     if (env) {
@@ -34,7 +35,7 @@ function getWorkspace() {
 function getProjectSlug(ws) {
     return process.env.CENTRICMEM_PROJECT || getCurrentProjectSlug(ws);
 }
-const server = new McpServer({ name: "centricmem", version: "0.11.1" });
+const server = new McpServer({ name: "centricmem", version: cliVersion() });
 // ---------------------------------------------------------------------------
 // centricmem_search
 // ---------------------------------------------------------------------------
@@ -222,4 +223,4 @@ process.on("exit", () => { try {
 catch { /* ignore */ } });
 const transport = new StdioServerTransport();
 await server.connect(transport);
-console.error("CentricMem MCP server v0.11.1 running (stdio, optional/legacy)");
+console.error(`CentricMem MCP server v${cliVersion()} running (stdio, optional/legacy)`);

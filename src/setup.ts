@@ -82,7 +82,7 @@ function installAcademicSkillToWorkspace(workspaceRoot: string): boolean {
   const skillSrc = path.resolve(here, "../skills/academic-db-agent/SKILL.md");
   if (!fs.existsSync(skillSrc)) return false;
 
-  const destDir = path.join(workspaceRoot, ".cursor", "skills", "academic-db-agent");
+  const destDir = path.join(workspaceRoot, ".centricmem", "skills", "academic-db-agent");
   fs.mkdirSync(destDir, { recursive: true });
   fs.copyFileSync(skillSrc, path.join(destDir, "SKILL.md"));
   return true;
@@ -93,25 +93,21 @@ function installSkillToWorkspace(workspaceRoot: string): boolean {
   const skillSrc = path.resolve(here, "../skills/centricmem-agent/SKILL.md");
   if (!fs.existsSync(skillSrc)) return false;
 
-  const destDir = path.join(workspaceRoot, ".cursor", "skills", "centricmem-agent");
+  const destDir = path.join(workspaceRoot, ".centricmem", "skills", "centricmem-agent");
   fs.mkdirSync(destDir, { recursive: true });
   fs.copyFileSync(skillSrc, path.join(destDir, "SKILL.md"));
   return true;
 }
 
-/** Install Cursor hooks for implicit memory (sessionStart / sessionEnd). */
+/** Cursor-only convenience: copy lifecycle hooks from integrations/ to `.cursor/hooks/`. */
 export function installCursorHooks(workspaceRoot: string): boolean {
   const here = path.dirname(fileURLToPath(import.meta.url));
-  const hooksSrc = path.resolve(here, "../skills/centricmem-agent/hooks");
-  if (!fs.existsSync(hooksSrc)) return false;
+  const hooksFile = path.resolve(here, "../skills/centricmem-agent/integrations/cursor-hooks.json");
+  if (!fs.existsSync(hooksFile)) return false;
 
   const destDir = path.join(workspaceRoot, ".cursor", "hooks");
   fs.mkdirSync(destDir, { recursive: true });
-  for (const f of fs.readdirSync(hooksSrc)) {
-    if (f.endsWith(".json") || f.endsWith(".sh") || f.endsWith(".mjs")) {
-      fs.copyFileSync(path.join(hooksSrc, f), path.join(destDir, f));
-    }
-  }
+  fs.copyFileSync(hooksFile, path.join(destDir, "hooks.json"));
   return true;
 }
 
@@ -120,10 +116,16 @@ export function printDriveMcpHint(workspaceRoot: string): void {
   console.log("MCP is for external sync only (not local indexing).");
   console.log("Add a Drive MCP server to your agent config, then sync:");
   console.log(`  ${path.join(workspaceRoot, ".centricmem", "projects")}`);
-  console.log("\nReasonix (~/.reasonix/config.json) example:");
+  console.log("\nAgent MCP config example (merge into your agent's mcpServers):");
   console.log(JSON.stringify(
     {
       mcpServers: {
+        centricmem: {
+          command: "centricmem-mcp",
+          env: {
+            CENTRICMEM_WORKSPACE: workspaceRoot,
+          },
+        },
         "google-drive": {
           command: "npx",
           args: ["-y", "@modelcontextprotocol/server-gdrive"],
@@ -134,6 +136,7 @@ export function printDriveMcpHint(workspaceRoot: string): void {
     2,
   ));
   console.log("\nSet env: CENTRICMEM_WORKSPACE=" + workspaceRoot);
+  console.log("See skills/centricmem-agent/integrations/mcp-config.snippet.json for more.");
 }
 
 export function printSetupSummary(workspaceRoot: string): void {
@@ -144,5 +147,5 @@ export function printSetupSummary(workspaceRoot: string): void {
   for (const p of projects) {
     console.log(`    ${p.current ? "*" : " "} ${p.slug}${p.entry.system ? " (system)" : ""}`);
   }
-  console.log("\nNext: read skills/centricmem-agent/SKILL.md or .cursor/skills/centricmem-agent/SKILL.md");
+  console.log("\nNext: read .centricmem/skills/centricmem-agent/SKILL.md");
 }

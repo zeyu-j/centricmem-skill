@@ -120,7 +120,7 @@ ${opts.consequences || "(not specified)"}
 
 export function cursorRulesPointer(): string {
   return `# CentricMem Pointer
-Please follow the CentricMem Agent Skill: \`.cursor/skills/centricmem-agent/SKILL.md\`
+Please follow the CentricMem Agent Skill: \`.centricmem/skills/centricmem-agent/SKILL.md\`
 Project memory lives under \`.centricmem/projects/<name>/\`.
 Use \`centricmem search\`, \`centricmem import\`, and read \`AGENTS.md\` / \`active_context.md\` for the current project.
 MCP (e.g. Drive) is optional — for syncing memory to external storage only.
@@ -130,7 +130,7 @@ MCP (e.g. Drive) is optional — for syncing memory to external storage only.
 export function claudeMdPointer(): string {
   return `# CentricMem Pointer
 
-Follow \`.cursor/skills/centricmem-agent/SKILL.md\` (or \`skills/centricmem-agent/SKILL.md\` in the package).
+Follow \`.centricmem/skills/centricmem-agent/SKILL.md\`.
 
 Memory: \`.centricmem/projects/<current>/\`
 CLI: \`centricmem search\`, \`centricmem import\`, \`centricmem use <project>\`

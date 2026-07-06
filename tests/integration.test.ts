@@ -304,16 +304,16 @@ test("dismiss down-ranks chunk", () => {
 test("suggestClassify scores projects", () => {
   const ws = freshDir("t18-classify");
   initProject(ws);
-  fs.mkdirSync(path.join(ws, "icegreen-bots"));
-  fs.writeFileSync(path.join(ws, "icegreen-bots", "package.json"), "{}");
-  linkProject(ws, "icegreen-bots");
+  fs.mkdirSync(path.join(ws, "sample-project"));
+  fs.writeFileSync(path.join(ws, "sample-project", "package.json"), "{}");
+  linkProject(ws, "sample-project");
   const bundle = parseImportBundle({
     version: 1,
     project: UNCLASSIFIED,
-    decisions: [{ title: "icegreen-bots deployment", context: "deploy", decision: "k8s" }],
+    decisions: [{ title: "sample-project deployment", context: "deploy", decision: "k8s" }],
   });
   importBundle(ws, bundle);
-  const suggestions = suggestClassify(ws, "decisions/0001-icegreen-bots-deployment.md");
+  const suggestions = suggestClassify(ws, "decisions/0001-sample-project-deployment.md");
   assert.ok(suggestions.length > 0);
 });
 
@@ -506,11 +506,11 @@ test("skill status reports missing installed skill", () => {
 test("skill status reports outdated installed skill", () => {
   const ws = freshDir("t30-skill-outdated");
   initProject(ws);
-  const destDir = path.join(ws, ".cursor", "skills", "centricmem-agent");
+  const destDir = path.join(ws, ".centricmem", "skills", "centricmem-agent");
   fs.mkdirSync(destDir, { recursive: true });
   fs.writeFileSync(
     path.join(destDir, "SKILL.md"),
-    "---\nname: centricmem-agent\nversion: 0.0.1\ncompatible_cli: \">=0.11.0\"\n---\n# Old skill\n",
+    "---\nname: centricmem-agent\nversion: 0.0.1\ncompatible_cli: \">=0.12.0\"\n---\n# Old skill\n",
     "utf8",
   );
   const r = skillStatus(ws);
@@ -523,7 +523,7 @@ test("skill status reports modified when body differs at same version", () => {
   initProject(ws);
   const bundled = readSkillInfo(bundledSkillPath("centricmem-agent"));
   assert.ok(bundled?.version);
-  const destDir = path.join(ws, ".cursor", "skills", "centricmem-agent");
+  const destDir = path.join(ws, ".centricmem", "skills", "centricmem-agent");
   fs.mkdirSync(destDir, { recursive: true });
   fs.writeFileSync(
     path.join(destDir, "SKILL.md"),
@@ -550,7 +550,7 @@ test("skill status reports incompatible cli via install path", () => {
 test("ambient includes skill hint when outdated", () => {
   const ws = freshDir("t33-ambient-skill");
   initProject(ws);
-  const destDir = path.join(ws, ".cursor", "skills", "centricmem-agent");
+  const destDir = path.join(ws, ".centricmem", "skills", "centricmem-agent");
   fs.mkdirSync(destDir, { recursive: true });
   fs.writeFileSync(
     path.join(destDir, "SKILL.md"),
@@ -559,4 +559,19 @@ test("ambient includes skill hint when outdated", () => {
   );
   const block = buildAmbient(ws);
   assert.ok(block.text.includes("Skill:") && block.text.includes("outdated"));
+});
+
+test("skill status hints migrate when legacy .cursor/skills exists", () => {
+  const ws = freshDir("t34-legacy-skill");
+  initProject(ws);
+  const legacyDir = path.join(ws, ".cursor", "skills", "centricmem-agent");
+  fs.mkdirSync(legacyDir, { recursive: true });
+  fs.writeFileSync(
+    path.join(legacyDir, "SKILL.md"),
+    "---\nname: centricmem-agent\nversion: 0.11.1\n---\n# Legacy\n",
+    "utf8",
+  );
+  const r = skillStatus(ws);
+  assert.strictEqual(r.status, "missing");
+  assert.ok(r.hint?.includes("legacy .cursor/skills"));
 });
