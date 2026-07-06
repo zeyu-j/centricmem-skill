@@ -1,0 +1,19 @@
+name: Beta Feedback
+description: Feedback from CentricMem beta testing
+title: "[Beta]: "
+labels: [beta]
+body:
+  - type: textarea
+    id: feedback
+    attributes:
+      label: What worked / what didn't?
+    validations:
+      required: true
+  - type: dropdown
+    id: agent
+    attributes:
+      label: Agent environment
+      options:
+        - Cursor
+        - Claude Code
+        - Other

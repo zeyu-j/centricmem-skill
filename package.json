@@ -1,0 +1,63 @@
+{
+  "name": "centricmem",
+  "version": "0.9.0",
+  "description": "Cross-agent project memory layer: Markdown as source of truth, SQLite FTS5 as index, MCP server for agents.",
+  "type": "module",
+  "bin": {
+    "centricmem": "./dist/cli.js",
+    "centricmem-mcp": "./dist/mcp-server.js"
+  },
+  "main": "./dist/index.js",
+  "files": [
+    "dist",
+    "src",
+    "skills",
+    "tests",
+    "tsconfig.json",
+    "README.md",
+    "CHANGELOG.md",
+    "PRODUCT.md",
+    "BETA.md",
+    "SYNC.md",
+    "ARCHITECTURE.md"
+  ],
+  "scripts": {
+    "build": "tsc && tsc -p tsconfig.tests.json",
+    "dev": "tsc --watch",
+    "test": "node --test dist/tests/integration.test.js",
+    "test:mcp": "node scripts/test-mcp.mjs",
+    "test:scenarios": "node scripts/run-scenarios.mjs",
+    "test:all": "npm test && npm run test:mcp && npm run test:scenarios"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "keywords": [
+    "mcp",
+    "agent-memory",
+    "sqlite",
+    "fts5",
+    "cursor",
+    "claude-code"
+  ],
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/zeyu-j/centricmem-skill.git"
+  },
+  "homepage": "https://github.com/zeyu-j/centricmem-skill#readme",
+  "bugs": {
+    "url": "https://github.com/zeyu-j/centricmem-skill/issues"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.29.0",
+    "better-sqlite3": "^12.11.1",
+    "commander": "^15.0.0",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^7.6.13",
+    "@types/node": "^26.1.0",
+    "typescript": "^6.0.3"
+  }
+}

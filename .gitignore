@@ -1,0 +1,5 @@
+node_modules/
+dist/
+.centricmem/
+*.log
+.DS_Store

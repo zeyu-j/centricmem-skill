@@ -1,0 +1,13 @@
+{
+  "version": 1,
+  "hooks": [
+    {
+      "event": "sessionStart",
+      "command": "centricmem ambient --write"
+    },
+    {
+      "event": "sessionEnd",
+      "command": "centricmem index --all --quiet"
+    }
+  ]
+}
