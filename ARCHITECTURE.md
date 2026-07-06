@@ -77,4 +77,4 @@ score     = relevance × time_decay × status_penalty × ref_boost × intent_boo
 
 ## License
 
-MIT
+PolyForm Noncommercial 1.0.0 — see [LICENSE](./LICENSE).

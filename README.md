@@ -101,6 +101,7 @@ API keys are read from env only — never stored in memory files.
 
 ## License
 
-MIT
+[PolyForm Noncommercial 1.0.0](./LICENSE) — free for personal, research, and noncommercial use.
+Copies must retain the license and the Required Notice (attribution). **Commercial use is not permitted** without a separate license from the author.
 
 Design: [PRODUCT.md](./PRODUCT.md) · Implementation: [ARCHITECTURE.md](./ARCHITECTURE.md) · Sync: [SYNC.md](./SYNC.md) · Beta: [BETA.md](./BETA.md)
