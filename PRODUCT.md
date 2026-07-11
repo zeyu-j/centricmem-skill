@@ -35,7 +35,7 @@
 
 ### 2.1 边界原则（Adapter in, not Platform out）
 
-CentricMem **不识别** Cursor、Claude Code 或任何具体 Agent 品牌。核心只提供：
+CentricMem **不识别** Cursor、[redacted]、Claude Code 或任何具体 Agent 品牌。核心只提供：
 
 | L0 提供 | L0 不提供 |
 |---------|-----------|
@@ -345,7 +345,7 @@ git clone centricmem-skill → npm link
 
 ---
 
-## 8. 当前实现对照（v0.12.0）
+## 8. 当前实现对照（v0.14）
 
 | 设计原则 | 实现状态 |
 |----------|----------|
@@ -360,7 +360,10 @@ git clone centricmem-skill → npm link
 | Promote 工作流 | 有（`centricmem promote --confirm`） |
 | suggest-classify | 有 |
 | Workspace 健康仪表 | 有（`status --workspace`） |
-| 混合检索（BM25 + API embedding） | 有（`search --semantic`） |
+| 混合检索（BM25 + API embedding） | 有（`search --semantic`；RRF 融合见 CHANGELOG） |
+| Agent 产品家目录 `$CENTRICMEM_HOME` | 有（默认 `~/.centricmem`，不进业务 git） |
+| `--migrate-from-local` | 有 |
+| Import upsert（`external_id`） | 有（imported/research） |
 | 隐式记忆（ambient + hooks） | 有 |
 | Drive sync 契约 | 有（[SYNC.md](./SYNC.md)） |
 | Memory Links（project 内） | 有（supersedes/refs/mentions + `refs` 遍历 + ref_boost） |
@@ -373,9 +376,9 @@ git clone centricmem-skill → npm link
 
 ---
 
-## 9. 优化路线图（v0.12 完成态）
+## 9. 优化路线图（v0.14 完成态）
 
-P0–P3、Memory Links、corpus metadata、domain_boost、skill status、agent-agnostic Skill 路径（`.centricmem/skills/`）已落地。
+P0–P3、Memory Links、corpus metadata、domain_boost、skill status、产品家目录、coexistence / import upsert、**RRF 双路融合**、**valid_from/valid_until**、**explain 轨迹**、ImportBundle 协议文档、hooks `--auto` session 已落地。
 
 **分工模型**：其他 memory skill 可作为**采集端**继续写入；CentricMem 作为**组织/检索端**（ImportBundle 摄入 → classify → ambient/search）。策展（decision / lesson / promote）落在 CentricMem，不写回对方库。
 
@@ -384,7 +387,7 @@ P0–P3、Memory Links、corpus metadata、domain_boost、skill status、agent-a
 1. 跨 project 记忆链接与关联推荐
 2. 远程只读索引实现
 3. 更丰富的 hook 事件（file save、PR merge）
-4. Session→Memory bridge（L1 适配器；核心不绑定具体 Agent / UI 产品）
+4. Session→Memory bridge（L1 适配器；从 transcript 抽摘要，核心不绑定具体 Agent）
 
 ## 10. 通用性声明
 

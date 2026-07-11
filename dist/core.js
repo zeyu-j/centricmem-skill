@@ -107,7 +107,7 @@ export const DEFAULT_CONFIG = {
     decay_rate: 0.01,
     max_results: 5,
     ref_weight: 0.1,
-    embedding: { provider: "none", hybrid_alpha: 0.6 },
+    embedding: { provider: "none", hybrid_alpha: 0.6, rrf_k: 60 },
     metadata: {
         hot_columns: ["civilization", "type", "has_incantation"],
         hot_columns_enabled: false,

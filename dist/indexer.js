@@ -6,7 +6,8 @@
  *   are split by `##` headings (falling back to whole file).
  * - Incremental indexing: per-file content SHA256 stored in `files`; unchanged
  *   files are skipped, changed files have their chunks replaced.
- * - Temporal-aware ranking: score = BM25 * time_decay * status_penalty * ref_boost * intent_boost
+ * - Temporal-aware ranking: score = relevance × time_decay × status × validity × ref × intent × domain × feedback
+ * - --semantic: dual-list RRF (BM25 ranks ∪ vector ranks), then same multipliers
  * - DB connection: CLI opens/closes per command; MCP server reuses a single
  *   connection via getDb() for the process lifetime.
  */
@@ -153,7 +154,46 @@ function extractMeta(content) {
         /logged_by=(\S+?)(?:\s|-->)/.exec(content);
     if (by)
         meta.agent = by[1];
+    const vf = /\*\*Valid from\*\*:\s*(\S+)/i.exec(content) ||
+        /valid_from[=:\s]+(\S+)/i.exec(content);
+    if (vf)
+        meta.validFrom = vf[1].replace(/[",]/g, "");
+    const vu = /\*\*Valid until\*\*:\s*(\S+)/i.exec(content) ||
+        /valid_until[=:\s]+(\S+)/i.exec(content);
+    if (vu)
+        meta.validUntil = vu[1].replace(/[",]/g, "");
     return meta;
+}
+function scalarMetaString(meta, key) {
+    if (!meta)
+        return undefined;
+    const v = meta[key] ?? meta[key.replace(/_/g, "")];
+    if (typeof v === "string" && v.trim())
+        return v.trim();
+    return undefined;
+}
+/** Soft penalty when outside validity window (1 = ok, ~0.05 = outside). */
+export function validityPenalty(validFrom, validUntil, nowMs = Date.now()) {
+    if (validFrom) {
+        const t = Date.parse(validFrom);
+        if (!Number.isNaN(t) && nowMs < t)
+            return 0.05;
+    }
+    if (validUntil) {
+        const t = Date.parse(validUntil);
+        if (!Number.isNaN(t) && nowMs > t)
+            return 0.05;
+    }
+    return 1;
+}
+const HISTORY_QUERY = /上个月|去年|当时|以前|曾经|那时|历史|last\s+month|last\s+year|previously|at\s+the\s+time|what\s+was|used\s+to|historical|back\s+then/i;
+export function isHistoricalQuery(query) {
+    return HISTORY_QUERY.test(query);
+}
+function statusPenaltyFor(status, historicalQuery) {
+    if (status === "active")
+        return 1;
+    return historicalQuery ? 0.5 : 0.1;
 }
 /** Split a markdown body by `##` headings, keeping the preamble as its own chunk. */
 function splitByHeadings(content) {
@@ -186,13 +226,26 @@ export function chunkFile(memDir, relPath) {
     const { meta: fmMeta, body } = parseYamlFrontmatter(raw);
     const content = Object.keys(fmMeta).length ? body : raw;
     const docType = classifyDocType(relPath);
-    const meta = Object.keys(fmMeta).length ? fmMeta : undefined;
     const metaExtract = extractMeta(content);
     const mtime = fs.statSync(abs).mtime.toISOString();
     const loggedAt = metaExtract.loggedAt || mtime;
     const agent = metaExtract.agent || "unknown";
     const status = metaExtract.status || "active";
     const supersededBy = metaExtract.supersededBy || "";
+    const validFrom = scalarMetaString(fmMeta, "valid_from") ||
+        scalarMetaString(fmMeta, "validFrom") ||
+        metaExtract.validFrom;
+    const validUntil = scalarMetaString(fmMeta, "valid_until") ||
+        scalarMetaString(fmMeta, "validUntil") ||
+        metaExtract.validUntil;
+    const meta = (() => {
+        const base = Object.keys(fmMeta).length ? { ...fmMeta } : {};
+        if (validFrom)
+            base.valid_from = validFrom;
+        if (validUntil)
+            base.valid_until = validUntil;
+        return Object.keys(base).length ? base : undefined;
+    })();
     if (docType === "decision") {
         const h1 = content.split("\n").find((l) => l.startsWith("# "));
         // Strip the H1 and metadata bullet lines from the indexed body so FTS5
@@ -201,7 +254,7 @@ export function chunkFile(memDir, relPath) {
         // via the heading and structured columns.
         const bodyText = content
             .split("\n")
-            .filter((l) => !l.startsWith("# ") && !/^- \*\*(Status|Logged at|Logged by|Tags|Supersedes|Superseded by)\*\*:/.test(l))
+            .filter((l) => !l.startsWith("# ") && !/^- \*\*(Status|Logged at|Logged by|Tags|Supersedes|Superseded by|Valid from|Valid until)\*\*:/.test(l))
             .join("\n")
             .trim();
         // Append tags as hidden searchable text so FTS5 can match tag words
@@ -210,7 +263,19 @@ export function chunkFile(memDir, relPath) {
         const tagsText = tagsLine
             ? "\ntags: " + tagsLine[1].split(",").map((t) => t.trim()).filter(Boolean).join(" ")
             : "";
-        return [{ file: relPath, heading: h1 ? h1.slice(2).trim() : relPath, content: (bodyText || content) + tagsText, docType, loggedAt, agent, status, supersededBy, meta }];
+        return [{
+                file: relPath,
+                heading: h1 ? h1.slice(2).trim() : relPath,
+                content: (bodyText || content) + tagsText,
+                docType,
+                loggedAt,
+                agent,
+                status,
+                supersededBy,
+                validFrom,
+                validUntil,
+                meta,
+            }];
     }
     return splitByHeadings(content).map((c) => {
         // Per-chunk agent attribution: imported rule blocks carry their own
@@ -218,7 +283,8 @@ export function chunkFile(memDir, relPath) {
         const imp = /\(imported\s+(\S+?)\s+by\s+([\w-]+)\)/.exec(c.body);
         return {
             file: relPath, heading: c.heading, content: c.body, docType,
-            loggedAt: imp?.[1] ?? loggedAt, agent: imp?.[2] ?? agent, status, supersededBy, meta,
+            loggedAt: imp?.[1] ?? loggedAt, agent: imp?.[2] ?? agent, status, supersededBy,
+            validFrom, validUntil, meta,
         };
     });
 }
@@ -698,14 +764,38 @@ export function buildIndexAll(workspaceRoot, opts) {
     return total;
 }
 /** Search across all projects in a workspace; merges and re-ranks results. */
-export function searchAll(workspaceRoot, query, limit, filters) {
+export function searchAll(workspaceRoot, query, limit, filters, options) {
     const ws = loadWorkspace(workspaceRoot);
     const config = loadConfig(resolvePaths(workspaceRoot, ws.current));
     const max = limit ?? config.max_results;
     const merged = [];
     for (const slug of Object.keys(ws.projects)) {
         const paths = resolvePaths(workspaceRoot, slug);
-        const hits = search(paths, query, max * 3, filters);
+        const hits = search(paths, query, max * 3, filters, undefined, options);
+        for (const h of hits)
+            merged.push({ ...h, projectSlug: slug });
+    }
+    merged.sort((a, b) => b.score - a.score);
+    return merged.slice(0, max);
+}
+/** Async cross-project search (embeds query once when --semantic). */
+export async function searchAllAsync(workspaceRoot, query, limit, filters, options) {
+    const ws = loadWorkspace(workspaceRoot);
+    const config = loadConfig(resolvePaths(workspaceRoot, ws.current));
+    let queryEmbedding = options?.queryEmbedding;
+    if (options?.semantic && isEmbeddingEnabled(config) && !queryEmbedding?.length) {
+        const vecs = await embedTexts([query], config);
+        queryEmbedding = vecs[0];
+    }
+    // Per-project: if a project has its own embedding config, still use shared query vec when provided.
+    const max = limit ?? config.max_results;
+    const merged = [];
+    const opts = { ...options, queryEmbedding };
+    for (const slug of Object.keys(ws.projects)) {
+        const paths = resolvePaths(workspaceRoot, slug);
+        const hits = opts.semantic
+            ? await searchAsync(paths, query, max * 3, filters, opts)
+            : search(paths, query, max * 3, filters, undefined, opts);
         for (const h of hits)
             merged.push({ ...h, projectSlug: slug });
     }
@@ -828,71 +918,158 @@ export function search(paths, query, limit, filters, db, options) {
     const rawMax = limit ?? config.max_results;
     const max = Number.isFinite(Number(rawMax)) && Number(rawMax) > 0 ? Math.floor(Number(rawMax)) : config.max_results;
     const intent = classifyIntent(query);
+    const historicalQuery = isHistoricalQuery(query);
     const hotEnabled = config.metadata?.hot_columns_enabled ?? false;
     const hotCols = config.metadata?.hot_columns ?? ["civilization", "type", "has_incantation"];
     const ownDb = !db;
     const conn = db ?? openDb(paths);
-    const alpha = config.embedding?.hybrid_alpha ?? 0.6;
-    const useSemantic = options?.semantic && (options.queryEmbedding?.length || isEmbeddingEnabled(config));
+    const rrfK = config.embedding?.rrf_k ?? 60;
+    const useSemantic = Boolean(options?.semantic && options.queryEmbedding?.length);
     try {
         const needsMetaJoin = Boolean(filters?.meta && Object.keys(filters.meta).length);
-        const conds = ["chunks_fts MATCH ?"];
-        const params = [toFtsQuery(query)];
+        const filterConds = [];
+        const filterParams = [];
         if (filters?.type) {
-            conds.push("c.doc_type = ?");
-            params.push(normalizeTypeFilter(filters.type));
+            filterConds.push("c.doc_type = ?");
+            filterParams.push(normalizeTypeFilter(filters.type));
         }
         if (filters?.status) {
-            conds.push("c.status = ?");
-            params.push(filters.status.toLowerCase());
+            filterConds.push("c.status = ?");
+            filterParams.push(filters.status.toLowerCase());
         }
         if (filters?.agent) {
-            conds.push("c.agent = ?");
-            params.push(filters.agent.toLowerCase());
+            filterConds.push("c.agent = ?");
+            filterParams.push(filters.agent.toLowerCase());
         }
         if (filters?.meta) {
             for (const [key, value] of Object.entries(filters.meta)) {
                 const { sql, param } = metaFilterSql(key, value, hotEnabled, hotCols);
-                conds.push(sql);
-                params.push(param);
+                filterConds.push(sql);
+                filterParams.push(param);
             }
         }
-        params.push(max * 5);
         const joinMeta = needsMetaJoin ? "LEFT JOIN chunk_meta cm ON cm.chunk_id = c.id" : "";
-        const rows = conn
+        const filterSql = filterConds.length ? `AND ${filterConds.join(" AND ")}` : "";
+        const byId = new Map();
+        const ftsConds = ["chunks_fts MATCH ?", ...filterConds];
+        const ftsParams = [toFtsQuery(query), ...filterParams, max * 5];
+        const ftsRows = conn
             .prepare(`SELECT c.id, c.file, c.heading, c.doc_type, c.logged_at, c.agent, c.status, c.superseded_by,
+
                 snippet(chunks_fts, 1, '**', '**', ' … ', 24) AS snip,
+
                 bm25(chunks_fts, 4.0, 2.0, 1.0) AS rank
+
          FROM chunks_fts JOIN chunks c ON c.id = chunks_fts.rowid
+
          ${joinMeta}
-         WHERE ${conds.join(" AND ")}
+
+         WHERE ${ftsConds.join(" AND ")}
+
          ORDER BY rank LIMIT ?`)
-            .all(...params);
+            .all(...ftsParams);
+        ftsRows.forEach((r, i) => {
+            byId.set(r.id, {
+                id: r.id,
+                file: r.file,
+                heading: r.heading,
+                doc_type: r.doc_type,
+                logged_at: r.logged_at,
+                agent: r.agent,
+                status: r.status,
+                superseded_by: r.superseded_by ?? "",
+                snip: r.snip,
+                bm25Raw: -r.rank,
+                bm25Rank: i + 1,
+                cosine: 0,
+            });
+        });
+        const queryVec = options?.queryEmbedding;
+        if (useSemantic && queryVec?.length) {
+            const embRows = conn
+                .prepare(`SELECT c.id, c.file, c.heading, c.doc_type, c.logged_at, c.agent, c.status, c.superseded_by,
+
+                  substr(c.content, 1, 160) AS snip, e.embedding
+
+           FROM chunks c
+
+           JOIN chunk_embeddings e ON e.chunk_id = c.id
+
+           ${joinMeta}
+
+           WHERE 1=1 ${filterSql}`)
+                .all(...filterParams);
+            const scored = embRows
+                .map((r) => ({
+                ...r,
+                cosine: Math.max(0, cosineSimilarity(queryVec, blobToVector(r.embedding))),
+            }))
+                .filter((r) => r.cosine > 0)
+                .sort((a, b) => b.cosine - a.cosine)
+                .slice(0, max * 5);
+            scored.forEach((r, i) => {
+                const existing = byId.get(r.id);
+                if (existing) {
+                    existing.vecRank = i + 1;
+                    existing.cosine = r.cosine;
+                }
+                else {
+                    byId.set(r.id, {
+                        id: r.id,
+                        file: r.file,
+                        heading: r.heading,
+                        doc_type: r.doc_type,
+                        logged_at: r.logged_at,
+                        agent: r.agent,
+                        status: r.status,
+                        superseded_by: r.superseded_by ?? "",
+                        snip: r.snip || r.heading,
+                        bm25Raw: 0,
+                        vecRank: i + 1,
+                        cosine: r.cosine,
+                    });
+                }
+            });
+        }
         const getRef = conn.prepare("SELECT ref_count FROM refs WHERE file = ? AND heading = ?");
         const getInbound = conn.prepare("SELECT COUNT(*) AS n FROM links WHERE to_id = ?");
-        const getEmb = conn.prepare("SELECT embedding FROM chunk_embeddings WHERE chunk_id = ?");
-        // Semantic mode needs a precomputed query vector (searchAsync embeds it).
-        const queryVec = options?.queryEmbedding;
-        const bm25Scores = rows.map((r) => -r.rank);
+        const getMeta = conn.prepare("SELECT meta_json FROM chunk_meta WHERE chunk_id = ?");
+        const getSupersedes = conn.prepare("SELECT to_id FROM links WHERE from_file LIKE ? AND rel = 'supersedes' LIMIT 3");
+        const candidates = [...byId.values()];
+        const bm25Scores = candidates.map((c) => c.bm25Raw).filter((x) => x > 0);
         const bm25Max = Math.max(...bm25Scores, 0.001);
-        const results = rows.map((r) => {
-            const bm25Norm = (-r.rank) / bm25Max;
-            let cosine = 0;
-            if (useSemantic && queryVec?.length) {
-                const embRow = getEmb.get(r.id);
-                if (embRow)
-                    cosine = Math.max(0, cosineSimilarity(queryVec, blobToVector(embRow.embedding)));
-            }
-            const relevance = useSemantic && queryVec?.length
-                ? alpha * bm25Norm + (1 - alpha) * cosine
-                : bm25Norm;
+        let rrfMax = 0.001;
+        const rrfScores = new Map();
+        for (const c of candidates) {
+            let rrf = 0;
+            if (c.bm25Rank)
+                rrf += 1 / (rrfK + c.bm25Rank);
+            if (c.vecRank)
+                rrf += 1 / (rrfK + c.vecRank);
+            rrfScores.set(c.id, rrf);
+            if (rrf > rrfMax)
+                rrfMax = rrf;
+        }
+        const results = candidates.map((r) => {
+            const bm25Norm = r.bm25Raw > 0 ? r.bm25Raw / bm25Max : 0;
+            const rrf = rrfScores.get(r.id) ?? 0;
+            const relevance = useSemantic ? rrf / rrfMax : bm25Norm;
             const td = timeDecay(r.logged_at, config.decay_rate);
-            const statusPenalty = r.status === "active" ? 1 : 0.1;
+            const statusPenalty = statusPenaltyFor(r.status, historicalQuery);
+            let validFrom;
+            let validUntil;
+            const metaRow = getMeta.get(r.id);
+            if (metaRow?.meta_json) {
+                try {
+                    const m = JSON.parse(metaRow.meta_json);
+                    validFrom = scalarMetaString(m, "valid_from") || scalarMetaString(m, "validFrom");
+                    validUntil = scalarMetaString(m, "valid_until") || scalarMetaString(m, "validUntil");
+                }
+                catch { /* ignore */ }
+            }
+            const vp = validityPenalty(validFrom, validUntil);
             const refRow = getRef.get(r.file, r.heading);
             const refCount = refRow?.ref_count ?? 0;
-            // Structural in-degree: decisions referenced by other decisions (links
-            // table) are more load-bearing than mere search-hit counts, so they
-            // weigh double inside the same ref_boost signal.
             let inbound = 0;
             const seq = seqFromDecisionPath(r.file);
             if (seq !== null) {
@@ -902,7 +1079,18 @@ export function search(paths, query, limit, filters, db, options) {
             const ib = intentBoost(intent, r.doc_type);
             const dbBoost = domainBoostForFile(r.file, query, config);
             const fb = feedbackPenalty(conn, r.file, r.heading);
-            const score = relevance * td * statusPenalty * refBoost * ib * dbBoost * fb;
+            const score = relevance * td * statusPenalty * vp * refBoost * ib * dbBoost * fb;
+            let lineage;
+            if (options?.explain && seq !== null) {
+                const parts = [`#${seq}`];
+                if (r.superseded_by)
+                    parts.push(`→ superseded_by #${r.superseded_by}`);
+                const outs = getSupersedes.all(`decisions/${String(seq).padStart(4, "0")}-%`);
+                for (const o of outs)
+                    parts.push(`→ supersedes ${o.to_id}`);
+                if (parts.length > 1)
+                    lineage = parts.join(" ");
+            }
             const result = {
                 file: r.file,
                 heading: r.heading,
@@ -917,15 +1105,20 @@ export function search(paths, query, limit, filters, db, options) {
             if (options?.explain) {
                 result.explain = {
                     bm25: bm25Norm,
-                    cosine,
+                    cosine: r.cosine,
                     relevance,
                     timeDecay: td,
                     statusPenalty,
+                    validityPenalty: vp,
                     refBoost,
                     intentBoost: ib,
                     domainBoost: dbBoost,
                     feedbackPenalty: fb,
                     final: score,
+                    bm25Rank: r.bm25Rank,
+                    vecRank: r.vecRank,
+                    rrf: useSemantic ? rrf : undefined,
+                    lineage,
                 };
             }
             return result;

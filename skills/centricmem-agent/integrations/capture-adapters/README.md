@@ -17,7 +17,9 @@ CentricMem core does **not** scan agent install directories. Your adapter (scrip
 5. Run `centricmem import export.json` (add `--skip-existing` for one-shot migrate semantics).
 6. Classify out of `unclassified` when ready: `suggest-classify` → `classify --to <slug>`.
 
-See [BETA.md](../../../../BETA.md) for re-import semantics.
+See [IMPORT_BUNDLE.md](../../../../IMPORT_BUNDLE.md) for the full field contract and re-import table.
+
+See [BETA.md](../../../../BETA.md) for beta install notes.
 
 ## Built-in one-shot migrators
 

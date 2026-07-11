@@ -7,12 +7,12 @@ import fs from "node:fs";
 import path from "node:path";
 import readline from "node:readline";
 import { findWorkspaceRoot, resolvePaths, loadConfig, getProductHome } from "./core.js";
-import { initProject, distill, healthCheck, listDecisions, promoteToRules, logDecision, logLesson, logSession, } from "./memory.js";
+import { initProject, distill, healthCheck, listDecisions, promoteToRules, logDecision, logLesson, logSession, autoSessionSummary, } from "./memory.js";
 import { listTemplates, applyTemplate } from "./templates.js";
 import { migrate } from "./migrate.js";
-import { buildIndex, buildIndexAll, buildIndexAsync, logIndexStart, logIndexDone, search, searchAsync, searchAll, classifyIntent, dismissChunk, getLinks, decisionId, } from "./indexer.js";
+import { buildIndex, buildIndexAll, buildIndexAsync, logIndexStart, logIndexDone, search, searchAsync, searchAllAsync, classifyIntent, dismissChunk, getLinks, decisionId, } from "./indexer.js";
 import { parseImportBundle, importBundle } from "./import.js";
-import { linkProject, useProject, listProjects, classifyMemory, getCurrentProjectSlug, suggestClassify, workspaceHealth, } from "./workspace.js";
+import { linkProject, useProject, listProjects, classifyMemory, getCurrentProjectSlug, suggestClassify, workspaceHealth, loadWorkspace, } from "./workspace.js";
 import { runSetup, printSetupSummary } from "./setup.js";
 import { routeQuery, buildAmbient, writeAmbientFile } from "./retrieve.js";
 import { isEmbeddingEnabled } from "./embedding.js";
@@ -265,7 +265,7 @@ program
     .option("-f, --filter <pair>", "metadata filter key=value (repeatable)", (v, acc) => { acc.push(v); return acc; }, [])
     .option("-p, --project <slug>", "search one project")
     .option("--all", "search all projects")
-    .option("--semantic", "hybrid BM25 + embedding search (requires API key)")
+    .option("--semantic", "hybrid BM25 + embedding search via RRF (requires API key)")
     .option("--explain", "show score breakdown")
     .action(async (queryParts, opts) => {
     const ws = requireWorkspace();
@@ -284,11 +284,15 @@ program
     }
     const filters = { type: opts.type, status: opts.status, agent: opts.agent, meta };
     const searchOpts = { semantic: opts.semantic, explain: opts.explain };
-    if (opts.semantic && !opts.all && !isEmbeddingEnabled(loadConfig(resolvePaths(ws, opts.project)))) {
-        console.log("(semantic disabled — no embedding config/API key; using BM25)");
+    if (opts.semantic) {
+        const anyEnabled = opts.all
+            ? Object.keys(loadWorkspace(ws).projects).some((slug) => isEmbeddingEnabled(loadConfig(resolvePaths(ws, slug))))
+            : isEmbeddingEnabled(loadConfig(resolvePaths(ws, opts.project)));
+        if (!anyEnabled)
+            console.log("(semantic disabled — no embedding config/API key; using BM25)");
     }
     const results = opts.all
-        ? searchAll(ws, query, limit, filters)
+        ? await searchAllAsync(ws, query, limit, filters, searchOpts)
         : opts.semantic
             ? await searchAsync(resolvePaths(ws, opts.project), query, limit, filters, searchOpts)
             : search(resolvePaths(ws, opts.project), query, limit, filters, undefined, searchOpts);
@@ -304,7 +308,16 @@ program
         console.log(`  ${r.snippet.replace(/\n/g, " ")}`);
         if (r.explain) {
             const e = r.explain;
-            console.log(`  explain: bm25=${e.bm25.toFixed(3)} cos=${e.cosine.toFixed(3)} rel=${e.relevance.toFixed(3)} time=${e.timeDecay.toFixed(3)} status=${e.statusPenalty} ref=${e.refBoost.toFixed(3)} intent=${e.intentBoost} domain=${e.domainBoost.toFixed(3)} fb=${e.feedbackPenalty.toFixed(3)}`);
+            const ranks = [
+                e.bm25Rank != null ? `BM25#${e.bm25Rank}` : null,
+                e.vecRank != null ? `Vec#${e.vecRank}` : null,
+                e.rrf != null ? `RRF=${e.rrf.toFixed(4)}` : null,
+            ].filter(Boolean).join(" | ");
+            if (ranks)
+                console.log(`  trajectory: ${ranks}`);
+            console.log(`  explain: bm25=${e.bm25.toFixed(3)} cos=${e.cosine.toFixed(3)} rel=${e.relevance.toFixed(3)} time=${e.timeDecay.toFixed(3)} status=${e.statusPenalty} valid=${e.validityPenalty ?? 1} ref=${e.refBoost.toFixed(3)} intent=${e.intentBoost} domain=${e.domainBoost.toFixed(3)} fb=${e.feedbackPenalty.toFixed(3)}`);
+            if (e.lineage)
+                console.log(`  lineage: ${e.lineage}`);
         }
     }
 });
@@ -332,10 +345,21 @@ program
     .option("-p, --project <slug>", "project slug")
     .option("--stdin", "read summary from stdin")
     .option("--title <title>", "session heading")
+    .option("--auto", "derive summary from active_context Current Focus (hooks)")
     .action((summaryParts, opts) => {
     const ws = requireWorkspace();
-    const summary = opts.stdin ? fs.readFileSync(0, "utf8").trim() : summaryParts.join(" ");
-    const r = logSession(ws, { summary, title: opts.title }, opts.project);
+    let summary;
+    if (opts.auto) {
+        summary = autoSessionSummary(ws, opts.project);
+    }
+    else if (opts.stdin) {
+        summary = fs.readFileSync(0, "utf8").trim();
+    }
+    else {
+        summary = summaryParts.join(" ");
+    }
+    const title = opts.title ?? (opts.auto ? "auto" : undefined);
+    const r = logSession(ws, { summary, title }, opts.project);
     buildIndex(resolvePaths(ws, opts.project));
     console.log(`Session logged: ${r.file} → ## ${r.heading}`);
 });

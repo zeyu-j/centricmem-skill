@@ -76,14 +76,21 @@ Typed edges between decisions, extracted from Markdown at index time (schema v4,
 ## Search pipeline
 
 ```text
-relevance = bm25_norm                        (default)
-          = α·bm25_norm + (1-α)·cosine        (--semantic, α = embedding.hybrid_alpha)
-score     = relevance × time_decay × status_penalty × ref_boost × intent_boost × domain_boost × feedback_penalty
+relevance = bm25_norm                                           (default)
+          = RRF(rank_bm25, rank_vector) normalized              (--semantic; k = embedding.rrf_k, default 60)
+score     = relevance × time_decay × status_penalty × validity_penalty
+            × ref_boost × intent_boost × domain_boost × feedback_penalty
 ```
 
-`search --explain` prints every signal. `centricmem dismiss` feeds `feedback_penalty`.
+`--semantic` builds two candidate lists (FTS top-N and brute-force cosine top-N over `chunk_embeddings`), fuses with Reciprocal Rank Fusion, then applies the same multipliers. Pure vector hits outside the FTS window can surface.
+
+`search --explain` prints trajectory ranks (BM25# / Vec# / RRF), every signal, and optional supersedes lineage. `centricmem dismiss` feeds `feedback_penalty`.
+`status_penalty` is softened (0.5 vs 0.1) for historical-intent queries (`previously`, `上个月`, …).
+`validity_penalty` uses optional `valid_from` / `valid_until` (YAML frontmatter or `**Valid from**` / `**Valid until**` lines).
 `ref_boost = 1 + ref_weight · ln(1 + search_hits + 2·link_indegree)`.
 `domain_boost` — project `config.json` maps dimension keywords → `path_prefix` under `imported/` (default ×1.5).
+
+Legacy `embedding.hybrid_alpha` is ignored for `--semantic` ranking (kept for older config.json).
 
 ## Corpus metadata (schema v5)
 

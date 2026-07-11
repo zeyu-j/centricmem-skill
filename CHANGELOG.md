@@ -2,6 +2,49 @@
 
 All notable changes to CentricMem will be documented in this file.
 
+## [0.14.1] - Usability polish
+
+### Added
+- `log-session --auto` — summary from `active_context.md` **Current Focus** (hooks use this instead of placeholder text)
+- Workspace health warns on **broken `sourceDir`** and **`CENTRICMEM_HOME`/`WORKSPACE` without `workspace.json`**
+- `search --all --semantic` / `--explain` via `searchAllAsync` (RRF across projects)
+- Ambient preflight surfaces workspace-level link/env warnings
+
+### Changed
+- Cursor / Claude sessionEnd hooks: `log-session --auto --title hooks`
+- PRODUCT §9 / BETA upgrade notes aligned to 0.14.x
+
+### Migration
+```bash
+npm run build && npm link
+centricmem setup --install-skill --install-hooks
+```
+
+---
+
+## [0.14.0] - Retrieval quality (RRF + validity + explain trajectory)
+
+### Changed (breaking for `--semantic`)
+- **`--semantic` uses Reciprocal Rank Fusion** over dual candidate lists (FTS + vector), not `α·BM25+(1-α)·cosine`
+- `embedding.rrf_k` (default 60); `hybrid_alpha` ignored for semantic ranking
+- Cursor / Claude sessionEnd hooks now `log-session` then `index` (was index-only)
+
+### Added
+- Optional **`valid_from` / `valid_until`** (YAML or body lines) → `validity_penalty` in search
+- Historical-intent queries soften superseded `status_penalty` (0.5 vs 0.1)
+- `--explain` trajectory: BM25# / Vec# / RRF + optional supersedes lineage
+- [IMPORT_BUNDLE.md](./IMPORT_BUNDLE.md) formal ingest contract
+- Docs / web aligned to product home (`$CENTRICMEM_HOME`) for 0.13+
+
+### Migration
+```bash
+centricmem setup --install-skill --install-hooks   # refresh Skill + hooks
+# Re-index if you rely on --semantic embeddings
+centricmem index --all
+```
+
+---
+
 ## [0.13.0] - Agent product home
 
 ### Changed (breaking)

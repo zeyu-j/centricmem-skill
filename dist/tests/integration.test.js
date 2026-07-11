@@ -10,12 +10,12 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const distDir = path.resolve(__dirname, "..");
 const toImport = (p) => pathToFileURL(p).href;
-const { initProject, logDecision, updateContext, readContext, healthCheck } = await import(toImport(path.join(distDir, "memory.js")));
-const { buildIndex, buildIndexAll, search, searchAll, chunkFile, parseYamlFrontmatter } = await import(toImport(path.join(distDir, "indexer.js")));
+const { initProject, logDecision, updateContext, readContext, healthCheck, autoSessionSummary, logSession } = await import(toImport(path.join(distDir, "memory.js")));
+const { buildIndex, buildIndexAll, search, searchAll, searchAllAsync, chunkFile, parseYamlFrontmatter } = await import(toImport(path.join(distDir, "indexer.js")));
 const { migrate } = await import(toImport(path.join(distDir, "migrate.js")));
 const { listTemplates, applyTemplate } = await import(toImport(path.join(distDir, "templates.js")));
 const { resolvePaths } = await import(toImport(path.join(distDir, "core.js")));
-const { linkProject, useProject, listProjects, classifyMemory, UNCLASSIFIED } = await import(toImport(path.join(distDir, "workspace.js")));
+const { linkProject, useProject, listProjects, classifyMemory, UNCLASSIFIED, workspaceHealth, loadWorkspace, saveWorkspace } = await import(toImport(path.join(distDir, "workspace.js")));
 const { parseImportBundle, importBundle } = await import(toImport(path.join(distDir, "import.js")));
 let tmpRoot;
 before(() => {
@@ -162,7 +162,7 @@ test("searchAll finds across projects", () => {
     const hits = searchAll(ws, "UniqueWidget");
     assert.ok(hits.some((h) => h.projectSlug === slug));
 });
-const { logSession, readRecentSessions, promoteToRules, distill } = await import(toImport(path.join(distDir, "memory.js")));
+const { promoteToRules, distill, readRecentSessions } = await import(toImport(path.join(distDir, "memory.js")));
 const { routeQuery, buildAmbient } = await import(toImport(path.join(distDir, "retrieve.js")));
 const { dismissChunk, extractDecisionLinks, getLinks, decisionId } = await import(toImport(path.join(distDir, "indexer.js")));
 const { suggestClassify } = await import(toImport(path.join(distDir, "workspace.js")));
@@ -293,13 +293,12 @@ test("classify rejects path traversal", () => {
     assert.throws(() => classifyMemory(ws, "../../../victim.txt", "target"), /Invalid path|Not found/);
     assert.ok(fs.existsSync(path.join(ws, "victim.txt")), "victim file must not move");
 });
-test("semantic search blends mock embeddings", async () => {
+test("semantic search uses RRF with mock embeddings", async () => {
     const ws = freshDir("t22-semantic");
     initProject(ws);
-    logDecision(ws, { title: "Vector ranking pipeline", context: "hybrid", decision: "blend bm25 and cosine", agent: "test" });
+    logDecision(ws, { title: "Vector ranking pipeline", context: "hybrid", decision: "RRF fuse bm25 and cosine", agent: "test" });
     const paths = resolvePaths(ws);
     const { buildIndexAsync } = await import(toImport(path.join(distDir, "indexer.js")));
-    // Deterministic mock vectors: every chunk gets the same unit vector.
     const vec = [1, 0, 0];
     const stats = await buildIndexAsync(paths, { mockEmbeddings: Array.from({ length: 100 }, () => vec) });
     assert.ok((stats.embedded ?? 0) > 0, "chunks should be embedded from mocks");
@@ -310,6 +309,49 @@ test("semantic search blends mock embeddings", async () => {
     });
     assert.ok(results.length > 0);
     assert.ok(results[0].explain.cosine > 0.99, `cosine should be ~1, got ${results[0].explain.cosine}`);
+    assert.ok(results[0].explain.rrf != null && results[0].explain.rrf > 0, "RRF score expected");
+    assert.ok(results[0].explain.vecRank != null, "vec rank expected");
+    assert.ok(results[0].explain.validityPenalty === 1);
+});
+test("validity window penalizes expired docs", () => {
+    const ws = freshDir("t26-validity");
+    initProject(ws);
+    const paths = resolvePaths(ws);
+    const importedDir = path.join(paths.memDir, "imported");
+    fs.mkdirSync(importedDir, { recursive: true });
+    fs.writeFileSync(path.join(importedDir, "expired.md"), "---\nvalid_until: 2020-01-01\n---\n# Expired auth plan\n\nOld plan about oauth tokens.\n", "utf8");
+    fs.writeFileSync(path.join(importedDir, "current.md"), "---\nvalid_from: 2020-01-01\n---\n# Current auth plan\n\nCurrent plan about oauth tokens.\n", "utf8");
+    buildIndex(paths);
+    const hits = search(paths, "oauth tokens", 5, undefined, undefined, { explain: true });
+    assert.ok(hits.length >= 2);
+    const expired = hits.find((h) => h.file.includes("expired"));
+    const current = hits.find((h) => h.file.includes("current"));
+    assert.ok(expired?.explain);
+    assert.ok(current?.explain);
+    assert.ok(expired.explain.validityPenalty < 0.1);
+    assert.strictEqual(current.explain.validityPenalty, 1);
+    assert.ok(current.score > expired.score, "current should outrank expired");
+});
+test("historical query softens superseded status penalty", () => {
+    const ws = freshDir("t27-history");
+    initProject(ws);
+    const r1 = logDecision(ws, { title: "Old auth strategy", context: "past", decision: "sessions", agent: "test" });
+    logDecision(ws, {
+        title: "New auth strategy",
+        context: "now",
+        decision: "JWT",
+        agent: "test",
+        supersedes: r1.seq,
+    });
+    const paths = resolvePaths(ws);
+    buildIndex(paths);
+    const normal = search(paths, "auth strategy", 5, undefined, undefined, { explain: true });
+    const hist = search(paths, "what was our auth strategy previously", 5, undefined, undefined, { explain: true });
+    const oldNormal = normal.find((h) => h.heading.includes("Old auth"));
+    const oldHist = hist.find((h) => h.heading.includes("Old auth"));
+    assert.ok(oldNormal && oldHist);
+    assert.ok(oldNormal.explain.statusPenalty <= 0.15);
+    assert.ok(oldHist.explain.statusPenalty >= 0.4);
 });
 test("distill surfaces patterns with enough decisions", () => {
     const ws = freshDir("t20-distill");
@@ -549,4 +591,67 @@ test("migrateFromLocalHub moves repo .centricmem into product home", async () =>
     assert.ok(fs.existsSync(path.join(home, "workspace.json")));
     assert.ok(fs.existsSync(path.join(home, "projects", "demo", "AGENTS.md")));
     assert.ok(!fs.existsSync(legacy));
+});
+test("log-session --auto uses Current Focus", () => {
+    const ws = freshDir("t28-auto-session");
+    initProject(ws);
+    const ctx = path.join(projectDir(ws), "active_context.md");
+    fs.writeFileSync(ctx, `# Active Context\n\n## Current Focus\n\nShipping RRF search polish\n\n<!-- centricmem:meta updated_at=2026-07-11T00:00:00.000Z updated_by=test -->\n`, "utf8");
+    const summary = autoSessionSummary(ws);
+    assert.ok(summary.includes("Shipping RRF search polish"));
+    const r = logSession(ws, { summary, title: "hooks" });
+    const body = fs.readFileSync(path.join(projectDir(ws), r.file), "utf8");
+    assert.ok(body.includes("Shipping RRF search polish"));
+});
+test("workspaceHealth warns on broken sourceDir", () => {
+    const ws = freshDir("t29-broken-link");
+    initProject(ws);
+    fs.mkdirSync(path.join(ws, "app"), { recursive: true });
+    fs.writeFileSync(path.join(ws, "app", "package.json"), "{}");
+    const slug = linkProject(ws, "app", ws);
+    const cfg = loadWorkspace(ws);
+    cfg.projects[slug].sourceDir = path.join(ws, "does-not-exist-xyz");
+    saveWorkspace(ws, cfg);
+    const wh = workspaceHealth(ws);
+    assert.ok(wh.issues.some((i) => i.message.includes("broken sourceDir") && i.message.includes(slug)));
+});
+test("workspaceHealth warns when CENTRICMEM_HOME lacks workspace.json", () => {
+    const bogus = freshDir("t30-bad-env");
+    const prevHome = process.env.CENTRICMEM_HOME;
+    const prevWs = process.env.CENTRICMEM_WORKSPACE;
+    process.env.CENTRICMEM_HOME = bogus;
+    delete process.env.CENTRICMEM_WORKSPACE;
+    try {
+        const hub = freshDir("t30-hub");
+        initProject(hub);
+        const wh = workspaceHealth(hub);
+        assert.ok(wh.issues.some((i) => i.message.includes("CENTRICMEM_HOME") && i.message.includes("workspace.json")));
+    }
+    finally {
+        if (prevHome === undefined)
+            delete process.env.CENTRICMEM_HOME;
+        else
+            process.env.CENTRICMEM_HOME = prevHome;
+        if (prevWs === undefined)
+            delete process.env.CENTRICMEM_WORKSPACE;
+        else
+            process.env.CENTRICMEM_WORKSPACE = prevWs;
+    }
+});
+test("searchAllAsync passes semantic explain across projects", async () => {
+    const ws = freshDir("t31-all-semantic");
+    initProject(ws);
+    fs.mkdirSync(path.join(ws, "app2"));
+    const slug = linkProject(ws, "app2", ws);
+    logDecision(ws, { title: "CrossProjectAlpha", context: "x", decision: "y" }, slug);
+    const paths = resolvePaths(ws, slug);
+    const { buildIndexAsync } = await import(toImport(path.join(distDir, "indexer.js")));
+    const vec = [1, 0, 0];
+    await buildIndexAsync(paths, { mockEmbeddings: Array.from({ length: 50 }, () => vec) });
+    const hits = await searchAllAsync(ws, "CrossProjectAlpha", 5, undefined, {
+        semantic: true,
+        explain: true,
+        queryEmbedding: vec,
+    });
+    assert.ok(hits.some((h) => h.projectSlug === slug && h.explain?.rrf != null));
 });

@@ -1,6 +1,6 @@
 {
   "name": "centricmem",
-  "version": "0.13.0",
+  "version": "0.14.1",
   "description": "Cross-agent project memory layer: Markdown as source of truth, SQLite FTS5 as index, MCP server for agents.",
   "type": "module",
   "bin": {
@@ -23,7 +23,8 @@
     "PRODUCT.md",
     "BETA.md",
     "SYNC.md",
-    "ARCHITECTURE.md"
+    "ARCHITECTURE.md",
+    "IMPORT_BUNDLE.md"
   ],
   "scripts": {
     "build": "tsc && tsc -p tsconfig.tests.json",

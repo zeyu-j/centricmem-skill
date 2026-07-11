@@ -1,49 +1,70 @@
-# CentricMem Beta Guide (v0.12.0)
+# CentricMem Beta Guide (v0.14)
 
 ## Install from source
 
 ```bash
 git clone https://github.com/zeyu-j/centricmem-skill.git
-cd centricmem
+cd centricmem-skill
 npm install
 npm run build
 npm link
 ```
 
-Public release repo: [centricmem-skill](https://github.com/zeyu-j/centricmem-skill) (same CLI, Skill-first README).
+Public release repo: [centricmem-skill](https://github.com/zeyu-j/centricmem-skill) (Skill-first README).
 
-## Workspace setup
+### Upgrading from 0.13 / 0.14.0
+
+After pulling a new build, refresh the installed Skill and Cursor hooks (required for `--auto` sessions and path fixes):
 
 ```bash
-cd <your-workspace-root>
+npm run build && npm link
+cd <your-code-project>
+centricmem setup --install-skill --install-hooks
+```
+
+## Product home setup
+
+Memory and Skill live under the **Agent product home**, not inside business git:
+
+```bash
+cd <your-code-project>
 centricmem setup --link-all --migrate-discover --install-skill
 ```
 
-Optional (Cursor only): `centricmem setup --install-hooks` — wires session lifecycle per `skills/centricmem-agent/integrations/`.
+First-time migrate from a legacy repo-local hub:
+
+```bash
+centricmem setup --migrate-from-local --install-skill
+```
+
+Optional (Cursor only): `centricmem setup --install-hooks` — wires session lifecycle per `$CENTRICMEM_HOME/skills/centricmem-agent/integrations/`.
 
 First setup or `centricmem index` on a large import may take a minute or more — wait until you see **Index complete**.
 
-This creates:
+This creates / uses:
 
 ```text
-.centricmem/
+~/.centricmem/                 # $CENTRICMEM_HOME (override with env)
   workspace.json
   skills/
     centricmem-agent/SKILL.md
   projects/
-    unclassified/     # default import target
+    unclassified/              # default import / staging target
     <linked-projects>/
+  .ambient.md
 ```
+
+Code repos stay source-only. Optional Cursor hooks install to `<code-repo>/.cursor/hooks/` when requested — no `.cursorrules` / `CLAUDE.md` product pointers are written into git trees.
 
 ## Skill-first workflow
 
-Agents should follow **`.centricmem/skills/centricmem-agent/SKILL.md`**:
+Agents should follow **`$CENTRICMEM_HOME/skills/centricmem-agent/SKILL.md`** (also mirrored to `~/.cursor/skills/centricmem-agent/` on install):
 
 - Load: read `projects/<current>/AGENTS.md` + `active_context.md`
 - Session start: `centricmem ambient` (or lifecycle hooks — see `integrations/`)
 - Search: `centricmem search "keywords"` (local indexer, not MCP)
 - Filter corpus: `centricmem search "…" --filter civilization=chinese --filter type=recipe`
-- Import: map any source → ImportBundle JSON → `centricmem import bundle.json`
+- Import: map any source → ImportBundle JSON → `centricmem import bundle.json` ([IMPORT_BUNDLE.md](./IMPORT_BUNDLE.md))
 - Classify: `centricmem classify decisions/0001-x.md --to my-project`
 
 ## Skill updates (pull-based)
@@ -55,16 +76,16 @@ centricmem skill status centricmem-agent --json
 
 Compares bundled vs installed Skill (`ok` | `outdated` | `missing` | `modified` | `incompatible`). `ambient` appends a hint when not `ok`.
 
-### Migrating from pre-0.12 (`.cursor/skills/`)
+### Migrating from pre-0.12 (`.cursor/skills/`) or pre-0.13 (repo `.centricmem/`)
 
 ```bash
-centricmem setup --install-skill
+centricmem setup --migrate-from-local --install-skill
 # Optional Cursor hooks: centricmem setup --install-hooks
 ```
 
-## MCP = external sync only
+## MCP = external sync only (L2)
 
-MCP (e.g. Google Drive) is **optional** and used to **sync** `.centricmem/projects/` to cloud storage.
+MCP (e.g. Google Drive) is **optional** and used to **sync** `$CENTRICMEM_HOME/projects/` to cloud storage.
 
 It is **not** the local indexer. Local search always uses `centricmem search` + SQLite FTS5.
 
@@ -82,6 +103,8 @@ centricmem search "redis" --all
 ```
 
 ## ImportBundle example
+
+See [IMPORT_BUNDLE.md](./IMPORT_BUNDLE.md) for the full contract. Minimal example:
 
 ```json
 {
@@ -124,16 +147,9 @@ centricmem import capture-export.json --skip-existing
 
 Keep stable `external_id`s from the capture system (e.g. `notion:abc`, `mb:decisionLog#Use-WebSocket`).
 
-## Migrating from v0.7 (single .centricmem/)
+## Migrating from v0.7 (single flat hub)
 
-```bash
-centricmem init
-# Move old files:
-#   .centricmem/AGENTS.md → .centricmem/projects/unclassified/AGENTS.md
-#   .centricmem/decisions/ → .centricmem/projects/unclassified/decisions/
-# Remove flat files at .centricmem/ root (keep workspace.json + projects/)
-centricmem index --all
-```
+Prefer `centricmem setup --migrate-from-local`. Manual equivalent: move flat files under `projects/unclassified/`, then `centricmem index --all`.
 
 ## Known limitations
 

@@ -6,7 +6,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { classifyIntent, type QueryIntent } from "./indexer.js";
 import { healthCheck, listDecisions, readRecentSessions } from "./memory.js";
-import { getCurrentProjectSlug } from "./workspace.js";
+import { getCurrentProjectSlug, workspaceHealth } from "./workspace.js";
 import { skillStatus, skillStatusHintLine } from "./skill.js";
 
 // ---------------------------------------------------------------------------
@@ -134,6 +134,14 @@ export function buildAmbient(workspaceRoot: string, projectSlug?: string): Ambie
   const sessionTail = sessions.map((s) => `${s.heading}: ${s.summary.slice(0, 80)}`);
 
   const issues = h.issues.filter((i) => i.severity === "warn").map((i) => i.message);
+
+  try {
+    const wh = workspaceHealth(workspaceRoot);
+    for (const i of wh.issues) {
+      if (i.severity !== "warn") continue;
+      if (!issues.includes(i.message)) issues.push(i.message);
+    }
+  } catch { /* ignore */ }
 
   const skillHint = skillStatusHintLine(skillStatus(workspaceRoot));
 

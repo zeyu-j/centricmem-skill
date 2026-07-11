@@ -19,7 +19,7 @@ import {
   lessonsTemplate,
   agentsTemplate,
 } from "./templates.js";
-import { initWorkspace } from "./workspace.js";
+import { initWorkspace, loadWorkspace } from "./workspace.js";
 
 export interface InitResult {
   created: string[];
@@ -481,6 +481,18 @@ export function healthCheck(workspaceRoot: string, projectSlug?: string): Health
   if (!decisions.length) issues.push({ severity: "info", message: "No decisions logged yet." });
   if (!lessonsCount) issues.push({ severity: "info", message: "lessons.md has no entries yet." });
 
+  // 5. Broken sourceDir for this project (cwd→project link).
+  try {
+    const slug = projectSlug ?? loadWorkspace(workspaceRoot).current;
+    const entry = loadWorkspace(workspaceRoot).projects[slug];
+    if (entry?.sourceDir && !fs.existsSync(entry.sourceDir)) {
+      issues.push({
+        severity: "warn",
+        message: `broken sourceDir for ${slug}: ${entry.sourceDir} — relink or fix workspace.json`,
+      });
+    }
+  } catch { /* ignore */ }
+
   const warns = issues.filter((i) => i.severity === "warn").length;
   const score = Math.max(0, 100 - warns * 20 - issues.filter((i) => i.severity === "info").length * 5);
 
@@ -612,6 +624,42 @@ export interface LogSessionInput {
 export interface LogSessionResult {
   file: string;
   heading: string;
+}
+
+const PLACEHOLDER_FOCUS = /^\(?Nothing yet/i;
+
+/** Extract ## Current Focus body from active_context.md (excluding placeholders). */
+export function extractCurrentFocus(content: string): string | null {
+  const m = /^##\s+Current Focus\s*\n+([\s\S]*?)(?=\n##\s+|\n<!--|$)/im.exec(content);
+  if (!m) return null;
+  const body = m[1]
+    .split("\n")
+    .map((l) => l.trim())
+    .filter((l) => l && !l.startsWith("<!--") && !PLACEHOLDER_FOCUS.test(l))
+    .join(" ")
+    .replace(/\s+/g, " ")
+    .trim();
+  return body || null;
+}
+
+/**
+ * Build a non-empty session summary for hooks (`log-session --auto`).
+ * Prefers active_context Current Focus; falls back to a short ambient-style line.
+ */
+export function autoSessionSummary(workspaceRoot: string, projectSlug?: string): string {
+  const paths = resolvePaths(workspaceRoot, projectSlug);
+  const ctxFile = path.join(paths.memDir, "active_context.md");
+  if (fs.existsSync(ctxFile)) {
+    const focus = extractCurrentFocus(fs.readFileSync(ctxFile, "utf8"));
+    if (focus) return focus.slice(0, 500);
+  }
+  const slug = projectSlug ?? path.basename(paths.memDir);
+  try {
+    const h = healthCheck(workspaceRoot, projectSlug);
+    return `Auto session end — project=${slug} health=${h.score} (no Current Focus set)`.slice(0, 500);
+  } catch {
+    return `Auto session end — project=${slug}`.slice(0, 500);
+  }
 }
 
 function sessionFileForDate(memDir: string, date: Date): string {

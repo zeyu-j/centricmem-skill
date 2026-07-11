@@ -434,6 +434,31 @@ export function workspaceHealth(
   }
 
   const ws = loadWorkspace(workspaceRoot);
+
+  // Broken absolute sourceDir links (multi-project hub).
+  for (const [slug, entry] of Object.entries(ws.projects)) {
+    if (entry.system) continue;
+    if (entry.sourceDir && !fs.existsSync(entry.sourceDir)) {
+      issues.push({
+        severity: "warn",
+        message: `broken sourceDir for ${slug}: ${entry.sourceDir} — relink or fix workspace.json`,
+      });
+    }
+  }
+
+  // Env pointed at a non-hub path (missing workspace.json).
+  const envHome = process.env.CENTRICMEM_HOME || process.env.CENTRICMEM_WORKSPACE;
+  if (envHome) {
+    const resolved = path.resolve(envHome);
+    if (!fs.existsSync(path.join(resolved, "workspace.json"))) {
+      const which = process.env.CENTRICMEM_HOME ? "CENTRICMEM_HOME" : "CENTRICMEM_WORKSPACE";
+      issues.push({
+        severity: "warn",
+        message: `${which}=${resolved} has no workspace.json — set CENTRICMEM_HOME to the product hub (default ~/.centricmem), not a code repo`,
+      });
+    }
+  }
+
   const projects: WorkspaceHealthReport["projects"] = [];
   for (const slug of Object.keys(ws.projects)) {
     if (slug === UNCLASSIFIED) continue;

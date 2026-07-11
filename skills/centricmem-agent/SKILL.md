@@ -1,12 +1,12 @@
 ---
 name: centricmem-agent
-version: 0.13.0
-compatible_cli: ">=0.13.0"
+version: 0.14.1
+compatible_cli: ">=0.14.1"
 changelog_url: https://github.com/zeyu-j/centricmem-skill/blob/main/CHANGELOG.md
 description: CentricMem workspace memory — Agent-side product home; ambient loads automatically; curate high-value memories only.
 ---
 
-# CentricMem Agent Skill v0.13.0
+# CentricMem Agent Skill v0.14.1
 
 > **设计真源**：[PRODUCT.md](../../PRODUCT.md) — 记忆架构、存储、检索、隐式记忆原则。
 
@@ -34,18 +34,20 @@ Wherever your agent supports session lifecycle hooks, wire:
 | Event | Command |
 |-------|---------|
 | Session start | `centricmem ambient --write` |
-| Session end | `centricmem log-session "<summary>"` then `centricmem index --all --quiet` |
+| Session end | `centricmem log-session --auto --title hooks` then `centricmem index --all --quiet` |
 
-No hooks? Run Step 1 manually each session. Copy-paste recipes: `skills/centricmem-agent/integrations/` (or `.centricmem/skills/centricmem-agent/integrations/` after install).
+Hooks auto-capture **Current Focus** from `active_context.md`. After real progress, prefer a natural-language `centricmem log-session "…"`.
+
+No hooks? Run Step 1 manually each session. Copy-paste recipes: package `skills/centricmem-agent/integrations/` or installed `$CENTRICMEM_HOME/skills/centricmem-agent/integrations/`.
 
 ## Agent integration (optional)
 
-CentricMem does not install agent-specific files except the canonical skill under `.centricmem/skills/`. After reading this Skill:
+CentricMem installs the canonical skill under `$CENTRICMEM_HOME/skills/` (and mirrors to `~/.cursor/skills/centricmem-agent/` when using setup). After reading this Skill:
 
-- **Cursor** — symlink or copy to `.cursor/skills/`, or use `centricmem setup --install-hooks`
+- **Cursor** — `centricmem setup --install-skill --install-hooks` (hooks → code repo `.cursor/hooks/` only)
 - **Claude Code** — merge `integrations/claude-code-settings.snippet.json` into `.claude/settings.json`
-- **MCP agents** — add `centricmem-mcp` per `integrations/mcp-config.snippet.json`
-- **Other** — point your agent's rules at `.centricmem/skills/centricmem-agent/SKILL.md`
+- **MCP agents** — add `centricmem-mcp` per `integrations/mcp-config.snippet.json` (L2/optional)
+- **Other** — point your agent's rules at `$CENTRICMEM_HOME/skills/centricmem-agent/SKILL.md`
 
 ## Step 0 — Classify the request
 
@@ -58,9 +60,9 @@ CentricMem does not install agent-specific files except the canonical skill unde
 
 ## Step 1 — Load context (implicit)
 
-Session start: run `centricmem ambient` (or read `.centricmem/.ambient.md`).
+Session start: run `centricmem ambient` (or read `$CENTRICMEM_HOME/.ambient.md`).
 
-If `centricmem skill status` reports `outdated` or `missing`, tell the user once — run `centricmem setup --install-skill`. **Never** overwrite `.centricmem/skills/` without confirmation. If `modified`, the user edited the Skill locally — respect their copy.
+If `centricmem skill status` reports `outdated` or `missing`, tell the user once — run `centricmem setup --install-skill`. **Never** overwrite `$CENTRICMEM_HOME/skills/` without confirmation. If `modified`, the user edited the Skill locally — respect their copy.
 
 **Retrieval routing** (or `centricmem route "<query>"`):
 

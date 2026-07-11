@@ -28,6 +28,8 @@ centricmem setup --migrate-from-local --link-all --install-skill --install-hooks
 
 Optional (Cursor): `centricmem setup --install-hooks` for automatic session lifecycle — see `skills/centricmem-agent/integrations/`.
 
+**After upgrading the CLI (0.14.x+):** re-run `centricmem setup --install-skill --install-hooks` so Skill + hooks match the linked package.
+
 See [BETA.md](./BETA.md) for the full beta guide.
 
 ### Core commands
@@ -50,7 +52,7 @@ centricmem status --workspace         # unclassified backlog + per-project healt
 
 ## Agent integration (recommended)
 
-Follow **`.centricmem/skills/centricmem-agent/SKILL.md`** (installed by `centricmem setup --install-skill`):
+Follow **`$CENTRICMEM_HOME/skills/centricmem-agent/SKILL.md`** (installed by `centricmem setup --install-skill`):
 
 - Session start: `centricmem ambient` (wire lifecycle hooks per `integrations/` if your agent supports them)
 - Search via `centricmem search` (local indexer)
@@ -76,7 +78,8 @@ Env: `CENTRICMEM_WORKSPACE`, `CENTRICMEM_PROJECT`
 - Decision supersede chains, promote-to-rules workflow, Memory Map
 - **Memory Links**: inline `#NNNN` mentions auto-indexed; `centricmem refs` walks the graph; referenced decisions rank higher
 - **Corpus metadata**: `--filter key=value` on imported docs with YAML frontmatter; optional `domain_boost` in `config.json`
-- **Skill status**: `centricmem skill status` compares bundled vs installed Skill (v0.12.0)
+- **Skill status**: `centricmem skill status` compares bundled vs installed Skill (v0.13+)
+- **Import contract**: [IMPORT_BUNDLE.md](./IMPORT_BUNDLE.md)
 
 ## Semantic search (optional)
 
@@ -88,12 +91,12 @@ Per-project `config.json`:
     "provider": "openai",
     "model": "text-embedding-3-small",
     "api_key_env": "OPENAI_API_KEY",
-    "hybrid_alpha": 0.6
+    "rrf_k": 60
   }
 }
 ```
 
-Then `centricmem index --embed` and `centricmem search "..." --semantic`.
+Then `centricmem index --embed` and `centricmem search "..." --semantic` (RRF fusion of BM25 + vector ranks).
 API keys are read from env only — never stored in memory files.
 
 ## Known limitations

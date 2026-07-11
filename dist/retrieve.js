@@ -6,7 +6,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { classifyIntent } from "./indexer.js";
 import { healthCheck, listDecisions, readRecentSessions } from "./memory.js";
-import { getCurrentProjectSlug } from "./workspace.js";
+import { getCurrentProjectSlug, workspaceHealth } from "./workspace.js";
 import { skillStatus, skillStatusHintLine } from "./skill.js";
 const RESEARCH_PATTERNS = /调研|研究|survey|research|external|文献|对比/i;
 const ACADEMIC_PATTERNS = /维度|对照|crosswalk|语料|corpus|文明|civilization|incantation|咒语|马王堆|巴比伦/i;
@@ -93,6 +93,16 @@ export function buildAmbient(workspaceRoot, projectSlug) {
     const sessions = readRecentSessions(workspaceRoot, 7, 3, slug);
     const sessionTail = sessions.map((s) => `${s.heading}: ${s.summary.slice(0, 80)}`);
     const issues = h.issues.filter((i) => i.severity === "warn").map((i) => i.message);
+    try {
+        const wh = workspaceHealth(workspaceRoot);
+        for (const i of wh.issues) {
+            if (i.severity !== "warn")
+                continue;
+            if (!issues.includes(i.message))
+                issues.push(i.message);
+        }
+    }
+    catch { /* ignore */ }
     const skillHint = skillStatusHintLine(skillStatus(workspaceRoot));
     const text = [
         `CentricMem: project=${slug} | Health=${h.score}`,

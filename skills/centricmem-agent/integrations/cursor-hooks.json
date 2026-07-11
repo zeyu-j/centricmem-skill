@@ -7,7 +7,7 @@
     },
     {
       "event": "sessionEnd",
-      "command": "centricmem index --all --quiet"
+      "command": "centricmem log-session --auto --title hooks && centricmem index --all --quiet"
     }
   ]
 }

@@ -136,7 +136,10 @@ export interface EmbeddingConfig {
   api_key_env?: string;
   dimensions?: number;
   base_url?: string;
+  /** @deprecated Unused when --semantic uses RRF (kept for older config.json). */
   hybrid_alpha?: number;
+  /** RRF rank constant k (default 60). */
+  rrf_k?: number;
 }
 
 export interface DomainBoostDimension {
@@ -169,7 +172,7 @@ export const DEFAULT_CONFIG: MemConfig = {
   decay_rate: 0.01,
   max_results: 5,
   ref_weight: 0.1,
-  embedding: { provider: "none", hybrid_alpha: 0.6 },
+  embedding: { provider: "none", hybrid_alpha: 0.6, rrf_k: 60 },
   metadata: {
     hot_columns: ["civilization", "type", "has_incantation"],
     hot_columns_enabled: false,
