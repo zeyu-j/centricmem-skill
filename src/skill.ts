@@ -41,12 +41,12 @@ export function bundledSkillPath(name: string): string {
   return path.join(packageRoot(), "skills", name, "SKILL.md");
 }
 
-/** Canonical path written by `setup --install-skill`. */
+/** Canonical path written by `setup --install-skill` under product home. */
 export function defaultInstalledSkillPath(workspaceRoot: string, name: string): string {
-  return path.join(workspaceRoot, ".centricmem", "skills", name, "SKILL.md");
+  return path.join(workspaceRoot, "skills", name, "SKILL.md");
 }
 
-/** Pre-0.12 install location; used only to detect legacy installs. */
+/** Pre-0.13 / repo-local install locations; used only to detect legacy installs. */
 export function legacyInstalledSkillPath(workspaceRoot: string, name: string): string {
   return path.join(workspaceRoot, ".cursor", "skills", name, "SKILL.md");
 }
@@ -136,7 +136,7 @@ export function skillStatus(
     const legacyExists =
       !opts?.installPath && readSkillInfo(legacyInstalledSkillPath(workspaceRoot, name));
     hint = legacyExists
-      ? "centricmem setup --install-skill (legacy .cursor/skills/ detected; reinstall to .centricmem/skills/)"
+      ? "centricmem setup --install-skill (legacy path detected; reinstall to $CENTRICMEM_HOME/skills/)"
       : "centricmem setup --install-skill";
   } else if (!bundled) {
     status = "ok";

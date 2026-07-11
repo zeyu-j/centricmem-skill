@@ -3,26 +3,20 @@
  */
 import fs from "node:fs";
 import path from "node:path";
-import { resolvePaths, ensureDir, nextDecisionSeq, slugify, nowISO, readFileIfExists, detectAgent, } from "./core.js";
-import { decisionTemplate, cursorRulesPointer, claudeMdPointer, lessonsTemplate, agentsTemplate, } from "./templates.js";
+import { resolvePaths, ensureDir, nextDecisionSeq, slugify, nowISO, readFileIfExists, detectAgent, getProductHome, } from "./core.js";
+import { decisionTemplate, lessonsTemplate, agentsTemplate, } from "./templates.js";
 import { initWorkspace } from "./workspace.js";
-/** Initialize workspace hub + pointer files. Idempotent. */
-export function initProject(workspaceRoot) {
+/**
+ * Initialize the Agent product hub at CENTRICMEM_HOME.
+ * Does not write product usage files into code repositories.
+ */
+export function initProject(workspaceRoot, _codeRoot) {
+    const home = workspaceRoot ?? getProductHome();
     const created = [];
     const skipped = [];
-    const ws = initWorkspace(workspaceRoot);
+    const ws = initWorkspace(home);
     created.push(...ws.created);
     skipped.push(...ws.skipped);
-    const writeIfAbsent = (p, content) => {
-        if (fs.existsSync(p))
-            skipped.push(path.relative(workspaceRoot, p));
-        else {
-            fs.writeFileSync(p, content, "utf8");
-            created.push(path.relative(workspaceRoot, p));
-        }
-    };
-    writeIfAbsent(path.join(workspaceRoot, ".cursorrules"), cursorRulesPointer());
-    writeIfAbsent(path.join(workspaceRoot, "CLAUDE.md"), claudeMdPointer());
     return { created, skipped };
 }
 function pathsFor(workspaceRoot, projectSlug) {

@@ -151,7 +151,7 @@ export function buildAmbient(workspaceRoot: string, projectSlug?: string): Ambie
 }
 
 export function writeAmbientFile(workspaceRoot: string, block: AmbientBlock): string {
-  const dest = path.join(workspaceRoot, ".centricmem", ".ambient.md");
+  const dest = path.join(workspaceRoot, ".ambient.md");
   const body = `# CentricMem Ambient Context
 
 ${block.text}

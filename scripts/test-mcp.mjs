@@ -14,10 +14,13 @@ let root = process.argv[2];
 if (!root) {
   root = fs.mkdtempSync(path.join(os.tmpdir(), "cm-mcp-"));
 }
-if (!fs.existsSync(path.join(root, ".centricmem", "workspace.json"))) {
+if (!fs.existsSync(path.join(root, "workspace.json"))) {
   const { execFileSync } = await import("node:child_process");
   const cli = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../dist/cli.js");
-  execFileSync("node", [cli, "init", "--no-git-hook"], { cwd: root });
+  execFileSync("node", [cli, "init", "--no-git-hook"], {
+    cwd: root,
+    env: { ...process.env, CENTRICMEM_HOME: root },
+  });
 }
 
 const serverPath = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../dist/mcp-server.js");
@@ -25,7 +28,7 @@ const serverPath = path.resolve(path.dirname(fileURLToPath(import.meta.url)), ".
 const transport = new StdioClientTransport({
   command: "node",
   args: [serverPath],
-  env: { ...process.env, CENTRICMEM_WORKSPACE: root, CENTRICMEM_AGENT: "test-client" },
+  env: { ...process.env, CENTRICMEM_HOME: root, CENTRICMEM_AGENT: "test-client" },
 });
 const client = new Client({ name: "test-client", version: "0.0.1" });
 await client.connect(transport);

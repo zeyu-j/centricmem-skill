@@ -2,6 +2,48 @@
 
 All notable changes to CentricMem will be documented in this file.
 
+## [0.13.0] - Agent product home
+
+### Changed (breaking)
+- **Product hub** lives at `$CENTRICMEM_HOME` (default `~/.centricmem`), not inside code repos
+- Layout: `$CENTRICMEM_HOME/{workspace.json,projects/,skills/}` — no nested `repo/.centricmem/`
+- `CENTRICMEM_WORKSPACE` is treated as an alias for the product home (not the git cwd)
+- `link` stores **absolute** `sourceDir`; current project resolves from cwd match
+- Skill install: `$CENTRICMEM_HOME/skills/` + user-level `~/.cursor/skills/centricmem-agent/`
+- Code repos only get optional `.cursor/hooks/` when explicitly requested; **no** `.cursorrules` / `CLAUDE.md` product pointers in git trees
+- Develop package stays source-only; Agent usage content lives under `$CENTRICMEM_HOME` / `~/.cursor/skills`
+
+### Added
+- `centricmem setup --migrate-from-local` — move `cwd/.centricmem` into product home and delete the local hub
+- `getProductHome()`, `matchProjectByCwd()`
+
+### Migration
+```bash
+centricmem setup --migrate-from-local --install-skill --install-hooks
+# Ensure .centricmem/ is gitignored in business/source repos
+```
+
+---
+
+## [0.12.1] - Capture → organize
+
+### Added
+- **Coexistence model** — other memory skills as capture; CentricMem as organize/retrieve (PRODUCT §2.2, Skill, BETA)
+- **Import upsert** for `imported[]` / `research[]` on the same `external_id` (default); CLI `--skip-existing` for one-shot migrate
+- **`rules[].external_id`** — skip on re-import; cursor-rules migrate sets path-based IDs
+- `setup --install-skill` copies `integrations/` (incl. `capture-adapters/`) and refreshes `.cursorrules` / `CLAUDE.md`
+- Capture adapter recipes under `skills/centricmem-agent/integrations/capture-adapters/`
+
+### Fixed
+- Import CLI no longer asks for a redundant `index` after import (index already rebuilt)
+- Drive MCP hint no longer conflates L2 Drive sync with optional `centricmem-mcp`
+- Scenario CLI clears `CENTRICMEM_WORKSPACE` / `CENTRICMEM_PROJECT` so tests are not polluted by the parent env
+
+### Changed
+- Docs / web ecosystem copy aligned to shipped adapters (ImportBundle + migrate + recipes), not unshipped product names
+
+---
+
 ## [0.12.0] - Agent-agnostic Skill
 
 ### Changed (breaking)

@@ -89,7 +89,7 @@ function bundleFromCursorRules(workspaceRoot: string, srcPath: string): ImportBu
     if (path.basename(f) === ".cursorrules") title = "Cursor Rules";
     let block = body;
     if (meta.globs) block = `**Applies to**: \`${meta.globs}\`\n\n${body}`;
-    rules!.push({ title, body: block });
+    rules!.push({ title, body: block, external_id: rel.replace(/\\/g, "/") });
     sources.push(rel);
   }
   return {
@@ -174,7 +174,8 @@ function resultFromImport(from: string, sources: string[], ir: ImportResult): Mi
 }
 
 export function migrate(workspaceRoot: string, from: string, srcPath: string, project?: string): MigrateResult {
-  const abs = path.resolve(workspaceRoot, srcPath);
+  // srcPath may be absolute (code tree) or relative to cwd
+  const abs = path.isAbsolute(srcPath) ? path.resolve(srcPath) : path.resolve(process.cwd(), srcPath);
   if (!fs.existsSync(abs)) throw new Error(`Source path not found: ${abs}`);
 
   let bundle: ImportBundle;

@@ -6,7 +6,7 @@ import { Command } from "commander";
 import fs from "node:fs";
 import path from "node:path";
 import readline from "node:readline";
-import { findWorkspaceRoot, resolvePaths, loadConfig } from "./core.js";
+import { findWorkspaceRoot, resolvePaths, loadConfig, getProductHome } from "./core.js";
 import {
   initProject,
   distill,
@@ -65,7 +65,7 @@ function parseMetaFilters(pairs: string[] | undefined): Record<string, string> |
 function requireWorkspace(): string {
   const root = findWorkspaceRoot();
   if (!root) {
-    console.error("Error: no CentricMem workspace found. Run `centricmem init` first.");
+    console.error("Error: no CentricMem product home found. Run `centricmem init` (creates ~/.centricmem).");
     process.exit(1);
   }
   return root;
@@ -101,23 +101,24 @@ function installGitHook(root: string): string {
 
 program
   .command("init")
-  .description("Initialise workspace hub (.centricmem/workspace.json + projects/unclassified/)")
+  .description("Initialise Agent product home (~/.centricmem) + optional code-repo pointers")
   .option("--template <name>", "apply template to current project after init")
   .option("--list-templates", "list built-in templates")
-  .option("--git-hook", "install post-commit index hook")
+  .option("--git-hook", "install post-commit index hook in the code repo")
   .option("--no-git-hook", "skip git hook prompt")
   .action(async (opts: { template?: string; listTemplates?: boolean; gitHook?: boolean }) => {
     if (opts.listTemplates) {
       for (const t of listTemplates()) console.log(`  ${t.name.padEnd(14)} ${t.description}`);
       return;
     }
+    const home = getProductHome();
     const cwd = process.cwd();
-    const result = initProject(cwd);
+    const result = initProject(home, cwd);
     for (const f of result.created) console.log(`  created  ${f}`);
     for (const f of result.skipped) console.log(`  skipped  ${f}`);
 
     if (opts.template) {
-      const applied = applyTemplate(cwd, opts.template);
+      const applied = applyTemplate(home, opts.template);
       for (const f of applied) console.log(`  template ${f}`);
     }
 
@@ -130,24 +131,26 @@ program
       if (install) console.log(`  ${installGitHook(cwd)}`);
     }
 
-    buildIndexAll(cwd);
-    printSetupSummary(cwd);
+    buildIndexAll(home);
+    printSetupSummary(home);
   });
 
 program
   .command("setup")
-  .description("Guided workspace setup (link projects, discover migrate, install skill)")
-  .option("--workspace <path>", "workspace root", process.cwd())
-  .option("--link-all", "link subdirectories with .git or package.json")
+  .description("Guided product-home setup (link code projects, migrate, install skill)")
+  .option("--workspace <path>", "product home override (default: CENTRICMEM_HOME or ~/.centricmem)")
+  .option("--link-all", "link subdirectories of cwd that have .git or package.json")
   .option("--migrate-discover", "import discovered cursor-rules / memory-bank into unclassified")
-  .option("--install-skill", "install bundled skills to .centricmem/skills/")
-  .option("--install-academic-skill", "install academic-db-agent SKILL to .centricmem/skills/")
-  .option("--install-hooks", "install Cursor session hooks (optional; see integrations/)")
+  .option("--migrate-from-local", "move cwd/.centricmem into product home and remove the local hub")
+  .option("--install-skill", "install bundled skills to $CENTRICMEM_HOME/skills/ (+ ~/.cursor/skills)")
+  .option("--install-academic-skill", "install academic-db-agent SKILL to product home")
+  .option("--install-hooks", "install Cursor session hooks into the code repo .cursor/hooks/")
   .option("--drive-mcp-hint", "print Drive MCP sync configuration hint")
   .action((opts: {
-    workspace: string;
+    workspace?: string;
     linkAll?: boolean;
     migrateDiscover?: boolean;
+    migrateFromLocal?: boolean;
     installSkill?: boolean;
     installAcademicSkill?: boolean;
     installHooks?: boolean;
@@ -155,8 +158,10 @@ program
   }) => {
     const result = runSetup({
       workspace: opts.workspace,
+      codeRoot: process.cwd(),
       linkAll: opts.linkAll,
       migrateDiscover: opts.migrateDiscover,
+      migrateFromLocal: opts.migrateFromLocal,
       installSkill: opts.installSkill,
       installAcademicSkill: opts.installAcademicSkill,
       installHooks: opts.installHooks,
@@ -165,8 +170,9 @@ program
     printSetupSummary(result.workspaceRoot);
     if (result.linked.length) console.log(`Linked: ${result.linked.join(", ")}`);
     if (result.migrated) console.log(`Migrated ${result.migrated} source(s) → unclassified`);
-    if (result.skillInstalled) console.log("Skill installed to .centricmem/skills/centricmem-agent/");
-    if (result.academicSkillInstalled) console.log("Academic skill installed to .centricmem/skills/academic-db-agent/");
+    if (result.migratedFromLocal) console.log("Migrated local .centricmem/ → product home");
+    if (result.skillInstalled) console.log(`Skill installed to ${path.join(result.workspaceRoot, "skills", "centricmem-agent")}/`);
+    if (result.academicSkillInstalled) console.log("Academic skill installed");
     if (result.hooksInstalled) console.log("Cursor hooks installed to .cursor/hooks/");
   });
 
@@ -227,11 +233,12 @@ program
 
 program
   .command("import [file]")
-  .description("Import ImportBundle JSON into project memory")
+  .description("Import ImportBundle JSON into project memory (raw docs upsert by default)")
   .option("--stdin", "read bundle from stdin")
   .option("--dry-run", "preview counts only")
+  .option("--skip-existing", "skip any external_id already imported (one-shot migrate style)")
   .option("-p, --project <slug>", "target project (default: unclassified)")
-  .action((file: string | undefined, opts: { stdin?: boolean; dryRun?: boolean; project?: string }) => {
+  .action((file: string | undefined, opts: { stdin?: boolean; dryRun?: boolean; skipExisting?: boolean; project?: string }) => {
     const ws = requireWorkspace();
     let raw: string;
     if (opts.stdin) {
@@ -243,23 +250,27 @@ program
       process.exit(1);
     }
     const bundle = parseImportBundle(raw);
-    const r = importBundle(ws, bundle, { dryRun: opts.dryRun, project: opts.project });
+    const r = importBundle(ws, bundle, {
+      dryRun: opts.dryRun,
+      project: opts.project,
+      skipExisting: opts.skipExisting,
+    });
     if (opts.dryRun) {
       console.log(
         `Dry run → project ${r.project}: ${r.decisions} decisions, ${r.lessons} lessons, ${r.rules} rules, ${r.imported} docs, ${r.sessions} sessions, ${r.research} research`,
       );
     } else {
       console.log(
-        `Imported into ${r.project}: +${r.decisions} decisions, +${r.lessons} lessons, +${r.rules} rules, +${r.imported} docs, +${r.sessions} sessions, +${r.research} research (${r.skipped} skipped)`,
+        `Imported into ${r.project}: +${r.decisions} decisions, +${r.lessons} lessons, +${r.rules} rules, +${r.imported} docs, +${r.sessions} sessions, +${r.research} research (${r.updated} updated, ${r.skipped} skipped)`,
       );
-      const newDocs = r.decisions + r.lessons + r.rules + r.imported + r.sessions + r.research;
+      const newDocs = r.decisions + r.lessons + r.rules + r.imported + r.sessions + r.research + r.updated;
       if (newDocs > 0) {
-        console.log(
-          `\nNext: centricmem index -p ${r.project}`,
-        );
-        console.log(
-          "First index of a large import may take a minute or more — please wait until it finishes before searching.",
-        );
+        console.log("\nIndex rebuilt. Next:");
+        console.log(`  centricmem search "<keywords>" -p ${r.project}`);
+        if (r.project === "unclassified") {
+          console.log("  centricmem suggest-classify <relPath>   # then classify --to <slug>");
+        }
+        console.log("  centricmem status --workspace");
       }
     }
   });
@@ -271,13 +282,14 @@ program
   .requiredOption("--path <path>", "source path")
   .option("-p, --project <slug>", "target project (default: unclassified)")
   .action((opts: { from: string; path: string; project?: string }) => {
-    const ws = findWorkspaceRoot() ?? process.cwd();
-    if (!findWorkspaceRoot()) initProject(ws);
+    const home = findWorkspaceRoot() ?? getProductHome();
+    if (!findWorkspaceRoot()) initProject(home, process.cwd());
     try {
-      const result = migrate(ws, opts.from, opts.path, opts.project);
+      const src = path.resolve(process.cwd(), opts.path);
+      const result = migrate(home, opts.from, src, opts.project);
       console.log(`Imported from ${result.from}: ${result.sources.length} source(s)`);
       for (const f of result.imported) console.log(`  -> ${f}`);
-      buildIndexAll(ws);
+      buildIndexAll(home);
     } catch (err) {
       console.error(`Migration failed: ${(err as Error).message}`);
       process.exit(1);

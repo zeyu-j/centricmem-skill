@@ -19,5 +19,6 @@ Copy and adapt for your environment:
 | [cursor-hooks.json](./cursor-hooks.json) | Cursor — install via `centricmem setup --install-hooks` or copy to `.cursor/hooks/hooks.json` |
 | [claude-code-settings.snippet.json](./claude-code-settings.snippet.json) | Claude Code — merge into `.claude/settings.json` |
 | [mcp-config.snippet.json](./mcp-config.snippet.json) | Any MCP-capable agent — stdio `centricmem-mcp` server |
+| [capture-adapters/](./capture-adapters/) | Keep other memory skills as capture; map → ImportBundle → `centricmem import` |
 
 Canonical skill path: `.centricmem/skills/centricmem-agent/SKILL.md`

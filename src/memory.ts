@@ -12,11 +12,10 @@ import {
   nowISO,
   readFileIfExists,
   detectAgent,
+  getProductHome,
 } from "./core.js";
 import {
   decisionTemplate,
-  cursorRulesPointer,
-  claudeMdPointer,
   lessonsTemplate,
   agentsTemplate,
 } from "./templates.js";
@@ -27,26 +26,20 @@ export interface InitResult {
   skipped: string[];
 }
 
-/** Initialize workspace hub + pointer files. Idempotent. */
-export function initProject(workspaceRoot: string): InitResult {
+/**
+ * Initialize the Agent product hub at CENTRICMEM_HOME.
+ * Does not write product usage files into code repositories.
+ */
+export function initProject(workspaceRoot?: string, _codeRoot?: string): InitResult {
+  const home = workspaceRoot ?? getProductHome();
   const created: string[] = [];
   const skipped: string[] = [];
-  const ws = initWorkspace(workspaceRoot);
+  const ws = initWorkspace(home);
   created.push(...ws.created);
   skipped.push(...ws.skipped);
-
-  const writeIfAbsent = (p: string, content: string) => {
-    if (fs.existsSync(p)) skipped.push(path.relative(workspaceRoot, p));
-    else {
-      fs.writeFileSync(p, content, "utf8");
-      created.push(path.relative(workspaceRoot, p));
-    }
-  };
-  writeIfAbsent(path.join(workspaceRoot, ".cursorrules"), cursorRulesPointer());
-  writeIfAbsent(path.join(workspaceRoot, "CLAUDE.md"), claudeMdPointer());
-
   return { created, skipped };
 }
+
 
 function pathsFor(workspaceRoot: string, projectSlug?: string): MemPaths {
   return resolvePaths(workspaceRoot, projectSlug);

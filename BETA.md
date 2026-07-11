@@ -4,13 +4,13 @@
 
 ```bash
 git clone https://github.com/zeyu-j/centricmem-skill.git
-cd centricmem-skill
+cd centricmem
 npm install
 npm run build
 npm link
 ```
 
-This is the public release repo (Skill-first README). Development also happens in the private [centricmem](https://github.com/zeyu-j/centricmem) monorepo.
+Public release repo: [centricmem-skill](https://github.com/zeyu-j/centricmem-skill) (same CLI, Skill-first README).
 
 ## Workspace setup
 
@@ -103,6 +103,26 @@ centricmem search "redis" --all
 centricmem import bundle.json
 centricmem classify decisions/0001-use-redis.md --to my-app
 ```
+
+### Re-import / incremental sync
+
+| Bundle field | Same `external_id` again | Notes |
+|--------------|--------------------------|-------|
+| `imported[]`, `research[]` | **Upsert** (update file + reindex) | Capture-endpoint raw material |
+| `decisions[]`, `lessons[]`, `sessions[]` | **Skip** | Append-only; organize-layer decisions do not overwrite history |
+| `rules[]` with `external_id` | **Skip** | Prevents AGENTS.md bloat on repeated migrate |
+| `rules[]` without `external_id` | Always append | Prefer stable IDs from the source system |
+| `context` | Always overwrite | Last import wins |
+
+```bash
+# Default: upsert raw imported/research docs
+centricmem import capture-export.json
+
+# One-shot migrate style: skip anything already seen
+centricmem import capture-export.json --skip-existing
+```
+
+Keep stable `external_id`s from the capture system (e.g. `notion:abc`, `mb:decisionLog#Use-WebSocket`).
 
 ## Migrating from v0.7 (single .centricmem/)
 

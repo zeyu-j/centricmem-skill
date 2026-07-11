@@ -87,7 +87,7 @@ function bundleFromCursorRules(workspaceRoot, srcPath) {
         let block = body;
         if (meta.globs)
             block = `**Applies to**: \`${meta.globs}\`\n\n${body}`;
-        rules.push({ title, body: block });
+        rules.push({ title, body: block, external_id: rel.replace(/\\/g, "/") });
         sources.push(rel);
     }
     return {
@@ -175,7 +175,8 @@ function resultFromImport(from, sources, ir) {
     return { from, sources, imported };
 }
 export function migrate(workspaceRoot, from, srcPath, project) {
-    const abs = path.resolve(workspaceRoot, srcPath);
+    // srcPath may be absolute (code tree) or relative to cwd
+    const abs = path.isAbsolute(srcPath) ? path.resolve(srcPath) : path.resolve(process.cwd(), srcPath);
     if (!fs.existsSync(abs))
         throw new Error(`Source path not found: ${abs}`);
     let bundle;

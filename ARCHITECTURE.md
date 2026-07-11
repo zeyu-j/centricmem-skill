@@ -1,4 +1,4 @@
-# CentricMem Architecture (v0.11.1)
+# CentricMem Architecture (v0.13.0)
 
 > **设计真源**：[PRODUCT.md](./PRODUCT.md)（记忆架构 / 存储 / 检索）  
 > 本文档描述**技术实现**与模块划分。
@@ -11,23 +11,28 @@ L0  Local core                       — Markdown SOT + SQLite FTS5 (+ optional 
 L2  External (optional)              — Drive MCP sync only; see SYNC.md
 ```
 
-## Workspace layout
+## Product home layout (Agent-side)
 
 ```text
-<workspace>/
-  .centricmem/
-    workspace.json
-    .ambient.md            # session-start preflight (generated)
-    projects/
-      <slug>/
-        AGENTS.md
-        active_context.md
-        decisions/
-        lessons.md
-        sessions/          # append-only episodic log (YYYY-MM-DD.md)
-        imported/
-        .index/memory.db   # derivative — safe to delete and rebuild
+$CENTRICMEM_HOME/   # default ~/.centricmem  (env CENTRICMEM_HOME)
+  workspace.json
+  .ambient.md
+  skills/
+    centricmem-agent/
+      SKILL.md
+      integrations/
+  projects/
+    <slug>/
+      AGENTS.md
+      active_context.md
+      decisions/
+      lessons.md
+      sessions/
+      imported/
+      .index/memory.db
 ```
+
+- Code repositories do **not** contain the hub — and should not contain product usage pointers either. Skill installs to `$CENTRICMEM_HOME/skills/` and `~/.cursor/skills/`.
 
 ## Components (13 modules)
 

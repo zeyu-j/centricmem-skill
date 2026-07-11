@@ -1,6 +1,6 @@
 {
   "name": "centricmem",
-  "version": "0.12.0",
+  "version": "0.13.0",
   "description": "Cross-agent project memory layer: Markdown as source of truth, SQLite FTS5 as index, MCP server for agents.",
   "type": "module",
   "bin": {

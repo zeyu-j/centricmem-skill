@@ -19,7 +19,13 @@ export function tmpdir(name) {
 }
 
 export function runCli(args, cwd) {
-  return execFileSync("node", [CLI, ...args], { cwd, encoding: "utf8" });
+  const env = { ...process.env };
+  // Isolate product home inside the scenario tmpdir (Agent home ≠ code repo in prod;
+  // scenarios use one tmp as both for simplicity).
+  env.CENTRICMEM_HOME = cwd;
+  delete env.CENTRICMEM_WORKSPACE;
+  delete env.CENTRICMEM_PROJECT;
+  return execFileSync("node", [CLI, ...args], { cwd, encoding: "utf8", env });
 }
 
 export async function importDist(moduleName) {
@@ -27,5 +33,5 @@ export async function importDist(moduleName) {
 }
 
 export function projectMem(ws, slug = "unclassified") {
-  return path.join(ws, ".centricmem", "projects", slug);
+  return path.join(ws, "projects", slug);
 }

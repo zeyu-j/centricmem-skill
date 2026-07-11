@@ -30,12 +30,12 @@ function freshDir(name) {
     return d;
 }
 function projectDir(ws, slug = UNCLASSIFIED) {
-    return path.join(ws, ".centricmem", "projects", slug);
+    return path.join(ws, "projects", slug);
 }
 test("initProject creates workspace hub and unclassified project", () => {
     const ws = freshDir("t1-init");
     const result = initProject(ws);
-    assert.ok(fs.existsSync(path.join(ws, ".centricmem", "workspace.json")));
+    assert.ok(fs.existsSync(path.join(ws, "workspace.json")));
     assert.ok(fs.existsSync(path.join(projectDir(ws), "AGENTS.md")));
     assert.ok(result.created.length > 0);
     const result2 = initProject(ws);
@@ -130,7 +130,7 @@ test("link and use projects", () => {
     initProject(ws);
     fs.mkdirSync(path.join(ws, "my-app"));
     fs.writeFileSync(path.join(ws, "my-app", "package.json"), "{}");
-    const slug = linkProject(ws, "my-app");
+    const slug = linkProject(ws, "my-app", ws);
     assert.strictEqual(slug, "my-app");
     useProject(ws, slug);
     const projects = listProjects(ws);
@@ -140,7 +140,7 @@ test("import bundle into unclassified and classify", () => {
     const ws = freshDir("t12-import");
     initProject(ws);
     fs.mkdirSync(path.join(ws, "myapp"));
-    const targetSlug = linkProject(ws, "myapp");
+    const targetSlug = linkProject(ws, "myapp", ws);
     const bundle = parseImportBundle({
         version: 1,
         project: UNCLASSIFIED,
@@ -156,7 +156,7 @@ test("searchAll finds across projects", () => {
     const ws = freshDir("t13-all");
     initProject(ws);
     fs.mkdirSync(path.join(ws, "app2"));
-    const slug = linkProject(ws, "app2");
+    const slug = linkProject(ws, "app2", ws);
     logDecision(ws, { title: "UniqueWidget", context: "x", decision: "y" }, slug);
     buildIndexAll(ws);
     const hits = searchAll(ws, "UniqueWidget");
@@ -267,7 +267,7 @@ test("suggestClassify scores projects", () => {
     initProject(ws);
     fs.mkdirSync(path.join(ws, "sample-project"));
     fs.writeFileSync(path.join(ws, "sample-project", "package.json"), "{}");
-    linkProject(ws, "sample-project");
+    linkProject(ws, "sample-project", ws);
     const bundle = parseImportBundle({
         version: 1,
         project: UNCLASSIFIED,
@@ -288,7 +288,7 @@ test("classify rejects path traversal", () => {
     initProject(ws);
     fs.mkdirSync(path.join(ws, "target"));
     fs.writeFileSync(path.join(ws, "target", "package.json"), "{}");
-    linkProject(ws, "target");
+    linkProject(ws, "target", ws);
     fs.writeFileSync(path.join(ws, "victim.txt"), "outside memory");
     assert.throws(() => classifyMemory(ws, "../../../victim.txt", "target"), /Invalid path|Not found/);
     assert.ok(fs.existsSync(path.join(ws, "victim.txt")), "victim file must not move");
@@ -429,7 +429,7 @@ test("skill status reports missing installed skill", () => {
 test("skill status reports outdated installed skill", () => {
     const ws = freshDir("t30-skill-outdated");
     initProject(ws);
-    const destDir = path.join(ws, ".centricmem", "skills", "centricmem-agent");
+    const destDir = path.join(ws, "skills", "centricmem-agent");
     fs.mkdirSync(destDir, { recursive: true });
     fs.writeFileSync(path.join(destDir, "SKILL.md"), "---\nname: centricmem-agent\nversion: 0.0.1\ncompatible_cli: \">=0.12.0\"\n---\n# Old skill\n", "utf8");
     const r = skillStatus(ws);
@@ -441,7 +441,7 @@ test("skill status reports modified when body differs at same version", () => {
     initProject(ws);
     const bundled = readSkillInfo(bundledSkillPath("centricmem-agent"));
     assert.ok(bundled?.version);
-    const destDir = path.join(ws, ".centricmem", "skills", "centricmem-agent");
+    const destDir = path.join(ws, "skills", "centricmem-agent");
     fs.mkdirSync(destDir, { recursive: true });
     fs.writeFileSync(path.join(destDir, "SKILL.md"), `---\nname: centricmem-agent\nversion: ${bundled.version}\n---\n# User edited copy\n`, "utf8");
     const r = skillStatus(ws);
@@ -458,13 +458,13 @@ test("skill status reports incompatible cli via install path", () => {
 test("ambient includes skill hint when outdated", () => {
     const ws = freshDir("t33-ambient-skill");
     initProject(ws);
-    const destDir = path.join(ws, ".centricmem", "skills", "centricmem-agent");
+    const destDir = path.join(ws, "skills", "centricmem-agent");
     fs.mkdirSync(destDir, { recursive: true });
     fs.writeFileSync(path.join(destDir, "SKILL.md"), "---\nname: centricmem-agent\nversion: 0.0.1\n---\n# Old\n", "utf8");
     const block = buildAmbient(ws);
     assert.ok(block.text.includes("Skill:") && block.text.includes("outdated"));
 });
-test("skill status hints migrate when legacy .cursor/skills exists", () => {
+test("skill status hints migrate when legacy path exists", () => {
     const ws = freshDir("t34-legacy-skill");
     initProject(ws);
     const legacyDir = path.join(ws, ".cursor", "skills", "centricmem-agent");
@@ -472,5 +472,81 @@ test("skill status hints migrate when legacy .cursor/skills exists", () => {
     fs.writeFileSync(path.join(legacyDir, "SKILL.md"), "---\nname: centricmem-agent\nversion: 0.11.1\n---\n# Legacy\n", "utf8");
     const r = skillStatus(ws);
     assert.strictEqual(r.status, "missing");
-    assert.ok(r.hint?.includes("legacy .cursor/skills"));
+    assert.ok(r.hint?.includes("legacy path"));
+});
+test("import upserts imported docs with same external_id", () => {
+    const ws = freshDir("t35-upsert");
+    initProject(ws);
+    const bundle1 = parseImportBundle({
+        version: 1,
+        imported: [{ title: "Cap Doc", body: "version one", external_id: "cap:1", rel_path: "cap/doc.md" }],
+    });
+    const r1 = importBundle(ws, bundle1);
+    assert.strictEqual(r1.imported, 1);
+    assert.strictEqual(r1.updated, 0);
+    const bundle2 = parseImportBundle({
+        version: 1,
+        imported: [{ title: "Cap Doc", body: "version two UPDATED", external_id: "cap:1", rel_path: "cap/doc.md" }],
+    });
+    const r2 = importBundle(ws, bundle2);
+    assert.strictEqual(r2.imported, 0);
+    assert.strictEqual(r2.updated, 1);
+    assert.strictEqual(r2.skipped, 0);
+    const file = path.join(projectDir(ws), "imported", "cap", "doc.md");
+    assert.ok(fs.readFileSync(file, "utf8").includes("version two UPDATED"));
+    const r3 = importBundle(ws, bundle2, { skipExisting: true });
+    assert.strictEqual(r3.skipped, 1);
+    assert.strictEqual(r3.updated, 0);
+});
+test("import rules with external_id skip on re-import", () => {
+    const ws = freshDir("t36-rule-id");
+    initProject(ws);
+    const bundle = parseImportBundle({
+        version: 1,
+        rules: [{ title: "Vitest", body: "Use vitest", external_id: "rule:vitest" }],
+    });
+    const r1 = importBundle(ws, bundle);
+    assert.strictEqual(r1.rules, 1);
+    const agents1 = fs.readFileSync(path.join(projectDir(ws), "AGENTS.md"), "utf8");
+    const count1 = (agents1.match(/Imported Rule: Vitest/g) ?? []).length;
+    assert.strictEqual(count1, 1);
+    const r2 = importBundle(ws, bundle);
+    assert.strictEqual(r2.rules, 0);
+    assert.strictEqual(r2.skipped, 1);
+    const agents2 = fs.readFileSync(path.join(projectDir(ws), "AGENTS.md"), "utf8");
+    assert.strictEqual((agents2.match(/Imported Rule: Vitest/g) ?? []).length, 1);
+});
+test("matchProjectByCwd selects project from sourceDir", async () => {
+    const { matchProjectByCwd, getCurrentProjectSlug } = await import(toImport(path.join(distDir, "workspace.js")));
+    const home = freshDir("t37-cwd-match-home");
+    const code = freshDir("t37-cwd-match-code");
+    initProject(home);
+    fs.writeFileSync(path.join(code, "package.json"), "{}");
+    const slug = linkProject(home, code, path.dirname(code));
+    assert.ok(slug);
+    assert.strictEqual(matchProjectByCwd(home, code), slug);
+    assert.strictEqual(getCurrentProjectSlug(home, code), slug);
+});
+test("migrateFromLocalHub moves repo .centricmem into product home", async () => {
+    const { migrateFromLocalHub } = await import(toImport(path.join(distDir, "setup.js")));
+    const code = freshDir("t38-migrate-code");
+    const home = freshDir("t38-migrate-home");
+    // Simulate legacy nested hub inside code repo
+    const legacy = path.join(code, ".centricmem");
+    fs.mkdirSync(path.join(legacy, "projects", "unclassified", "decisions"), { recursive: true });
+    fs.writeFileSync(path.join(legacy, "workspace.json"), JSON.stringify({
+        version: 1,
+        current: "demo",
+        projects: {
+            unclassified: { path: "unclassified", linked_at: "2026-01-01T00:00:00.000Z", system: true },
+            demo: { path: "demo", linked_at: "2026-01-01T00:00:00.000Z", sourceDir: "." },
+        },
+    }) + "\n");
+    fs.mkdirSync(path.join(legacy, "projects", "demo"), { recursive: true });
+    fs.writeFileSync(path.join(legacy, "projects", "demo", "AGENTS.md"), "# demo\n");
+    const ok = migrateFromLocalHub(home, code);
+    assert.ok(ok);
+    assert.ok(fs.existsSync(path.join(home, "workspace.json")));
+    assert.ok(fs.existsSync(path.join(home, "projects", "demo", "AGENTS.md")));
+    assert.ok(!fs.existsSync(legacy));
 });

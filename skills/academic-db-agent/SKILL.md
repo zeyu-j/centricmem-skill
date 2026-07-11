@@ -1,7 +1,7 @@
 ---
 name: academic-db-agent
 version: 0.12.0
-compatible_cli: ">=0.12.0"
+compatible_cli: ">=0.13.0"
 changelog_url: https://github.com/zeyu-j/centricmem-skill/blob/main/CHANGELOG.md
 description: Cross-civilization academic corpus — search, filter, synthesize comparison tables via CentricMem ancient-medicine project.
 ---

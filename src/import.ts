@@ -36,6 +36,7 @@ export const ImportLessonSchema = z.object({
 export const ImportRuleSchema = z.object({
   title: z.string().optional(),
   body: z.string().min(1),
+  external_id: z.string().optional(),
 });
 
 export const ImportDocSchema = z.object({
@@ -92,23 +93,45 @@ export interface ImportResult {
   sessions: number;
   research: number;
   skipped: number;
+  /** Raw docs updated in place (same external_id, default upsert). */
+  updated: number;
 }
 
 const IDEMPOTENCY_FILE = ".import-idempotency.json";
 
-function loadIdempotency(memDir: string): Set<string> {
-  const f = path.join(memDir, IDEMPOTENCY_FILE);
-  if (!fs.existsSync(f)) return new Set();
-  try {
-    const arr = JSON.parse(fs.readFileSync(f, "utf8")) as string[];
-    return new Set(arr);
-  } catch {
-    return new Set();
-  }
+interface IdempotencyState {
+  keys: Set<string>;
+  /** external_id key → path relative to memDir (for upsert). */
+  paths: Map<string, string>;
 }
 
-function saveIdempotency(memDir: string, keys: Set<string>): void {
-  fs.writeFileSync(path.join(memDir, IDEMPOTENCY_FILE), JSON.stringify([...keys], null, 2) + "\n", "utf8");
+function loadIdempotency(memDir: string): IdempotencyState {
+  const f = path.join(memDir, IDEMPOTENCY_FILE);
+  const keys = new Set<string>();
+  const paths = new Map<string, string>();
+  if (!fs.existsSync(f)) return { keys, paths };
+  try {
+    const raw = JSON.parse(fs.readFileSync(f, "utf8")) as
+      | string[]
+      | { keys?: string[]; paths?: Record<string, string> };
+    if (Array.isArray(raw)) {
+      for (const k of raw) keys.add(k);
+    } else {
+      for (const k of raw.keys ?? []) keys.add(k);
+      for (const [k, p] of Object.entries(raw.paths ?? {})) paths.set(k, p);
+    }
+  } catch {
+    /* ignore corrupt file */
+  }
+  return { keys, paths };
+}
+
+function saveIdempotency(memDir: string, state: IdempotencyState): void {
+  const payload = {
+    keys: [...state.keys],
+    paths: Object.fromEntries(state.paths),
+  };
+  fs.writeFileSync(path.join(memDir, IDEMPOTENCY_FILE), JSON.stringify(payload, null, 2) + "\n", "utf8");
 }
 
 function formatMetaYaml(meta: Record<string, string | string[] | boolean>): string {
@@ -141,12 +164,13 @@ export function parseImportBundle(raw: string | object): ImportBundle {
 export function importBundle(
   workspaceRoot: string,
   bundle: ImportBundle,
-  opts?: { dryRun?: boolean; project?: string },
+  opts?: { dryRun?: boolean; project?: string; skipExisting?: boolean },
 ): ImportResult {
   const project = opts?.project ?? bundle.project ?? UNCLASSIFIED;
   ensureProjectRegistered(workspaceRoot, project);
   const paths = resolvePaths(workspaceRoot, project);
   const sourceLabel = bundle.source?.name ?? bundle.source?.type ?? "import";
+  const skipExisting = opts?.skipExisting === true;
 
   if (opts?.dryRun) {
     return {
@@ -158,11 +182,13 @@ export function importBundle(
       sessions: bundle.sessions?.length ?? 0,
       research: bundle.research?.length ?? 0,
       skipped: 0,
+      updated: 0,
     };
   }
 
   const idem = loadIdempotency(paths.memDir);
   let skipped = 0;
+  let updated = 0;
   let decisions = 0;
   let lessons = 0;
   let rules = 0;
@@ -172,7 +198,7 @@ export function importBundle(
 
   for (const d of bundle.decisions ?? []) {
     const key = d.external_id ? `decision:${d.external_id}` : "";
-    if (key && idem.has(key)) {
+    if (key && idem.keys.has(key)) {
       skipped++;
       continue;
     }
@@ -186,24 +212,30 @@ export function importBundle(
       supersedes: d.supersedes,
       refs: d.refs,
     }, project);
-    if (key) idem.add(key);
+    if (key) idem.keys.add(key);
     decisions++;
   }
 
   for (const l of bundle.lessons ?? []) {
     const key = l.external_id ? `lesson:${l.external_id}` : "";
-    if (key && idem.has(key)) {
+    if (key && idem.keys.has(key)) {
       skipped++;
       continue;
     }
     const r = logLesson(workspaceRoot, { title: l.title, body: l.body, agent: l.agent ?? "migration" }, project);
     if (r.status === "skipped") skipped++;
     else lessons++;
-    if (key) idem.add(key);
+    if (key) idem.keys.add(key);
   }
 
   for (const r of bundle.rules ?? []) {
+    const key = r.external_id ? `rule:${r.external_id}` : "";
+    if (key && idem.keys.has(key)) {
+      skipped++;
+      continue;
+    }
     appendToAgents(paths.agentsFile, r.title ? `Imported Rule: ${r.title}` : "Imported Rule", r.body, sourceLabel);
+    if (key) idem.keys.add(key);
     rules++;
   }
 
@@ -214,23 +246,32 @@ export function importBundle(
 
   for (const doc of bundle.imported ?? []) {
     const key = doc.external_id ? `imported:${doc.external_id}` : "";
-    if (key && idem.has(key)) {
+    const importedDir = path.join(paths.memDir, "imported");
+    const relDefault = doc.rel_path?.replace(/\\/g, "/") ?? `${slugify(doc.title)}.md`;
+    const existingRel = key ? idem.paths.get(key) : undefined;
+    const already = Boolean(key && idem.keys.has(key));
+
+    if (already && skipExisting) {
       skipped++;
       continue;
     }
-    const importedDir = path.join(paths.memDir, "imported");
-    const rel = doc.rel_path?.replace(/\\/g, "/") ?? `${slugify(doc.title)}.md`;
+
+    const rel = existingRel ?? relDefault;
     const dest = path.join(importedDir, rel);
     ensureDir(path.dirname(dest));
     const content = formatImportedDoc(doc.title, doc.body, doc.meta);
     fs.writeFileSync(dest, content, "utf8");
-    if (key) idem.add(key);
-    imported++;
+    if (key) {
+      idem.keys.add(key);
+      idem.paths.set(key, rel.replace(/\\/g, "/"));
+    }
+    if (already) updated++;
+    else imported++;
   }
 
   for (const s of bundle.sessions ?? []) {
     const key = s.external_id ? `session:${s.external_id}` : "";
-    if (key && idem.has(key)) {
+    if (key && idem.keys.has(key)) {
       skipped++;
       continue;
     }
@@ -239,29 +280,38 @@ export function importBundle(
       { summary: s.body, title: s.title, loggedAt: s.logged_at, agent: "migration" },
       project,
     );
-    if (key) idem.add(key);
+    if (key) idem.keys.add(key);
     sessions++;
   }
 
   for (const r of bundle.research ?? []) {
     const key = r.external_id ? `research:${r.external_id}` : "";
-    if (key && idem.has(key)) {
+    const importedDir = path.join(paths.memDir, "imported");
+    const relDefault = `research-${slugify(r.title)}.md`;
+    const existingRel = key ? idem.paths.get(key) : undefined;
+    const already = Boolean(key && idem.keys.has(key));
+
+    if (already && skipExisting) {
       skipped++;
       continue;
     }
-    const importedDir = path.join(paths.memDir, "imported");
-    ensureDir(importedDir);
-    const name = `research-${slugify(r.title)}.md`;
-    const dest = path.join(importedDir, name);
+
+    const rel = existingRel ?? relDefault;
+    const dest = path.join(importedDir, rel);
+    ensureDir(path.dirname(dest));
     const tags = r.tags?.length ? `\n\n**Tags**: ${r.tags.join(", ")}\n` : "";
     const content = `# ${r.title}\n\n${r.body.trim()}${tags}\n\n<!-- centricmem:meta imported_at=${nowISO()} updated_by=migration -->\n`;
     fs.writeFileSync(dest, content, "utf8");
-    if (key) idem.add(key);
-    research++;
+    if (key) {
+      idem.keys.add(key);
+      idem.paths.set(key, rel.replace(/\\/g, "/"));
+    }
+    if (already) updated++;
+    else research++;
   }
 
   saveIdempotency(paths.memDir, idem);
   buildIndex(paths);
 
-  return { project, decisions, lessons, rules, imported, sessions, research, skipped };
+  return { project, decisions, lessons, rules, imported, sessions, research, skipped, updated };
 }

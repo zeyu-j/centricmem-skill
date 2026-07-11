@@ -1,27 +1,48 @@
 /**
  * core.ts — shared constants, path resolution, and file helpers.
- * Markdown files under .centricmem/projects/<slug>/ are the Source of Truth.
+ * Product hub lives at CENTRICMEM_HOME (~/.centricmem); Markdown under projects/<slug>/ is SOT.
  */
 import fs from "node:fs";
 import path from "node:path";
+import os from "node:os";
 import crypto from "node:crypto";
 import { findWorkspaceRoot, getCurrentProjectSlug, isWorkspace, UNCLASSIFIED, } from "./workspace.js";
-export const MEM_DIR = ".centricmem";
+/** Legacy nested folder name inside a code repo (migrate-from-local). */
+export const LOCAL_MEM_DIR = ".centricmem";
+/** @deprecated Use product home layout; kept for migrate path detection. */
+export const MEM_DIR = LOCAL_MEM_DIR;
 export const PROJECTS_DIR = "projects";
+export const SKILLS_DIR = "skills";
 export const INDEX_DIR = ".index";
 export const DB_FILE = "memory.db";
 /**
- * Resolve memory paths for a workspace project.
- * @param workspaceRoot Directory containing .centricmem/workspace.json
- * @param projectSlug Project slug under projects/ (default: current from workspace.json or env)
+ * Agent-side product hub (not inside a code git repo).
+ * CENTRICMEM_HOME, else CENTRICMEM_WORKSPACE (legacy alias), else ~/.centricmem.
+ */
+export function getProductHome() {
+    const env = process.env.CENTRICMEM_HOME || process.env.CENTRICMEM_WORKSPACE;
+    if (env?.trim())
+        return path.resolve(env.trim());
+    return path.join(os.homedir(), ".centricmem");
+}
+export function projectMemDir(workspaceRoot, slug) {
+    return path.join(workspaceRoot, PROJECTS_DIR, slug);
+}
+export function skillsDir(workspaceRoot) {
+    return path.join(workspaceRoot, SKILLS_DIR);
+}
+/**
+ * Resolve memory paths for a project under the product hub.
+ * @param workspaceRoot Product home (contains workspace.json + projects/)
+ * @param projectSlug Project slug under projects/ (default: current or cwd match)
  */
 export function resolvePaths(workspaceRoot, projectSlug) {
     const wsRoot = path.resolve(workspaceRoot);
     if (!isWorkspace(wsRoot)) {
-        throw new Error(`Not a CentricMem workspace: ${path.join(wsRoot, MEM_DIR)}. Run \`centricmem init\`.`);
+        throw new Error(`Not a CentricMem hub: ${path.join(wsRoot, "workspace.json")}. Run \`centricmem init\`.`);
     }
     const slug = projectSlug ?? getCurrentProjectSlug(wsRoot);
-    const memDir = path.join(wsRoot, MEM_DIR, PROJECTS_DIR, slug);
+    const memDir = projectMemDir(wsRoot, slug);
     return {
         workspaceRoot: wsRoot,
         projectSlug: slug,

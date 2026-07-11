@@ -1,109 +1,109 @@
 # CentricMem
 
-**Give your coding agent a memory that survives between chats.**
+Cross-agent **workspace memory** — Skill-first, Agent-side product home (`~/.centricmem`) + SQLite FTS5.
 
-Every new conversation, the agent forgets what you decided last week, what pitfalls you hit, and what the project is about. CentricMem fixes that — locally, in plain Markdown you can read and version-control.
-
----
-
-## What it is
-
-CentricMem is a **project memory layer** for any agent (Cursor, Claude Code, Manus, Windsurf, MCP clients, …). It stores decisions, lessons, current focus, and session notes — and helps agents find the right context at the right time.
-
+```text
+Agent (Skill) → centricmem CLI → $CENTRICMEM_HOME/projects/<name>/ → local indexer
+Code repos stay source-only — memory and Skill live under the Agent product home (`~/.centricmem`).
 ```
-You + Agent  →  CentricMem  →  .centricmem/  (Markdown on disk)
-                    ↑
-              remembers across sessions
-```
-
-Canonical agent skill: **`.centricmem/skills/centricmem-agent/SKILL.md`**
-
----
-
-## Implicit memory (lifecycle)
-
-Good memory shouldn't require saying "remember this" every five minutes.
-
-| Event | Command |
-|-------|---------|
-| Session start | `centricmem ambient --write` |
-| Session end | `centricmem log-session "…"` then `centricmem index --all --quiet` |
-
-If your agent supports lifecycle hooks, wire these commands (see `skills/centricmem-agent/integrations/`).  
-**Cursor only:** `centricmem setup --install-hooks` installs hooks automatically.
-
-No hooks? The Skill tells the agent to run `centricmem ambient` at session start manually.
-
----
-
-## Get started
-
-```bash
-git clone https://github.com/zeyu-j/centricmem-skill.git
-cd centricmem-skill
-npm install && npm run build && npm link
-
-cd <your-workspace-root>
-centricmem setup --link-all --migrate-discover --install-skill
-```
-
-Optional (Cursor): `centricmem setup --install-hooks`
-
-**Typical workflow:**
-
-1. Agent reads `.centricmem/skills/centricmem-agent/SKILL.md`
-2. Session start — context loads (`centricmem ambient` or hooks)
-3. Before big assumptions → `centricmem search "auth strategy"`
-4. After a significant choice → `centricmem log-decision --title "…" --context "…" --decision "…"`
-5. Before ending → `centricmem log-session "what we accomplished"`
-
-After upgrading: `centricmem setup --install-skill` then `centricmem skill status` (should show `ok`).
-
----
 
 ## Workspace layout
 
 ```text
-.centricmem/
+~/.centricmem/                 # CENTRICMEM_HOME (product hub)
   workspace.json
-  skills/
-    centricmem-agent/SKILL.md
+  skills/centricmem-agent/
   projects/
-    my-app/
     unclassified/
+    my-project/
 ```
 
-Link a subfolder: `centricmem link ./my-app`  
-Switch focus: `centricmem use my-app`  
-Search everywhere: `centricmem search "redis" --all`
+## Quick Start
 
----
+```bash
+npm install -g centricmem   # or: npm link from a build
+cd <code-project>
+centricmem setup --migrate-from-local --link-all --install-skill --install-hooks
+```
 
-## What's in the box (v0.12.0)
+Optional (Cursor): `centricmem setup --install-hooks` for automatic session lifecycle — see `skills/centricmem-agent/integrations/`.
 
-- **Agent-agnostic Skill** at `.centricmem/skills/` (not tied to one IDE)
-- Lifecycle integration recipes (`integrations/` — Cursor, Claude Code, MCP)
-- Local-first storage (Markdown + FTS5 index)
-- Decision history with memory links (`centricmem refs`)
-- **Skill status** — `centricmem skill status` (pull-based updates)
-- Import via **ImportBundle**; workspace multi-project hub
-- Optional semantic search (`--semantic`); MCP for sync only
+See [BETA.md](./BETA.md) for the full beta guide.
 
----
+### Core commands
 
-## Documentation
+```bash
+centricmem ambient                    # session-start preflight (implicit memory)
+centricmem skill status               # bundled vs installed Skill (pull-based updates)
+centricmem search "redis" --all       # BM25; add --semantic for hybrid, --explain for scores
+centricmem search "recipe" --filter civilization=chinese   # corpus metadata filter
+centricmem route "how do we handle auth?"   # retrieval routing hint
+centricmem log-decision --title "Use Redis" --context "..." --decision "..." --refs "1,4"
+centricmem refs 3 --depth 2              # walk memory links (refs/mentions/supersedes)
+centricmem log-session "Migrated auth to NextAuth"
+centricmem import bundle.json
+centricmem suggest-classify decisions/0001-x.md
+centricmem classify decisions/0001-x.md --to my-project
+centricmem promote --from-distill     # then --pattern "..." --confirm
+centricmem status --workspace         # unclassified backlog + per-project health
+```
 
-| Doc | For |
-|-----|-----|
-| [BETA.md](./BETA.md) | Install, configure, troubleshoot |
-| [PRODUCT.md](./PRODUCT.md) | Memory architecture (design source of truth) |
-| [skills/centricmem-agent/integrations/README.md](./skills/centricmem-agent/integrations/README.md) | Lifecycle hook recipes |
-| [ARCHITECTURE.md](./ARCHITECTURE.md) | Technical implementation |
-| [SYNC.md](./SYNC.md) | Optional cloud sync contract |
+## Agent integration (recommended)
 
----
+Follow **`.centricmem/skills/centricmem-agent/SKILL.md`** (installed by `centricmem setup --install-skill`):
+
+- Session start: `centricmem ambient` (wire lifecycle hooks per `integrations/` if your agent supports them)
+- Search via `centricmem search` (local indexer)
+- Curate high-value memory: decisions, lessons, session summaries
+- Import any source via **ImportBundle** → `centricmem import`
+
+## MCP
+
+| Role | What |
+|------|------|
+| **Drive / cloud MCP** | Optional — sync `$CENTRICMEM_HOME/projects/` to external storage ([SYNC.md](./SYNC.md)) |
+| **centricmem-mcp** | Optional/legacy tool wrapper. Prefer Skill + CLI. |
+
+Env: `CENTRICMEM_WORKSPACE`, `CENTRICMEM_PROJECT`
+
+## Features
+
+- Workspace multi-project hub with `unclassified` staging
+- Episodic `sessions/` layer + implicit `ambient` preflight
+- ImportBundle generic import (decisions/lessons/rules/sessions/research)
+- Local FTS5 + BM25 + intent router + temporal decay + negative feedback (`dismiss`)
+- Optional hybrid semantic search (`--semantic`, OpenAI-compatible embedding API)
+- Decision supersede chains, promote-to-rules workflow, Memory Map
+- **Memory Links**: inline `#NNNN` mentions auto-indexed; `centricmem refs` walks the graph; referenced decisions rank higher
+- **Corpus metadata**: `--filter key=value` on imported docs with YAML frontmatter; optional `domain_boost` in `config.json`
+- **Skill status**: `centricmem skill status` compares bundled vs installed Skill (v0.12.0)
+
+## Semantic search (optional)
+
+Per-project `config.json`:
+
+```json
+{
+  "embedding": {
+    "provider": "openai",
+    "model": "text-embedding-3-small",
+    "api_key_env": "OPENAI_API_KEY",
+    "hybrid_alpha": 0.6
+  }
+}
+```
+
+Then `centricmem index --embed` and `centricmem search "..." --semantic`.
+API keys are read from env only — never stored in memory files.
+
+## Known limitations
+
+- Emoji not searchable (FTS5 unicode61)
+- Semantic mode requires network + API key (BM25 works offline)
+- Memory links are project-scoped; cross-project links on the roadmap
 
 ## License
 
-[PolyForm Noncommercial 1.0.0](./LICENSE) — free for personal, research, and noncommercial use.  
-Commercial use requires a separate license.
+[PolyForm Noncommercial 1.0.0](./LICENSE) — attribution required; no commercial use.
+
+Design: [PRODUCT.md](./PRODUCT.md) · Implementation: [ARCHITECTURE.md](./ARCHITECTURE.md) · L1 example: [ACADEMIC_DB_REPORT.md](./ACADEMIC_DB_REPORT.md) · Sync: [SYNC.md](./SYNC.md) · Beta: [BETA.md](./BETA.md)

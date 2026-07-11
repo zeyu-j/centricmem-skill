@@ -10,27 +10,27 @@
  *   centricmem_log_lesson     — append a lesson learned to lessons.md
  *
  * Optional legacy MCP server. Prefer Skill + CLI for local memory.
- * Workspace: CENTRICMEM_WORKSPACE (or CENTRICMEM_ROOT) + CENTRICMEM_PROJECT.
+ * Product home: CENTRICMEM_HOME (or CENTRICMEM_WORKSPACE alias) + CENTRICMEM_PROJECT.
  */
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";
+import path from "node:path";
 import { findWorkspaceRoot, resolvePaths } from "./core.js";
 import { getCurrentProjectSlug } from "./workspace.js";
 import { initProject, logDecision, updateContext, readContext, logLesson, logSession } from "./memory.js";
 import { buildIndex, getDb, search, searchAsync, classifyIntent, closeAllCached } from "./indexer.js";
 import { cliVersion } from "./skill.js";
 function getWorkspace() {
-    const env = process.env.CENTRICMEM_WORKSPACE || process.env.CENTRICMEM_ROOT;
+    const env = process.env.CENTRICMEM_HOME || process.env.CENTRICMEM_WORKSPACE || process.env.CENTRICMEM_ROOT;
     if (env) {
-        initProject(env); // explicit target — idempotent scaffold is intended
-        return env;
+        initProject(path.resolve(env));
+        return path.resolve(env);
     }
     const found = findWorkspaceRoot();
     if (found)
         return found;
-    // Never silently scaffold in an arbitrary cwd — require explicit setup.
-    throw new Error("No CentricMem workspace found. Set CENTRICMEM_WORKSPACE or run `centricmem init` in the workspace root.");
+    throw new Error("No CentricMem product home found. Set CENTRICMEM_HOME or run `centricmem init`.");
 }
 function getProjectSlug(ws) {
     return process.env.CENTRICMEM_PROJECT || getCurrentProjectSlug(ws);

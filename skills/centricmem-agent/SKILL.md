@@ -1,31 +1,31 @@
 ---
 name: centricmem-agent
-version: 0.12.0
-compatible_cli: ">=0.12.0"
+version: 0.13.0
+compatible_cli: ">=0.13.0"
 changelog_url: https://github.com/zeyu-j/centricmem-skill/blob/main/CHANGELOG.md
-description: CentricMem workspace memory — implicit-first local memory OS. Ambient context loads automatically; curate high-value memories only.
+description: CentricMem workspace memory — Agent-side product home; ambient loads automatically; curate high-value memories only.
 ---
 
-# CentricMem Agent Skill v0.12.0
+# CentricMem Agent Skill v0.13.0
 
 > **设计真源**：[PRODUCT.md](../../PRODUCT.md) — 记忆架构、存储、检索、隐式记忆原则。
 
 **记忆是隐式的** — 默认 `centricmem ambient` 已注入上下文，用户无需说「记一下」。你负责在高价值时刻**策展（Curate）**。
 
-Local memory: `.centricmem/projects/<slug>/`. Canonical skill: `.centricmem/skills/centricmem-agent/SKILL.md`. Default import: `unclassified`.
+**Product home (not the git repo):** `$CENTRICMEM_HOME` (default `~/.centricmem`).  
+Memory: `$CENTRICMEM_HOME/projects/<slug>/`. Skill: `$CENTRICMEM_HOME/skills/centricmem-agent/SKILL.md`.
 
 ## Setup
 
 ```bash
-git clone https://github.com/zeyu-j/centricmem-skill.git
-cd centricmem-skill && npm install && npm run build && npm link
-cd <workspace-root>
-centricmem setup --link-all --migrate-discover --install-skill
+npm install -g centricmem   # or npm link from a clone
+cd <any-code-project>
+centricmem setup --migrate-from-local --link-all --install-skill --install-hooks
 ```
 
-Optional (Cursor only): `centricmem setup --install-hooks` — see [integrations/README.md](./integrations/README.md).
+Env: `CENTRICMEM_HOME` (product hub), `CENTRICMEM_PROJECT` (optional pin).
 
-Env: `CENTRICMEM_WORKSPACE`, `CENTRICMEM_PROJECT`.
+Do **not** treat a source/business git repo as the memory root — develop folder ≠ product folder.
 
 ## Implicit memory (lifecycle)
 
@@ -97,6 +97,25 @@ Follow recorded decisions unless human overrides. Do not write memory on every t
 Sessions auto-capture; decisions need human alignment. **Always `log-session` before ending a session.**
 
 **Memory Links**: mention `#NNNN` in a decision body and the link is indexed automatically. For curated references use `--refs "1,4"`. Walk the graph with `centricmem refs <seq>`.
+
+## Coexistence — capture elsewhere, organize here
+
+Do **not** ask users to uninstall other memory skills. Split roles:
+
+| Role | Who | Action |
+|------|-----|--------|
+| **Capture** | Other memory skill / plugin | Keep writing there |
+| **Organize + retrieve** | CentricMem | Import → classify → `ambient` / `search` / links |
+| **Curate** | CentricMem only | `log-decision` / `log-lesson` / `promote` — never write back to the capture store |
+
+```text
+other memory skill  →  capture
+        │  map → ImportBundle → centricmem import
+        ▼
+CentricMem          →  organize + retrieve
+```
+
+Raw docs (`imported[]` / `research[]`) upsert on the same `external_id` by default. Decisions / lessons / sessions stay skip-only (append-only). Use `--skip-existing` for one-shot migrate semantics.
 
 ## Generic Import
 

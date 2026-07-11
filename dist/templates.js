@@ -12,7 +12,7 @@ export function agentsTemplate(projectName, createdAt) {
     return `# ${projectName} — Project Memory (AGENTS.md)
 
 > This file is the entry point of the CentricMem memory system.
-> Source of Truth: Markdown files under \`.centricmem/\`. The SQLite index is derivative.
+> Source of Truth: Markdown files under the Agent product home (\`$CENTRICMEM_HOME/projects/\`). The SQLite index is derivative.
 
 ## Project Overview
 
@@ -24,9 +24,9 @@ export function agentsTemplate(projectName, createdAt) {
 
 ## How Agents Should Use This Memory
 
-1. At session start, read \`.centricmem/projects/<current>/AGENTS.md\` and \`active_context.md\` (or run \`centricmem status\`).
+1. At session start, run \`centricmem ambient\` (or read product-home \`AGENTS.md\` + \`active_context.md\`).
 2. Before assumptions, run \`centricmem search "<keywords>"\`.
-3. After significant decisions, append via \`centricmem import\` or add \`decisions/NNNN-slug.md\`, then \`centricmem index\`.
+3. After significant decisions, append via \`centricmem import\` or \`log-decision\`, then index as needed.
 4. When focus changes, update \`active_context.md\` or \`centricmem\` workflow per Skill.
 
 ## Memory Map
@@ -101,21 +101,19 @@ ${opts.decision}
 ${opts.consequences || "(not specified)"}
 `;
 }
-export function cursorRulesPointer() {
-    return `# CentricMem Pointer
-Please follow the CentricMem Agent Skill: \`.centricmem/skills/centricmem-agent/SKILL.md\`
-Project memory lives under \`.centricmem/projects/<name>/\`.
-Use \`centricmem search\`, \`centricmem import\`, and read \`AGENTS.md\` / \`active_context.md\` for the current project.
-MCP (e.g. Drive) is optional — for syncing memory to external storage only.
+export function cursorRulesPointer(productHome) {
+    const home = productHome ?? "~/.centricmem";
+    return `# CentricMem (legacy template — do not commit into code repos)
+Skill + memory live under the Agent product home: ${home}
+Use \`centricmem\` CLI. Prefer user-level ~/.cursor/skills over repo pointers.
 `;
 }
-export function claudeMdPointer() {
-    return `# CentricMem Pointer
+export function claudeMdPointer(productHome) {
+    const home = productHome ?? "~/.centricmem";
+    return `# CentricMem (legacy template — do not commit into code repos)
 
-Follow \`.centricmem/skills/centricmem-agent/SKILL.md\`.
-
-Memory: \`.centricmem/projects/<current>/\`
-CLI: \`centricmem search\`, \`centricmem import\`, \`centricmem use <project>\`
+Product home: \`${home}\`
+CLI: \`centricmem search\`, \`centricmem import\`
 `;
 }
 export function indexGitignore() {

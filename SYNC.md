@@ -6,7 +6,7 @@
 
 | Item | Value |
 |------|-------|
-| Sync unit | **Project-level** — `.centricmem/projects/<slug>/` |
+| Sync unit | **Project-level** — `$CENTRICMEM_HOME/projects/<slug>/` |
 | Remote role | Replica / backup only |
 | Conflict resolution | **Local wins** — never auto-merge decision files |
 
@@ -24,7 +24,7 @@
 
 ## Roadmap: remote read-only index
 
-`config.json` may include `remote_index_url` for future read-only remote indexes. Not implemented in v0.9.
+`config.json` may include `remote_index_url` for future read-only remote indexes. Not implemented as of v0.12.
 
 ## Related
 

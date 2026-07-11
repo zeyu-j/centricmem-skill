@@ -1,15 +1,15 @@
 /**
- * workspace.ts — multi-project workspace hub (.centricmem/projects/<slug>/).
+ * workspace.ts — multi-project hub under CENTRICMEM_HOME (projects/<slug>/).
  */
 import fs from "node:fs";
 import path from "node:path";
-import { MEM_DIR, ensureDir, nowISO, slugify } from "./core.js";
+import { ensureDir, nowISO, slugify, LOCAL_MEM_DIR, getProductHome, projectMemDir, } from "./core.js";
 import { agentsTemplate, activeContextTemplate, lessonsTemplate, indexGitignore, } from "./templates.js";
 import { healthCheck } from "./memory.js";
 export const UNCLASSIFIED = "unclassified";
 export const WORKSPACE_FILE = "workspace.json";
 export function workspaceFilePath(workspaceRoot) {
-    return path.join(workspaceRoot, MEM_DIR, WORKSPACE_FILE);
+    return path.join(workspaceRoot, WORKSPACE_FILE);
 }
 export function isWorkspace(workspaceRoot) {
     return fs.existsSync(workspaceFilePath(workspaceRoot));
@@ -25,43 +25,73 @@ export function loadWorkspace(workspaceRoot) {
     return raw;
 }
 export function saveWorkspace(workspaceRoot, config) {
-    ensureDir(path.join(workspaceRoot, MEM_DIR));
+    ensureDir(workspaceRoot);
     fs.writeFileSync(workspaceFilePath(workspaceRoot), JSON.stringify(config, null, 2) + "\n", "utf8");
 }
 export function projectSlugFromName(name) {
     return slugify(name).replace(/^-+|-+$/g, "") || "project";
 }
-/** Walk up from startDir to find a directory containing .centricmem/workspace.json. */
-export function findWorkspaceRoot(startDir = process.cwd()) {
-    const env = process.env.CENTRICMEM_WORKSPACE;
-    if (env && isWorkspace(env))
-        return path.resolve(env);
+/**
+ * Product hub root. Prefer CENTRICMEM_HOME hub; do not treat code-repo/.centricmem as the hub.
+ */
+export function findWorkspaceRoot(_startDir = process.cwd()) {
+    const home = getProductHome();
+    if (isWorkspace(home))
+        return home;
+    return null;
+}
+/** Legacy code-repo nested hub (repo/.centricmem/workspace.json). */
+export function findLocalLegacyHub(startDir = process.cwd()) {
     let dir = path.resolve(startDir);
     while (true) {
-        if (isWorkspace(dir))
-            return dir;
+        const nested = path.join(dir, LOCAL_MEM_DIR);
+        if (fs.existsSync(path.join(nested, WORKSPACE_FILE)))
+            return nested;
         const parent = path.dirname(dir);
         if (parent === dir)
             return null;
         dir = parent;
     }
 }
-export function getCurrentProjectSlug(workspaceRoot) {
+function normalizePath(p) {
+    return path.resolve(p).replace(/\\/g, "/").toLowerCase();
+}
+/** Match cwd to a linked project's sourceDir (longest prefix wins). */
+export function matchProjectByCwd(workspaceRoot, cwd = process.cwd()) {
+    const ws = loadWorkspace(workspaceRoot);
+    const needle = normalizePath(cwd);
+    let best = null;
+    for (const [slug, entry] of Object.entries(ws.projects)) {
+        if (!entry.sourceDir)
+            continue;
+        const root = normalizePath(entry.sourceDir);
+        if (needle === root || needle.startsWith(root + "/")) {
+            if (!best || root.length > best.len)
+                best = { slug, len: root.length };
+        }
+    }
+    return best?.slug ?? null;
+}
+export function getCurrentProjectSlug(workspaceRoot, cwd = process.cwd()) {
     if (process.env.CENTRICMEM_PROJECT)
         return process.env.CENTRICMEM_PROJECT;
+    const matched = matchProjectByCwd(workspaceRoot, cwd);
+    if (matched)
+        return matched;
     return loadWorkspace(workspaceRoot).current;
 }
 export function listProjects(workspaceRoot) {
     const ws = loadWorkspace(workspaceRoot);
+    const current = getCurrentProjectSlug(workspaceRoot);
     return Object.entries(ws.projects).map(([slug, entry]) => ({
         slug,
         entry,
-        current: slug === ws.current,
+        current: slug === current,
     }));
 }
 /** Scaffold projects/<slug>/ memory files (no workspace.json). */
 export function scaffoldProjectDir(workspaceRoot, slug, displayName) {
-    const memDir = path.join(workspaceRoot, MEM_DIR, "projects", slug);
+    const memDir = projectMemDir(workspaceRoot, slug);
     const decisionsDir = path.join(memDir, "decisions");
     const indexDir = path.join(memDir, ".index");
     const created = [];
@@ -85,12 +115,12 @@ export function scaffoldProjectDir(workspaceRoot, slug, displayName) {
     writeIfAbsent(path.join(indexDir, ".gitignore"), indexGitignore());
     return { created, skipped };
 }
-export function initWorkspace(workspaceRoot) {
+export function initWorkspace(workspaceRoot = getProductHome()) {
     const created = [];
     const skipped = [];
     const wsFile = workspaceFilePath(workspaceRoot);
     if (fs.existsSync(wsFile)) {
-        skipped.push(path.relative(workspaceRoot, wsFile));
+        skipped.push(path.relative(workspaceRoot, wsFile) || WORKSPACE_FILE);
     }
     else {
         const ts = nowISO();
@@ -102,15 +132,19 @@ export function initWorkspace(workspaceRoot) {
             },
         };
         saveWorkspace(workspaceRoot, config);
-        created.push(path.relative(workspaceRoot, wsFile));
+        created.push(WORKSPACE_FILE);
     }
     const proj = scaffoldProjectDir(workspaceRoot, UNCLASSIFIED, UNCLASSIFIED);
     created.push(...proj.created);
     skipped.push(...proj.skipped);
     return { created, skipped };
 }
-export function linkProject(workspaceRoot, subpath) {
-    const abs = path.resolve(workspaceRoot, subpath);
+/**
+ * Register a code directory as a memory project.
+ * @param codePath Absolute or relative to cwd (the code project, not the product hub).
+ */
+export function linkProject(workspaceRoot, codePath, cwd = process.cwd()) {
+    const abs = path.resolve(cwd, codePath);
     if (!fs.existsSync(abs))
         throw new Error(`Path not found: ${abs}`);
     const slug = projectSlugFromName(path.basename(abs));
@@ -119,8 +153,12 @@ export function linkProject(workspaceRoot, subpath) {
         ws.projects[slug] = {
             path: slug,
             linked_at: nowISO(),
-            sourceDir: path.relative(workspaceRoot, abs) || ".",
+            sourceDir: abs,
         };
+        saveWorkspace(workspaceRoot, ws);
+    }
+    else if (!ws.projects[slug].sourceDir) {
+        ws.projects[slug].sourceDir = abs;
         saveWorkspace(workspaceRoot, ws);
     }
     scaffoldProjectDir(workspaceRoot, slug, slug);
@@ -147,9 +185,8 @@ export function classifyMemory(workspaceRoot, relPath, toSlug) {
         throw new Error("Cannot classify into unclassified.");
     if (!/^[a-z0-9][a-z0-9_-]*$/i.test(toSlug))
         throw new Error(`Invalid project slug: ${toSlug}`);
-    const fromDir = path.join(workspaceRoot, MEM_DIR, "projects", UNCLASSIFIED);
-    const toDir = path.join(workspaceRoot, MEM_DIR, "projects", toSlug);
-    // Reject path traversal: the resolved source/dest must stay inside their project dirs.
+    const fromDir = projectMemDir(workspaceRoot, UNCLASSIFIED);
+    const toDir = projectMemDir(workspaceRoot, toSlug);
     const src = path.resolve(fromDir, relPath);
     const dest = path.resolve(toDir, relPath);
     if (!src.startsWith(fromDir + path.sep) || !dest.startsWith(toDir + path.sep)) {
@@ -162,17 +199,17 @@ export function classifyMemory(workspaceRoot, relPath, toSlug) {
     fs.renameSync(src, dest);
     return { moved: [relPath] };
 }
-/** Scan workspace for linkable subdirectories. */
-export function discoverLinkableDirs(workspaceRoot) {
+/** Scan a code root for linkable subdirectories. */
+export function discoverLinkableDirs(scanRoot) {
     const out = [];
-    if (!fs.existsSync(workspaceRoot))
+    if (!fs.existsSync(scanRoot))
         return out;
-    for (const e of fs.readdirSync(workspaceRoot, { withFileTypes: true })) {
+    for (const e of fs.readdirSync(scanRoot, { withFileTypes: true })) {
         if (!e.isDirectory())
             continue;
         if (e.name.startsWith(".") || e.name === "node_modules")
             continue;
-        const abs = path.join(workspaceRoot, e.name);
+        const abs = path.join(scanRoot, e.name);
         const hasGit = fs.existsSync(path.join(abs, ".git"));
         const hasPkg = fs.existsSync(path.join(abs, "package.json"));
         if (hasGit || hasPkg)
@@ -180,17 +217,17 @@ export function discoverLinkableDirs(workspaceRoot) {
     }
     return out.sort();
 }
-/** Discover legacy memory sources under workspace. */
-export function discoverMigrateSources(workspaceRoot) {
+/** Discover legacy memory sources under a code root. */
+export function discoverMigrateSources(scanRoot) {
     const found = [];
     const add = (type, p) => {
-        if (fs.existsSync(path.join(workspaceRoot, p)))
+        if (fs.existsSync(path.join(scanRoot, p)))
             found.push({ type, path: p });
     };
     add("cursor-rules", ".cursorrules");
     add("cursor-rules", ".cursor/rules");
     add("memory-bank", "memory-bank");
-    for (const sub of discoverLinkableDirs(workspaceRoot)) {
+    for (const sub of discoverLinkableDirs(scanRoot)) {
         add("cursor-rules", path.join(sub, ".cursor/rules"));
         add("memory-bank", path.join(sub, "memory-bank"));
     }
@@ -202,7 +239,7 @@ function tokenize(s) {
 }
 /** Suggest target project for an unclassified memory file. */
 export function suggestClassify(workspaceRoot, relPath) {
-    const fromDir = path.join(workspaceRoot, MEM_DIR, "projects", UNCLASSIFIED);
+    const fromDir = projectMemDir(workspaceRoot, UNCLASSIFIED);
     const src = path.resolve(fromDir, relPath);
     if (!src.startsWith(fromDir + path.sep)) {
         throw new Error(`Invalid path (escapes project memory): ${relPath}`);
@@ -246,7 +283,7 @@ export function suggestClassify(workspaceRoot, relPath) {
 export function workspaceHealth(workspaceRoot, opts) {
     const backlogThreshold = opts?.backlogThreshold ?? 10;
     const staleDays = opts?.staleDays ?? 30;
-    const unclassifiedDir = path.join(workspaceRoot, MEM_DIR, "projects", UNCLASSIFIED);
+    const unclassifiedDir = projectMemDir(workspaceRoot, UNCLASSIFIED);
     const issues = [];
     const countMd = (subdir) => {
         const d = path.join(unclassifiedDir, subdir);
