@@ -12,7 +12,14 @@ CentricMem implicit memory uses **agent-agnostic lifecycle hooks**. Wire these C
 
 For meaningful session notes after real progress, agents should still run `centricmem log-session "natural language summary"` — `--auto` is the zero-friction baseline.
 
-If your agent has **no lifecycle hooks** (including many **Cloud Agent** runs), run `centricmem ambient` (or read `$CENTRICMEM_HOME/.ambient.md`) at the start of every session, and after significant progress or before ending run `centricmem log-session "natural language summary"`. Cursor hooks in a code repo `.cursor/hooks/` do **not** auto-fire for Cloud runs — do not rely on `--auto` alone there.
+If your agent has **no lifecycle hooks** (including many **Cloud Agent** runs), run `centricmem ambient` at session start, and **before ending Non-Micro work** run the Close contract:
+
+```bash
+centricmem done --tags work,ops "natural language summary of what happened"
+# or: centricmem log-session --tags work,ops "…"
+```
+
+`--auto` alone is insufficient on Cloud. Cursor hooks in a code repo `.cursor/hooks/` do **not** auto-fire for Cloud runs.
 
 **Cold start:** if `ambient` / `status` / `skill status` prints `state=UNINITIALIZED` or `hub: UNINITIALIZED` (exit 0), bootstrap then continue:
 
@@ -23,7 +30,9 @@ centricmem setup --bootstrap
 centricmem ambient
 ```
 
-Other agents: use the **same CLI contract** (ambient / log-session / index) — Claude Code snippet, MCP config, or your own lifecycle.
+Ambient shows `Curate: today_sessions=N` — if `N=0` after Non-Micro work, you still owe a tagged close write.
+
+Other agents: use the **same CLI contract** (ambient / done|log-session / index) — Claude Code snippet, MCP config, or your own lifecycle.
 
 ## Reference recipes
 

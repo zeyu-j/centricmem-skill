@@ -397,10 +397,22 @@ export function chunkFile(memDir: string, relPath: string): MemoryChunk[] {
     // Per-chunk agent attribution: imported rule blocks carry their own
     // provenance line, e.g. "> Source: `...` (imported <ISO> by migration)".
     const imp = /\(imported\s+(\S+?)\s+by\s+([\w-]+)\)/.exec(c.body);
+    const tagsLine = c.body.match(/^- \*\*Tags\*\*:\s*(.+)$/m);
+    const tagsText = tagsLine
+      ? "\ntags: " + tagsLine[1].split(",").map((t) => t.trim()).filter(Boolean).join(" ")
+      : "";
     return {
-      file: relPath, heading: c.heading, content: c.body, docType,
-      loggedAt: imp?.[1] ?? loggedAt, agent: imp?.[2] ?? agent, status, supersededBy,
-      validFrom, validUntil, meta,
+      file: relPath,
+      heading: c.heading,
+      content: c.body + tagsText,
+      docType,
+      loggedAt: imp?.[1] ?? loggedAt,
+      agent: imp?.[2] ?? agent,
+      status,
+      supersededBy,
+      validFrom,
+      validUntil,
+      meta,
     };
   });
 }

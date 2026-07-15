@@ -5,7 +5,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { classifyIntent, type QueryIntent } from "./indexer.js";
-import { healthCheck, listDecisions, readRecentSessions } from "./memory.js";
+import { healthCheck, listDecisions, readRecentSessions, countTodaySessions } from "./memory.js";
 import { getCurrentProjectSlug, workspaceHealth } from "./workspace.js";
 import { skillStatus, skillStatusHintLine } from "./skill.js";
 
@@ -169,12 +169,18 @@ export function buildAmbient(workspaceRoot: string, projectSlug?: string): Ambie
   } catch { /* ignore */ }
 
   const skillHint = skillStatusHintLine(skillStatus(workspaceRoot));
+  const todaySessions = countTodaySessions(workspaceRoot, slug);
+  const curateHint =
+    todaySessions === 0
+      ? "Curate: today_sessions=0 — Non-Micro must end with log-session --tags … (or done)"
+      : `Curate: today_sessions=${todaySessions}`;
 
   const text = [
     `CentricMem: project=${slug} | Health=${h.score}`,
     recentDecisions.length ? `Recent decisions: ${recentDecisions.join("; ")}` : "Recent decisions: (none)",
     sessionTail.length ? `Session tail: ${sessionTail.join(" | ")}` : "Session tail: (none)",
     issues.length ? `Conflicts: ${issues.join("; ")}` : "Conflicts: none",
+    curateHint,
     skillHint ?? "",
   ]
     .filter(Boolean)
