@@ -419,8 +419,11 @@ program
   .option("-p, --project <slug>", "project slug")
   .option("--stdin", "read summary from stdin")
   .option("--title <title>", "session heading")
+  .option("--tags <tags>", "comma-separated tags (e.g. work,ops,deploy)")
   .option("--auto", "derive summary from active_context Current Focus (hooks)")
-  .action((summaryParts: string[], opts: { project?: string; stdin?: boolean; title?: string; auto?: boolean }) => {
+  .action((summaryParts: string[], opts: {
+    project?: string; stdin?: boolean; title?: string; auto?: boolean; tags?: string;
+  }) => {
     const ws = requireWorkspace();
     let summary: string;
     if (opts.auto) {
@@ -431,7 +434,27 @@ program
       summary = summaryParts.join(" ");
     }
     const title = opts.title ?? (opts.auto ? "auto" : undefined);
-    const r = logSession(ws, { summary, title }, opts.project);
+    const tags = opts.tags?.split(",").map((t) => t.trim()).filter(Boolean);
+    const r = logSession(ws, { summary, title, tags }, opts.project);
+    buildIndex(resolvePaths(ws, opts.project));
+    console.log(`Session logged: ${r.file} → ## ${r.heading}`);
+  });
+
+program
+  .command("done [summary...]")
+  .description("Close-contract alias for log-session (prefer with --tags)")
+  .option("-p, --project <slug>", "project slug")
+  .option("--tags <tags>", "comma-separated tags (e.g. work,ops,deploy)")
+  .option("--title <title>", "session heading")
+  .action((summaryParts: string[], opts: { project?: string; tags?: string; title?: string }) => {
+    const ws = requireWorkspace();
+    const summary = summaryParts.join(" ").trim();
+    if (!summary) {
+      console.error('Provide a summary: centricmem done --tags work "what shipped"');
+      process.exit(1);
+    }
+    const tags = opts.tags?.split(",").map((t) => t.trim()).filter(Boolean);
+    const r = logSession(ws, { summary, title: opts.title, tags }, opts.project);
     buildIndex(resolvePaths(ws, opts.project));
     console.log(`Session logged: ${r.file} → ## ${r.heading}`);
   });
@@ -473,10 +496,12 @@ program
   .description("Append a lesson to lessons.md (idempotent by title)")
   .requiredOption("--title <title>", "lesson title")
   .requiredOption("--body <text>", "what happened and how to avoid it")
+  .option("--tags <tags>", "comma-separated tags")
   .option("-p, --project <slug>", "project slug")
-  .action((opts: { title: string; body: string; project?: string }) => {
+  .action((opts: { title: string; body: string; tags?: string; project?: string }) => {
     const ws = requireWorkspace();
-    const r = logLesson(ws, { title: opts.title, body: opts.body }, opts.project);
+    const tags = opts.tags?.split(",").map((t) => t.trim()).filter(Boolean);
+    const r = logLesson(ws, { title: opts.title, body: opts.body, tags }, opts.project);
     if (r.status === "skipped") {
       console.log(`Lesson "${opts.title}" already exists — skipped.`);
       return;

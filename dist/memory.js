@@ -407,7 +407,7 @@ export function logLesson(workspaceRoot, input, projectSlug) {
     if (new RegExp(`^##\\s+${escapedTitle}\\s*$`, "m").test(existing)) {
         return { status: "skipped" };
     }
-    const section = `\n## ${input.title}\n\n${input.body.trim()}\n\n<!-- centricmem:meta logged_at=${ts} logged_by=${by} -->\n`;
+    const section = `\n## ${input.title}\n\n${input.body.trim()}\n${input.tags?.length ? `\n- **Tags**: ${input.tags.join(", ")}\n` : ""}\n<!-- centricmem:meta logged_at=${ts} logged_by=${by} -->\n`;
     fs.appendFileSync(paths.lessonsFile, section, "utf8");
     return { status: "added" };
 }
@@ -507,6 +507,9 @@ export function logSession(workspaceRoot, input, projectSlug) {
     const time = ts.slice(11, 16);
     const heading = input.title?.trim() || `${time} session`;
     let block = `## ${heading}\n\n${summary}\n`;
+    if (input.tags?.length) {
+        block += `\n- **Tags**: ${input.tags.join(", ")}\n`;
+    }
     if (input.artifacts?.length) {
         block += `\n**Artifacts**: ${input.artifacts.map((a) => `\`${a}\``).join(", ")}\n`;
     }
@@ -549,6 +552,7 @@ export function readRecentSessions(workspaceRoot, days = 7, limit = 10, projectS
             const summary = body
                 .replace(/<!--[\s\S]*?-->/g, "")
                 .replace(/\*\*Artifacts\*\*:[\s\S]*/g, "")
+                .replace(/^- \*\*Tags\*\*:.*$/gm, "")
                 .trim()
                 .slice(0, 300);
             if (!summary)
@@ -559,5 +563,15 @@ export function readRecentSessions(workspaceRoot, days = 7, limit = 10, projectS
         }
     }
     return out;
+}
+/** Count session ## entries in today's sessions/YYYY-MM-DD.md for the project. */
+export function countTodaySessions(workspaceRoot, projectSlug) {
+    const paths = resolvePaths(workspaceRoot, projectSlug);
+    const today = nowISO().slice(0, 10);
+    const file = path.join(paths.memDir, "sessions", `${today}.md`);
+    if (!fs.existsSync(file))
+        return 0;
+    const content = fs.readFileSync(file, "utf8");
+    return (content.match(/^## /gm) ?? []).length;
 }
 export { resolvePaths };

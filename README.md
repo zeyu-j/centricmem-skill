@@ -36,6 +36,12 @@ Optional (Cursor): `centricmem setup --install-hooks` for automatic session life
 
 **After upgrading the CLI (0.14.x+):** re-run `centricmem setup --install-skill --install-hooks` so Skill + hooks match the linked package.
 
+**Close Non-Micro work (Cloud / no-hooks):**
+
+```bash
+centricmem done --tags work,ops "what shipped / decided"
+```
+
 See [BETA.md](./BETA.md) for the full beta guide.
 
 ### Core commands

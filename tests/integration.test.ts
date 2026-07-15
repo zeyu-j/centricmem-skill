@@ -12,7 +12,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const distDir = path.resolve(__dirname, "..");
 const toImport = (p: string) => pathToFileURL(p).href;
 
-  const { initProject, logDecision, updateContext, readContext, healthCheck, autoSessionSummary, logSession } =
+  const { initProject, logDecision, updateContext, readContext, healthCheck, autoSessionSummary, logSession, logLesson, countTodaySessions } =
   await import(toImport(path.join(distDir, "memory.js")));
 const { buildIndex, buildIndexAll, search, searchAll, searchAllAsync, chunkFile, parseYamlFrontmatter } = await import(toImport(path.join(distDir, "indexer.js")));
 const { migrate } = await import(toImport(path.join(distDir, "migrate.js")));
@@ -894,4 +894,41 @@ test("setup --link links explicit paths", () => {
   });
   assert.ok(result.linked.some((s: string) => s.includes("t-link-paths-other") || s === "t-link-paths-other"));
   assert.ok(result.skillInstalled);
+});
+
+test("logSession writes Tags line and search finds tag", () => {
+  const ws = freshDir("t-session-tags");
+  initProject(ws);
+  logSession(ws, { summary: "Deployed matrix trial stack", tags: ["work", "deploy", "matrix"] });
+  const today = new Date().toISOString().slice(0, 10);
+  const body = fs.readFileSync(path.join(ws, "projects", "unclassified", "sessions", `${today}.md`), "utf8");
+  assert.ok(body.includes("- **Tags**: work, deploy, matrix"));
+  assert.strictEqual(countTodaySessions(ws), 1);
+  buildIndex(resolvePaths(ws));
+  const hits = search(resolvePaths(ws), "matrix", 5);
+  assert.ok(hits.some((h: { file?: string; content?: string }) => (h.file ?? "").includes("sessions/") || (h.content ?? "").includes("matrix")));
+});
+
+test("ambient shows today_sessions curate hint", () => {
+  const ws = freshDir("t-ambient-curate");
+  initProject(ws);
+  const empty = buildAmbient(ws);
+  assert.ok(empty.text.includes("today_sessions=0"));
+  assert.ok(empty.text.includes("Curate:"));
+  logSession(ws, { summary: "Did work", tags: ["work"] });
+  const filled = buildAmbient(ws);
+  assert.ok(filled.text.includes("today_sessions=1"));
+});
+
+test("logLesson accepts tags", () => {
+  const ws = freshDir("t-lesson-tags");
+  initProject(ws);
+  const r = logLesson(ws, {
+    title: "Cloud must close session",
+    body: "Non-Micro without log-session loses memory",
+    tags: ["ops", "docs"],
+  });
+  assert.strictEqual(r.status, "added");
+  const body = fs.readFileSync(path.join(ws, "projects", "unclassified", "lessons.md"), "utf8");
+  assert.ok(body.includes("- **Tags**: ops, docs"));
 });

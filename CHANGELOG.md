@@ -2,6 +2,24 @@
 
 All notable changes to CentricMem will be documented in this file.
 
+## [0.14.5] - Curate contract (session tags + close)
+
+### Added
+- `log-session --tags` / `done --tags` — sessions store `- **Tags**: …` (FTS-searchable); preferred Cloud close verb is `done`
+- `log-lesson --tags` parity
+- Ambient `Curate: today_sessions=N` hint (`N=0` reminds Non-Micro to close)
+- Agent Skill **Close contract** — Non-Micro MUST end with tagged curation; closed tag vocab; Skill **0.14.5**
+
+### Migration
+```bash
+npm run build && npm link   # if developing from clone
+centricmem setup --install-skill
+# close Non-Micro work:
+centricmem done --tags work,ops "what shipped"
+```
+
+---
+
 ## [0.14.4] - Cold-start UX (UNINITIALIZED + bootstrap)
 
 ### Added
