@@ -37,6 +37,12 @@ centricmem setup --bootstrap --link /path/to/repo-a --link /path/to/repo-b
 
 If `centricmem ambient` prints `state=UNINITIALIZED` (exit 0), run `--bootstrap` then ambient again — do not hard-stop.
 
+Non-Micro Cloud close (required):
+
+```bash
+centricmem done --tags work,ops "natural language summary"
+```
+
 First-time migrate from a legacy repo-local hub:
 
 ```bash
