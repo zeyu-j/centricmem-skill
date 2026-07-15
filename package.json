@@ -1,6 +1,6 @@
 {
   "name": "centricmem",
-  "version": "0.14.2",
+  "version": "0.14.3",
   "description": "Cross-agent project memory layer: Markdown as source of truth, SQLite FTS5 as index, MCP server for agents.",
   "type": "module",
   "bin": {
@@ -49,11 +49,11 @@
   "author": "Dr. Z <zeyu@dr.com>",
   "repository": {
     "type": "git",
-    "url": "https://github.com/zeyu-j/centricmem-skill.git"
+    "url": "git+https://github.com/zeyu-j/centricmem-skill.git"
   },
-  "homepage": "https://github.com/zeyu-j/centricmem-skill#readme",
+  "homepage": "https://github.com/zeyu-j/centricmem#readme",
   "bugs": {
-    "url": "https://github.com/zeyu-j/centricmem-skill/issues"
+    "url": "https://github.com/zeyu-j/centricmem/issues"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.29.0",

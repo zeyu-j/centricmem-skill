@@ -123,6 +123,38 @@ export function ensureDir(p: string): void {
   fs.mkdirSync(p, { recursive: true });
 }
 
+/**
+ * Join `relPath` under `rootDir` and reject escapes (absolute paths, `..`, empty).
+ * Returns a normalized relative path (posix separators) and the absolute destination.
+ */
+export function resolveUnderDir(
+  rootDir: string,
+  relPath: string,
+): { rel: string; abs: string } {
+  const raw = relPath.replace(/\\/g, "/");
+  if (!raw || path.isAbsolute(raw) || raw.startsWith("/") || /^[a-zA-Z]:/.test(raw)) {
+    throw new Error(`Unsafe import path (absolute or empty): ${relPath}`);
+  }
+  const parts = raw.split("/");
+  for (const part of parts) {
+    if (part === "" || part === "." || part === ".." || part === "~") {
+      throw new Error(`Unsafe import path segment: ${relPath}`);
+    }
+  }
+  const rootResolved = path.resolve(rootDir);
+  const abs = path.resolve(rootResolved, ...parts);
+  const relPosix = path.relative(rootResolved, abs).replace(/\\/g, "/");
+  if (
+    !relPosix ||
+    relPosix === ".." ||
+    relPosix.startsWith("../") ||
+    path.isAbsolute(relPosix)
+  ) {
+    throw new Error(`Import path escapes root ${rootResolved}: ${relPath}`);
+  }
+  return { rel: relPosix, abs };
+}
+
 export function detectAgent(): string {
   if (process.env.CENTRICMEM_AGENT) return process.env.CENTRICMEM_AGENT;
   if (process.env.CURSOR_TRACE_ID || process.env.CURSOR_SESSION) return "cursor";

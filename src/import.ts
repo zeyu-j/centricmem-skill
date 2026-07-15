@@ -4,7 +4,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { z } from "zod";
-import { resolvePaths, ensureDir, nowISO, slugify } from "./core.js";
+import { resolvePaths, ensureDir, nowISO, slugify, resolveUnderDir } from "./core.js";
 import { buildIndex } from "./indexer.js";
 import { logDecision, logLesson, logSession } from "./memory.js";
 import { UNCLASSIFIED, ensureProjectRegistered } from "./workspace.js";
@@ -256,14 +256,14 @@ export function importBundle(
       continue;
     }
 
-    const rel = existingRel ?? relDefault;
-    const dest = path.join(importedDir, rel);
+    const relCandidate = existingRel ?? relDefault;
+    const { rel, abs: dest } = resolveUnderDir(importedDir, relCandidate);
     ensureDir(path.dirname(dest));
     const content = formatImportedDoc(doc.title, doc.body, doc.meta);
     fs.writeFileSync(dest, content, "utf8");
     if (key) {
       idem.keys.add(key);
-      idem.paths.set(key, rel.replace(/\\/g, "/"));
+      idem.paths.set(key, rel);
     }
     if (already) updated++;
     else imported++;
@@ -296,15 +296,15 @@ export function importBundle(
       continue;
     }
 
-    const rel = existingRel ?? relDefault;
-    const dest = path.join(importedDir, rel);
+    const relCandidate = existingRel ?? relDefault;
+    const { rel, abs: dest } = resolveUnderDir(importedDir, relCandidate);
     ensureDir(path.dirname(dest));
     const tags = r.tags?.length ? `\n\n**Tags**: ${r.tags.join(", ")}\n` : "";
     const content = `# ${r.title}\n\n${r.body.trim()}${tags}\n\n<!-- centricmem:meta imported_at=${nowISO()} updated_by=migration -->\n`;
     fs.writeFileSync(dest, content, "utf8");
     if (key) {
       idem.keys.add(key);
-      idem.paths.set(key, rel.replace(/\\/g, "/"));
+      idem.paths.set(key, rel);
     }
     if (already) updated++;
     else research++;

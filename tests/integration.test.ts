@@ -530,6 +530,63 @@ test("import bundle writes meta frontmatter and rel_path", () => {
   assert.ok(hits.length > 0);
 });
 
+test("import rejects rel_path traversal outside imported/", () => {
+  const ws = freshDir("t-import-traversal");
+  initProject(ws);
+  const outside = path.join(ws, "escaped.md");
+  const bundle = parseImportBundle({
+    version: 1,
+    imported: [{
+      title: "Evil",
+      body: "should not land outside",
+      rel_path: "../../../../escaped.md",
+      external_id: "trav:1",
+    }],
+  });
+  assert.throws(() => importBundle(ws, bundle), /Unsafe import path|escapes/);
+  assert.ok(!fs.existsSync(outside));
+});
+
+test("import rejects absolute rel_path", () => {
+  const ws = freshDir("t-import-abs");
+  initProject(ws);
+  const bundle = parseImportBundle({
+    version: 1,
+    imported: [{
+      title: "Abs",
+      body: "nope",
+      rel_path: "/tmp/centricmem-evil.md",
+    }],
+  });
+  assert.throws(() => importBundle(ws, bundle), /Unsafe import path|escapes|absolute/);
+});
+
+test("import rejects traversal stored in idempotency map", () => {
+  const ws = freshDir("t-import-idem-trav");
+  initProject(ws);
+  const paths = resolvePaths(ws);
+  fs.writeFileSync(
+    path.join(paths.memDir, ".import-idempotency.json"),
+    JSON.stringify({
+      keys: ["imported:idem-trav"],
+      paths: { "imported:idem-trav": "../../../outside-idem.md" },
+    }),
+    "utf8",
+  );
+  const outside = path.join(ws, "outside-idem.md");
+  const bundle = parseImportBundle({
+    version: 1,
+    imported: [{
+      title: "Idem",
+      body: "body",
+      external_id: "idem-trav",
+      rel_path: "safe.md",
+    }],
+  });
+  assert.throws(() => importBundle(ws, bundle), /Unsafe import path|escapes/);
+  assert.ok(!fs.existsSync(outside));
+});
+
 const {
   skillStatus,
   compareSemver,

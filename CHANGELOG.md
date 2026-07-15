@@ -2,6 +2,18 @@
 
 All notable changes to CentricMem will be documented in this file.
 
+## [0.14.3] - Security: import path confinement
+
+### Fixed
+- **ImportBundle `rel_path`**: resolve destination under `imported/` and reject absolute paths, `..`, empty segments, and escaped idempotency map entries (write confinement)
+
+### Migration
+```bash
+npm run build && npm link   # if developing from clone
+```
+
+---
+
 ## [0.14.2] - Agent Skill UX (multi-repo / ops / no-hooks)
 
 ### Changed
