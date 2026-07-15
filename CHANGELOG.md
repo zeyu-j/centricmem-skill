@@ -2,6 +2,20 @@
 
 All notable changes to CentricMem will be documented in this file.
 
+## [0.14.2] - Agent Skill UX (multi-repo / ops / no-hooks)
+
+### Changed
+- **Agent Skill**: product-home vs code-repo table; **Ops** classify class; multi-repo `use` / `CENTRICMEM_PROJECT` when cwd misses linked `sourceDir`; skip deep search on empty ambient; Cloud / no-hooks must `log-session` with natural language; ops host facts in Step 3 (no secrets)
+- Integrations README: Cloud / no-hooks session-end guidance aligned with Skill
+
+### Migration
+```bash
+npm run build && npm link   # if developing from clone
+centricmem setup --install-skill
+```
+
+---
+
 ## [0.14.1] - Usability polish
 
 ### Added
