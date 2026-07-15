@@ -14,9 +14,9 @@ import { buildIndex, buildIndexAll, buildIndexAsync, logIndexStart, logIndexDone
 import { parseImportBundle, importBundle } from "./import.js";
 import { linkProject, useProject, listProjects, classifyMemory, getCurrentProjectSlug, suggestClassify, workspaceHealth, loadWorkspace, } from "./workspace.js";
 import { runSetup, printSetupSummary } from "./setup.js";
-import { routeQuery, buildAmbient, writeAmbientFile } from "./retrieve.js";
+import { routeQuery, buildAmbient, writeAmbientFile, formatUninitializedAmbient, formatUninitializedStatus, } from "./retrieve.js";
 import { isEmbeddingEnabled } from "./embedding.js";
-import { skillStatus, formatSkillStatusText, cliVersion } from "./skill.js";
+import { skillStatus, formatSkillStatusText, cliVersion, formatUninitializedSkillStatus, formatUninitializedSkillStatusText, } from "./skill.js";
 const program = new Command();
 program.name("centricmem").description("Cross-agent project memory layer (workspace hub)").version(cliVersion());
 function parseMetaFilters(pairs) {
@@ -31,8 +31,11 @@ function parseMetaFilters(pairs) {
     }
     return meta;
 }
+function tryWorkspace() {
+    return findWorkspaceRoot();
+}
 function requireWorkspace() {
-    const root = findWorkspaceRoot();
+    const root = tryWorkspace();
     if (!root) {
         console.error("Error: no CentricMem product home found. Run `centricmem init` (creates ~/.centricmem).");
         process.exit(1);
@@ -107,7 +110,9 @@ program
     .command("setup")
     .description("Guided product-home setup (link code projects, migrate, install skill)")
     .option("--workspace <path>", "product home override (default: CENTRICMEM_HOME or ~/.centricmem)")
+    .option("--bootstrap", "cold-start: --link-all + --install-skill (no hooks)")
     .option("--link-all", "link subdirectories of cwd that have .git or package.json")
+    .option("--link <path>", "link an explicit project path (repeatable)", (v, prev) => [...prev, v], [])
     .option("--migrate-discover", "import discovered cursor-rules / memory-bank into unclassified")
     .option("--migrate-from-local", "move cwd/.centricmem into product home and remove the local hub")
     .option("--install-skill", "install bundled skills to $CENTRICMEM_HOME/skills/ (+ ~/.cursor/skills)")
@@ -118,7 +123,9 @@ program
     const result = runSetup({
         workspace: opts.workspace,
         codeRoot: process.cwd(),
+        bootstrap: opts.bootstrap,
         linkAll: opts.linkAll,
+        linkPaths: opts.link?.length ? opts.link : undefined,
         migrateDiscover: opts.migrateDiscover,
         migrateFromLocal: opts.migrateFromLocal,
         installSkill: opts.installSkill,
@@ -414,7 +421,18 @@ skillCmd
     .option("--path <file>", "installed SKILL.md path (overrides default)")
     .option("--json", "machine-readable output")
     .action((name, opts) => {
-    const ws = requireWorkspace();
+    const ws = tryWorkspace();
+    if (!ws) {
+        const home = getProductHome();
+        const skillName = name || "centricmem-agent";
+        if (opts.json) {
+            console.log(JSON.stringify(formatUninitializedSkillStatus(home, skillName), null, 2));
+        }
+        else {
+            console.log(formatUninitializedSkillStatusText(home, skillName));
+        }
+        return;
+    }
     const result = skillStatus(ws, { name: name || undefined, installPath: opts.path });
     if (opts.json) {
         console.log(JSON.stringify(result, null, 2));
@@ -430,7 +448,11 @@ program
     .option("-p, --project <slug>", "project slug")
     .option("--write", "write .centricmem/.ambient.md")
     .action((opts) => {
-    const ws = requireWorkspace();
+    const ws = tryWorkspace();
+    if (!ws) {
+        console.log(formatUninitializedAmbient(getProductHome()).text);
+        return;
+    }
     const block = buildAmbient(ws, opts.project);
     console.log(block.text);
     if (opts.write) {
@@ -518,7 +540,11 @@ program
     .option("-p, --project <slug>", "project slug")
     .option("--workspace", "workspace-level health including unclassified backlog")
     .action((opts) => {
-    const ws = requireWorkspace();
+    const ws = tryWorkspace();
+    if (!ws) {
+        console.log(formatUninitializedStatus(getProductHome()));
+        return;
+    }
     if (opts.workspace) {
         const wh = workspaceHealth(ws);
         console.log("CentricMem Workspace Status");

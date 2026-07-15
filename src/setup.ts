@@ -25,7 +25,11 @@ export interface SetupOptions {
   workspace?: string;
   /** Code directory for link/hooks/pointers (default cwd). */
   codeRoot?: string;
+  /** Implies linkAll + installSkill (hooks stay off unless installHooks). */
+  bootstrap?: boolean;
   linkAll?: boolean;
+  /** Explicit absolute/relative paths to link as projects. */
+  linkPaths?: string[];
   migrateDiscover?: boolean;
   migrateFromLocal?: boolean;
   installSkill?: boolean;
@@ -47,6 +51,8 @@ export interface SetupResult {
 export function runSetup(opts: SetupOptions = {}): SetupResult {
   const home = path.resolve(opts.workspace ?? getProductHome());
   const codeRoot = path.resolve(opts.codeRoot ?? process.cwd());
+  const linkAll = opts.bootstrap ? true : !!opts.linkAll;
+  const installSkill = opts.bootstrap ? true : !!opts.installSkill;
   initProject(home, codeRoot);
 
   let migratedFromLocal = false;
@@ -55,11 +61,16 @@ export function runSetup(opts: SetupOptions = {}): SetupResult {
   }
 
   const linked: string[] = [];
-  if (opts.linkAll) {
+  if (linkAll) {
     for (const sub of discoverLinkableDirs(codeRoot)) {
       const slug = linkProject(home, path.join(codeRoot, sub), codeRoot);
       linked.push(slug);
     }
+  }
+  for (const p of opts.linkPaths ?? []) {
+    const abs = path.resolve(codeRoot, p);
+    const slug = linkProject(home, abs, codeRoot);
+    if (!linked.includes(slug)) linked.push(slug);
   }
 
   let migrated = 0;
@@ -71,7 +82,7 @@ export function runSetup(opts: SetupOptions = {}): SetupResult {
   }
 
   let skillInstalled = false;
-  if (opts.installSkill) {
+  if (installSkill) {
     skillInstalled = installSkillToHome(home);
   }
 

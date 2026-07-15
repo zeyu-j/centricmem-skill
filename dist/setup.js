@@ -13,17 +13,25 @@ import { getProductHome, LOCAL_MEM_DIR, skillsDir, ensureDir } from "./core.js";
 export function runSetup(opts = {}) {
     const home = path.resolve(opts.workspace ?? getProductHome());
     const codeRoot = path.resolve(opts.codeRoot ?? process.cwd());
+    const linkAll = opts.bootstrap ? true : !!opts.linkAll;
+    const installSkill = opts.bootstrap ? true : !!opts.installSkill;
     initProject(home, codeRoot);
     let migratedFromLocal = false;
     if (opts.migrateFromLocal) {
         migratedFromLocal = migrateFromLocalHub(home, codeRoot);
     }
     const linked = [];
-    if (opts.linkAll) {
+    if (linkAll) {
         for (const sub of discoverLinkableDirs(codeRoot)) {
             const slug = linkProject(home, path.join(codeRoot, sub), codeRoot);
             linked.push(slug);
         }
+    }
+    for (const p of opts.linkPaths ?? []) {
+        const abs = path.resolve(codeRoot, p);
+        const slug = linkProject(home, abs, codeRoot);
+        if (!linked.includes(slug))
+            linked.push(slug);
     }
     let migrated = 0;
     if (opts.migrateDiscover) {
@@ -33,7 +41,7 @@ export function runSetup(opts = {}) {
         }
     }
     let skillInstalled = false;
-    if (opts.installSkill) {
+    if (installSkill) {
         skillInstalled = installSkillToHome(home);
     }
     let academicSkillInstalled = false;
