@@ -14,6 +14,15 @@ For meaningful session notes after real progress, agents should still run `centr
 
 If your agent has **no lifecycle hooks** (including many **Cloud Agent** runs), run `centricmem ambient` (or read `$CENTRICMEM_HOME/.ambient.md`) at the start of every session, and after significant progress or before ending run `centricmem log-session "natural language summary"`. Cursor hooks in a code repo `.cursor/hooks/` do **not** auto-fire for Cloud runs — do not rely on `--auto` alone there.
 
+**Cold start:** if `ambient` / `status` / `skill status` prints `state=UNINITIALIZED` or `hub: UNINITIALIZED` (exit 0), bootstrap then continue:
+
+```bash
+cd <repos-parent-or-project>
+centricmem setup --bootstrap
+# multi-repo Cloud mounts: add --link /path/to/repo (repeatable)
+centricmem ambient
+```
+
 Other agents: use the **same CLI contract** (ambient / log-session / index) — Claude Code snippet, MCP config, or your own lifecycle.
 
 ## Reference recipes

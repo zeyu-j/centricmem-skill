@@ -89,7 +89,7 @@ CREATE TABLE chunk_meta (chunk_id INTEGER PRIMARY KEY, meta_json TEXT NOT NULL);
 
 ## 5. 明确不做
 
-- 核心识别 Cursor / 任何 Agent 品牌
+- 核心识别 Cursor / Reasonix / 任何 Agent 品牌
 - 核心扫描 session 目录或对接会话浏览器
 - Web UI、token 成本追踪
 - 在 `classifyIntent()` 硬编码学术维度

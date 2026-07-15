@@ -188,7 +188,9 @@ test("searchAll finds across projects", () => {
 });
 
 const { promoteToRules, distill, readRecentSessions } = await import(toImport(path.join(distDir, "memory.js")));
-const { routeQuery, buildAmbient } = await import(toImport(path.join(distDir, "retrieve.js")));
+const { routeQuery, buildAmbient, formatUninitializedAmbient, formatUninitializedStatus } = await import(
+  toImport(path.join(distDir, "retrieve.js")),
+);
 const { dismissChunk, extractDecisionLinks, getLinks, decisionId } = await import(toImport(path.join(distDir, "indexer.js")));
 const { suggestClassify } = await import(toImport(path.join(distDir, "workspace.js")));
 
@@ -530,13 +532,74 @@ test("import bundle writes meta frontmatter and rel_path", () => {
   assert.ok(hits.length > 0);
 });
 
+test("import rejects rel_path traversal outside imported/", () => {
+  const ws = freshDir("t-import-traversal");
+  initProject(ws);
+  const outside = path.join(ws, "escaped.md");
+  const bundle = parseImportBundle({
+    version: 1,
+    imported: [{
+      title: "Evil",
+      body: "should not land outside",
+      rel_path: "../../../../escaped.md",
+      external_id: "trav:1",
+    }],
+  });
+  assert.throws(() => importBundle(ws, bundle), /Unsafe import path|escapes/);
+  assert.ok(!fs.existsSync(outside));
+});
+
+test("import rejects absolute rel_path", () => {
+  const ws = freshDir("t-import-abs");
+  initProject(ws);
+  const bundle = parseImportBundle({
+    version: 1,
+    imported: [{
+      title: "Abs",
+      body: "nope",
+      rel_path: "/tmp/centricmem-evil.md",
+    }],
+  });
+  assert.throws(() => importBundle(ws, bundle), /Unsafe import path|escapes|absolute/);
+});
+
+test("import rejects traversal stored in idempotency map", () => {
+  const ws = freshDir("t-import-idem-trav");
+  initProject(ws);
+  const paths = resolvePaths(ws);
+  fs.writeFileSync(
+    path.join(paths.memDir, ".import-idempotency.json"),
+    JSON.stringify({
+      keys: ["imported:idem-trav"],
+      paths: { "imported:idem-trav": "../../../outside-idem.md" },
+    }),
+    "utf8",
+  );
+  const outside = path.join(ws, "outside-idem.md");
+  const bundle = parseImportBundle({
+    version: 1,
+    imported: [{
+      title: "Idem",
+      body: "body",
+      external_id: "idem-trav",
+      rel_path: "safe.md",
+    }],
+  });
+  assert.throws(() => importBundle(ws, bundle), /Unsafe import path|escapes/);
+  assert.ok(!fs.existsSync(outside));
+});
+
 const {
   skillStatus,
   compareSemver,
   satisfiesCliRange,
   bundledSkillPath,
   readSkillInfo,
+  formatUninitializedSkillStatus,
+  formatUninitializedSkillStatusText,
 } = await import(toImport(path.join(distDir, "skill.js")));
+const { runSetup } = await import(toImport(path.join(distDir, "setup.js")));
+const { findWorkspaceRoot } = await import(toImport(path.join(distDir, "core.js")));
 
 test("compareSemver orders versions", () => {
   assert.ok(compareSemver("0.11.1", "0.11.0") > 0);
@@ -779,4 +842,56 @@ test("searchAllAsync passes semantic explain across projects", async () => {
     queryEmbedding: vec,
   });
   assert.ok(hits.some((h: { projectSlug?: string; explain?: { rrf?: number } }) => h.projectSlug === slug && h.explain?.rrf != null));
+});
+
+test("uninitialized ambient/status text is parseable and distinct from skill missing", () => {
+  const home = freshDir("t-uninit-home");
+  const block = formatUninitializedAmbient(home);
+  assert.strictEqual(block.state, "UNINITIALIZED");
+  assert.ok(block.text.includes("state=UNINITIALIZED"));
+  assert.ok(block.text.includes(`home=${home}`));
+  assert.ok(block.text.includes("centricmem setup --bootstrap"));
+  const statusText = formatUninitializedStatus(home);
+  assert.ok(statusText.includes("UNINITIALIZED"));
+  assert.ok(statusText.includes("setup --bootstrap"));
+  const skillJson = formatUninitializedSkillStatus(home);
+  assert.strictEqual(skillJson.hub, "UNINITIALIZED");
+  assert.ok(formatUninitializedSkillStatusText(home).includes("hub:       UNINITIALIZED"));
+});
+
+test("setup --bootstrap links children and installs skill", () => {
+  const home = freshDir("t-bootstrap-home");
+  const codeRoot = freshDir("t-bootstrap-code");
+  const child = path.join(codeRoot, "demo-app");
+  fs.mkdirSync(child, { recursive: true });
+  fs.writeFileSync(path.join(child, "package.json"), '{"name":"demo-app"}\n');
+  const result = runSetup({
+    workspace: home,
+    codeRoot,
+    bootstrap: true,
+  });
+  assert.ok(result.skillInstalled);
+  assert.ok(result.linked.includes("demo-app"));
+  assert.ok(fs.existsSync(path.join(home, "skills", "centricmem-agent", "SKILL.md")));
+  assert.ok(findWorkspaceRoot(home) === home || fs.existsSync(path.join(home, "workspace.json")));
+  const block = buildAmbient(home);
+  assert.notEqual(block.state, "UNINITIALIZED");
+  assert.ok(block.text.includes("CentricMem:"));
+  const skill = skillStatus(home);
+  assert.notEqual(skill.status, "missing");
+});
+
+test("setup --link links explicit paths", () => {
+  const home = freshDir("t-link-paths-home");
+  const codeRoot = freshDir("t-link-paths-code");
+  const other = freshDir("t-link-paths-other");
+  fs.writeFileSync(path.join(other, "package.json"), '{"name":"other"}\n');
+  const result = runSetup({
+    workspace: home,
+    codeRoot,
+    linkPaths: [other],
+    installSkill: true,
+  });
+  assert.ok(result.linked.some((s: string) => s.includes("t-link-paths-other") || s === "t-link-paths-other"));
+  assert.ok(result.skillInstalled);
 });

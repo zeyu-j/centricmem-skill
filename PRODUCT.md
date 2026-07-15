@@ -35,7 +35,7 @@
 
 ### 2.1 边界原则（Adapter in, not Platform out）
 
-CentricMem **不识别** Cursor、Claude Code 或任何具体 Agent 品牌。核心只提供：
+CentricMem **不识别** Cursor、Reasonix、Claude Code 或任何具体 Agent 品牌。核心只提供：
 
 | L0 提供 | L0 不提供 |
 |---------|-----------|

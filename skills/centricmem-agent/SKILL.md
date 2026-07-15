@@ -1,16 +1,40 @@
 ---
 name: centricmem-agent
-version: 0.14.2
-compatible_cli: ">=0.14.1"
+version: 0.14.4
+compatible_cli: ">=0.14.4"
 changelog_url: https://github.com/zeyu-j/centricmem-skill/blob/main/CHANGELOG.md
 description: CentricMem workspace memory — Agent-side product home; ambient loads automatically; curate high-value memories only.
 ---
 
-# CentricMem Agent Skill v0.14.2
+# CentricMem Agent Skill v0.14.4
 
 > **设计真源**：[PRODUCT.md](../../PRODUCT.md) — 记忆架构、存储、检索、隐式记忆原则。
 
-**记忆是隐式的** — 默认 `centricmem ambient` 已注入上下文，用户无需说「记一下」。你负责在高价值时刻**策展（Curate）**。
+**记忆是隐式的** — 用户无需说「记一下」。你负责在高价值时刻**策展（Curate）**。
+
+## Session checklist
+
+1. **Classify** — Micro → skip memory. Work / Ops / Decision / Research → continue.
+2. **`centricmem ambient`** (session start). If output has `state=UNINITIALIZED`:
+   ```bash
+   cd <repos-parent-or-project>   # e.g. a parent of many checkouts, or a single repo
+   centricmem setup --bootstrap
+   # Cloud multi-repo: add --link /path/to/repo (repeatable)
+   ```
+   Then re-run `ambient`. Exit 0 on UNINITIALIZED — keep working.
+3. **Wrong project?** After preflight, check `{slug}` vs task repo. Fix with `centricmem use <slug>` or `CENTRICMEM_PROJECT=<slug>`, then `ambient` again. Cross-repo → `search --all`.
+4. **Execute** — Follow recorded decisions unless human overrides. Do not write memory on every tool call.
+5. **Curate (high-value only)** — Before ending (required on Cloud / no-hooks):
+   - `centricmem log-session "natural language summary"`
+   - Decision / durable ops fact → `log-decision` (confirm architecture with user)
+   - Pitfall → `log-lesson`
+   - Never store secrets.
+
+Empty ambient + Work/Ops → skip deep search; curate after. Ops host facts (deploy paths, backup schedules, config overrides) are worth curating — no passwords/keys.
+
+---
+
+# Reference
 
 ## Product home vs code repo
 
@@ -27,15 +51,17 @@ Do **not** treat a source/business git repo as the memory root — develop folde
 
 ```bash
 npm install -g centricmem   # or npm link from a clone
-cd <any-code-project>
+cd <repos-parent-or-project>
+centricmem setup --bootstrap                          # cold start (link-all + install-skill)
+# or full desktop:
 centricmem setup --migrate-from-local --link-all --install-skill --install-hooks
+# explicit multi-repo:
+centricmem setup --bootstrap --link /path/to/repo-a --link /path/to/repo-b
 ```
 
 Env: `CENTRICMEM_HOME` (product hub), `CENTRICMEM_PROJECT` (optional pin to a slug).
 
 ## Implicit memory (lifecycle)
-
-Wherever your agent supports session lifecycle hooks, wire:
 
 | Event | Command |
 |-------|---------|
@@ -46,7 +72,7 @@ Hooks auto-capture **Current Focus** from `active_context.md`. After real progre
 
 **No hooks? (includes many Cloud Agent runs)** — Cursor hooks live only in the **code repo** `.cursor/hooks/`; they are **not** the same as a Cloud run auto-lifecycle. Manually:
 
-1. Session start → Step 1 (`centricmem ambient`)
+1. Session start → `centricmem ambient` (UNINITIALIZED → `setup --bootstrap`)
 2. After significant progress **or** before ending → `centricmem log-session "natural language summary"` (do **not** rely on `--auto` alone)
 
 Recipes: package `skills/centricmem-agent/integrations/` or installed `$CENTRICMEM_HOME/skills/centricmem-agent/integrations/`.
@@ -76,7 +102,9 @@ CentricMem installs the canonical skill under `$CENTRICMEM_HOME/skills/` (and mi
 
 Session start: run `centricmem ambient` (or read `$CENTRICMEM_HOME/.ambient.md`).
 
-If `centricmem skill status` reports `outdated` or `missing`, tell the user once — run `centricmem setup --install-skill`. **Never** overwrite `$CENTRICMEM_HOME/skills/` without confirmation. If `modified`, the user edited the Skill locally — respect their copy.
+If ambient prints `state=UNINITIALIZED`, run `centricmem setup --bootstrap` (optionally `--link <path>`), then ambient again. Do not treat UNINITIALIZED as a hard stop.
+
+If `centricmem skill status` reports `outdated` or `missing`, tell the user once — run `centricmem setup --install-skill`. **Never** overwrite `$CENTRICMEM_HOME/skills/` without confirmation. If `modified`, the user edited the Skill locally — respect their copy. Hub-level cold start is reported as `hub: UNINITIALIZED` (distinct from skill `missing`).
 
 ### Multi-repo / wrong-project check
 
@@ -103,6 +131,11 @@ After preflight, verify `{slug}` matches the task’s repo or topic.
 Preflight:
 ```
 CentricMem: project={slug} | Health={n} | Recent: {titles} | Session tail: {…} | Conflicts: {none|list}
+```
+
+Cold start:
+```
+CentricMem: state=UNINITIALIZED | home=… | next=centricmem setup --bootstrap
 ```
 
 ## Step 2 — Execute work

@@ -155,6 +155,27 @@ export function formatSkillStatusText(r) {
         lines.push(`  → ${r.changelog_url}`);
     return lines.join("\n");
 }
+/** Hub-level cold start — distinct from skill status `missing` (hub exists, Skill file absent). */
+export function formatUninitializedSkillStatus(home, name = "centricmem-agent") {
+    return {
+        hub: "UNINITIALIZED",
+        home,
+        name,
+        cli_version: cliVersion(),
+        next: "centricmem setup --bootstrap",
+    };
+}
+export function formatUninitializedSkillStatusText(home, name = "centricmem-agent") {
+    const r = formatUninitializedSkillStatus(home, name);
+    return [
+        `  hub:       ${r.hub}`,
+        `  home:      ${r.home}`,
+        `  skill:     ${r.name}`,
+        `  cli:       ${r.cli_version}`,
+        "",
+        `  → ${r.next}`,
+    ].join("\n");
+}
 export function skillStatusHintLine(r) {
     if (r.status === "ok")
         return null;

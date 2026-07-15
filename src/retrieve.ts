@@ -119,6 +119,31 @@ export interface AmbientBlock {
   sessionTail: string[];
   issues: string[];
   text: string;
+  /** Present when product home is missing — soft cold-start, not a hard error. */
+  state?: "ok" | "UNINITIALIZED";
+}
+
+/** Parseable preflight when `$CENTRICMEM_HOME` has no workspace.json yet. Exit 0 for agents. */
+export function formatUninitializedAmbient(home: string): AmbientBlock {
+  const text = `CentricMem: state=UNINITIALIZED | home=${home} | next=centricmem setup --bootstrap`;
+  return {
+    project: "(none)",
+    health: 0,
+    recentDecisions: [],
+    sessionTail: [],
+    issues: ["product home not initialized"],
+    text,
+    state: "UNINITIALIZED",
+  };
+}
+
+export function formatUninitializedStatus(home: string): string {
+  return [
+    "CentricMem Status",
+    `state: UNINITIALIZED`,
+    `home:  ${home}`,
+    `next:  centricmem setup --bootstrap`,
+  ].join("\n");
 }
 
 export function buildAmbient(workspaceRoot: string, projectSlug?: string): AmbientBlock {
@@ -155,7 +180,7 @@ export function buildAmbient(workspaceRoot: string, projectSlug?: string): Ambie
     .filter(Boolean)
     .join(" | ");
 
-  return { project: slug, health: h.score, recentDecisions, sessionTail, issues, text };
+  return { project: slug, health: h.score, recentDecisions, sessionTail, issues, text, state: "ok" };
 }
 
 export function writeAmbientFile(workspaceRoot: string, block: AmbientBlock): string {

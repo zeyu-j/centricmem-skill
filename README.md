@@ -22,9 +22,15 @@ Code repos stay source-only — memory and Skill live under the Agent product ho
 
 ```bash
 npm install -g centricmem   # or: npm link from a build
-cd <code-project>
+cd <code-project>           # or a parent of many repos
+centricmem setup --bootstrap   # cold start: link-all + install-skill
+# fuller desktop install:
 centricmem setup --migrate-from-local --link-all --install-skill --install-hooks
+# Cloud multi-repo mounts:
+centricmem setup --bootstrap --link /path/to/repo-a --link /path/to/repo-b
 ```
+
+If `centricmem ambient` prints `state=UNINITIALIZED` (exit 0), run `--bootstrap` then ambient again — do not hard-stop.
 
 Optional (Cursor): `centricmem setup --install-hooks` for automatic session lifecycle — see `skills/centricmem-agent/integrations/`.
 

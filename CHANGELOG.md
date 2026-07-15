@@ -2,6 +2,37 @@
 
 All notable changes to CentricMem will be documented in this file.
 
+## [0.14.4] - Cold-start UX (UNINITIALIZED + bootstrap)
+
+### Added
+- **Soft UNINITIALIZED preflight** for `ambient`, `status`, and `skill status` when product home is missing (exit 0; parseable `state=UNINITIALIZED` / `hub: UNINITIALIZED`) — distinct from skill status `missing`
+- `setup --bootstrap` — implies `--link-all` + `--install-skill` (hooks stay off)
+- `setup --link <path>` — repeatable explicit project paths (Cloud multi-repo)
+- Agent Skill session checklist + cold-start recipe; Skill version **0.14.4**
+
+### Migration
+```bash
+npm run build && npm link   # if developing from clone
+# Cloud / empty home:
+centricmem setup --bootstrap
+# or: centricmem setup --bootstrap --link /path/to/repo
+centricmem setup --install-skill   # refresh Skill
+```
+
+---
+
+## [0.14.3] - Security: import path confinement
+
+### Fixed
+- **ImportBundle `rel_path`**: resolve destination under `imported/` and reject absolute paths, `..`, empty segments, and escaped idempotency map entries (write confinement)
+
+### Migration
+```bash
+npm run build && npm link   # if developing from clone
+```
+
+---
+
 ## [0.14.2] - Agent Skill UX (multi-repo / ops / no-hooks)
 
 ### Changed

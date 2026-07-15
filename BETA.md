@@ -27,9 +27,15 @@ centricmem setup --install-skill --install-hooks
 Memory and Skill live under the **Agent product home**, not inside business git:
 
 ```bash
-cd <your-code-project>
+cd <your-code-project>   # or a parent of many repos
+centricmem setup --bootstrap                 # cold start: link-all + install-skill
+# fuller install:
 centricmem setup --link-all --migrate-discover --install-skill
+# Cloud multi-repo mounts:
+centricmem setup --bootstrap --link /path/to/repo-a --link /path/to/repo-b
 ```
+
+If `centricmem ambient` prints `state=UNINITIALIZED` (exit 0), run `--bootstrap` then ambient again — do not hard-stop.
 
 First-time migrate from a legacy repo-local hub:
 

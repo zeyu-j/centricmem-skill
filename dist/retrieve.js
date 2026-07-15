@@ -82,6 +82,27 @@ export function routeQuery(query) {
         reason: "Default → search project memory",
     };
 }
+/** Parseable preflight when `$CENTRICMEM_HOME` has no workspace.json yet. Exit 0 for agents. */
+export function formatUninitializedAmbient(home) {
+    const text = `CentricMem: state=UNINITIALIZED | home=${home} | next=centricmem setup --bootstrap`;
+    return {
+        project: "(none)",
+        health: 0,
+        recentDecisions: [],
+        sessionTail: [],
+        issues: ["product home not initialized"],
+        text,
+        state: "UNINITIALIZED",
+    };
+}
+export function formatUninitializedStatus(home) {
+    return [
+        "CentricMem Status",
+        `state: UNINITIALIZED`,
+        `home:  ${home}`,
+        `next:  centricmem setup --bootstrap`,
+    ].join("\n");
+}
 export function buildAmbient(workspaceRoot, projectSlug) {
     const slug = projectSlug ?? getCurrentProjectSlug(workspaceRoot);
     const h = healthCheck(workspaceRoot, slug);
@@ -113,7 +134,7 @@ export function buildAmbient(workspaceRoot, projectSlug) {
     ]
         .filter(Boolean)
         .join(" | ");
-    return { project: slug, health: h.score, recentDecisions, sessionTail, issues, text };
+    return { project: slug, health: h.score, recentDecisions, sessionTail, issues, text, state: "ok" };
 }
 export function writeAmbientFile(workspaceRoot, block) {
     const dest = path.join(workspaceRoot, ".ambient.md");
