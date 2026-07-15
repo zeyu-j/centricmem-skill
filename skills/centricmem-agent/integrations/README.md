@@ -12,7 +12,7 @@ CentricMem implicit memory uses **agent-agnostic lifecycle hooks**. Wire these C
 
 For meaningful session notes after real progress, agents should still run `centricmem log-session "natural language summary"` — `--auto` is the zero-friction baseline.
 
-If your agent has **no lifecycle hooks**, run `centricmem ambient` (or read `$CENTRICMEM_HOME/.ambient.md`) at the start of every session, and `centricmem log-session "…"` at the end.
+If your agent has **no lifecycle hooks** (including many **Cloud Agent** runs), run `centricmem ambient` (or read `$CENTRICMEM_HOME/.ambient.md`) at the start of every session, and after significant progress or before ending run `centricmem log-session "natural language summary"`. Cursor hooks in a code repo `.cursor/hooks/` do **not** auto-fire for Cloud runs — do not rely on `--auto` alone there.
 
 Other agents: use the **same CLI contract** (ambient / log-session / index) — Claude Code snippet, MCP config, or your own lifecycle.
 

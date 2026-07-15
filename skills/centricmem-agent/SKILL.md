@@ -1,19 +1,27 @@
 ---
 name: centricmem-agent
-version: 0.14.1
+version: 0.14.2
 compatible_cli: ">=0.14.1"
 changelog_url: https://github.com/zeyu-j/centricmem-skill/blob/main/CHANGELOG.md
 description: CentricMem workspace memory — Agent-side product home; ambient loads automatically; curate high-value memories only.
 ---
 
-# CentricMem Agent Skill v0.14.1
+# CentricMem Agent Skill v0.14.2
 
 > **设计真源**：[PRODUCT.md](../../PRODUCT.md) — 记忆架构、存储、检索、隐式记忆原则。
 
 **记忆是隐式的** — 默认 `centricmem ambient` 已注入上下文，用户无需说「记一下」。你负责在高价值时刻**策展（Curate）**。
 
-**Product home (not the git repo):** `$CENTRICMEM_HOME` (default `~/.centricmem`).  
-Memory: `$CENTRICMEM_HOME/projects/<slug>/`. Skill: `$CENTRICMEM_HOME/skills/centricmem-agent/SKILL.md`.
+## Product home vs code repo
+
+| What | Where | Purpose |
+|------|--------|---------|
+| **Product home** | `$CENTRICMEM_HOME` (default `~/.centricmem`) | Live memory, installed Skill, ambient |
+| **Project memory** | `$CENTRICMEM_HOME/projects/<slug>/` | decisions / sessions / lessons / … |
+| **Installed Skill** | `$CENTRICMEM_HOME/skills/centricmem-agent/SKILL.md` | What agents should follow |
+| **Code clone** | wherever you develop (e.g. a git checkout of centricmem) | Source to build/publish — **not** the memory root |
+
+Do **not** treat a source/business git repo as the memory root — develop folder ≠ product folder.
 
 ## Setup
 
@@ -23,9 +31,7 @@ cd <any-code-project>
 centricmem setup --migrate-from-local --link-all --install-skill --install-hooks
 ```
 
-Env: `CENTRICMEM_HOME` (product hub), `CENTRICMEM_PROJECT` (optional pin).
-
-Do **not** treat a source/business git repo as the memory root — develop folder ≠ product folder.
+Env: `CENTRICMEM_HOME` (product hub), `CENTRICMEM_PROJECT` (optional pin to a slug).
 
 ## Implicit memory (lifecycle)
 
@@ -38,7 +44,12 @@ Wherever your agent supports session lifecycle hooks, wire:
 
 Hooks auto-capture **Current Focus** from `active_context.md`. After real progress, prefer a natural-language `centricmem log-session "…"`.
 
-No hooks? Run Step 1 manually each session. Copy-paste recipes: package `skills/centricmem-agent/integrations/` or installed `$CENTRICMEM_HOME/skills/centricmem-agent/integrations/`.
+**No hooks? (includes many Cloud Agent runs)** — Cursor hooks live only in the **code repo** `.cursor/hooks/`; they are **not** the same as a Cloud run auto-lifecycle. Manually:
+
+1. Session start → Step 1 (`centricmem ambient`)
+2. After significant progress **or** before ending → `centricmem log-session "natural language summary"` (do **not** rely on `--auto` alone)
+
+Recipes: package `skills/centricmem-agent/integrations/` or installed `$CENTRICMEM_HOME/skills/centricmem-agent/integrations/`.
 
 ## Agent integration (optional)
 
@@ -55,14 +66,25 @@ CentricMem installs the canonical skill under `$CENTRICMEM_HOME/skills/` (and mi
 |-------|----------|--------|
 | **Micro** | typo, one-liner, explain | Skip |
 | **Work** | implement, refactor, fix | Ambient already loaded |
+| **Ops** | deploy, host config, backups, infra triage | Ambient → execute; curate durable host facts (no secrets) |
 | **Decision** | architecture, stack, scope | Ambient + curate decision |
 | **Research** | survey, external sources | Ambient + import notes |
+
+**Empty ambient / cold project:** preflight shows no decisions and search would return nothing → do **not** deep-search; execute the task, then `log-session` (and decision/lesson if durable).
 
 ## Step 1 — Load context (implicit)
 
 Session start: run `centricmem ambient` (or read `$CENTRICMEM_HOME/.ambient.md`).
 
 If `centricmem skill status` reports `outdated` or `missing`, tell the user once — run `centricmem setup --install-skill`. **Never** overwrite `$CENTRICMEM_HOME/skills/` without confirmation. If `modified`, the user edited the Skill locally — respect their copy.
+
+### Multi-repo / wrong-project check
+
+After preflight, verify `{slug}` matches the task’s repo or topic.
+
+- CLI already prefers `CENTRICMEM_PROJECT`, then cwd→linked `sourceDir`, else `workspace.json` **current**.
+- If you started outside a linked tree (common Cloud Agent cwd like a parent mount) and the task is another project → `centricmem use <slug>` **or** `export CENTRICMEM_PROJECT=<slug>`, then re-run `ambient`.
+- Cross-repo questions → `centricmem search "…" --all`. Do **not** assume `workspace.json` current is correct.
 
 **Retrieval routing** (or `centricmem route "<query>"`):
 
@@ -76,6 +98,7 @@ If `centricmem skill status` reports `outdated` or `missing`, tell the user once
 | 调研/外部资料 | `search` + type=imported |
 | 不确定关键词 | Memory Map → refine → search |
 | 跨项目 | `centricmem search --all` |
+| 空 ambient + Ops/Work | skip deep search; curate after |
 
 Preflight:
 ```
@@ -92,11 +115,13 @@ Follow recorded decisions unless human overrides. Do not write memory on every t
 |------|------|-----|
 | **Session** | session end / significant progress | `centricmem log-session "summary"` |
 | **Context** | focus changes | update `active_context.md` |
-| **Decision** | architecture choice (confirm with user) | `centricmem log-decision --title ... --context ... --decision ...` |
-| **Lesson** | pitfall discovered | `centricmem log-lesson --title ... --body ...` |
+| **Decision** | architecture **or** durable ops/host fact (confirm with user when architectural) | `centricmem log-decision --title ... --context ... --decision ...` |
+| **Lesson** | pitfall discovered (incl. infra gotchas) | `centricmem log-lesson --title ... --body ...` |
 | **Rules** | repeated pattern | `centricmem promote --from-distill` then `--confirm` |
 
-Sessions auto-capture; decisions need human alignment. **Always `log-session` before ending a session.**
+**Ops examples to curate:** how to connect/deploy, backup paths/schedules, config override traps (e.g. a world-options file shadowing server ini). **Never** store passwords, API keys, or app secrets in memory.
+
+Sessions auto-capture; decisions need human alignment when they change architecture. **Always `log-session` before ending a session** (Cloud / no-hooks: natural-language summary required).
 
 **Memory Links**: mention `#NNNN` in a decision body and the link is indexed automatically. For curated references use `--refs "1,4"`. Walk the graph with `centricmem refs <seq>`.
 
@@ -144,6 +169,7 @@ See v0.8 ImportBundle workflow. New types: `sessions[]`, `research[]`, `imported
 - `centricmem link subdir/`
 - `centricmem use <slug>`
 - `centricmem search "query" --all`
+- Pin without switching workspace current: `CENTRICMEM_PROJECT=<slug>`
 
 ## Rules
 
