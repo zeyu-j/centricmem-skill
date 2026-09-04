@@ -1,16 +1,18 @@
 # CentricMem
 
-Cross-agent **workspace memory** — Skill-first, Agent-side product home (`~/.centricmem`) + SQLite FTS5.
+Skill-first: agents follow `$CENTRICMEM_HOME/skills/centricmem-agent/SKILL.md`. Capture stays in the agent's own memory (Cursor memories / other plugins). The hosted librarian is the **manager layer** — agents upload over HTTP; humans download or delete ([PRODUCT_HOST.md](./PRODUCT_HOST.md)). Never CLI-write a hub. On a guest machine (`CENTRICMEM_URL` or catalog `origin` is remote), `centricmem note` / `keep` / `done` refuse the leftover hub.
+
+Cross-agent **organised memory** — Skill-first, Markdown units, SQLite FTS5 on the librarian.
 
 ```text
-Agent (Skill) → centricmem CLI → $CENTRICMEM_HOME/projects/<name>/ → local indexer
-Code repos stay source-only — memory and Skill live under the Agent product home (`~/.centricmem`).
+Agent (Skill) → librarian HTTP (Bearer selects the library) → `$CENTRICMEM_HOME/projects/<id>/` → local indexer
+Code repos stay source-only — memory and Skill live under the Agent product home (`~/.centricmem`). Named pairing keys per library; attach many libraries like workspaces. Agents never CLI-write a hub.
 ```
 
 ## Workspace layout
 
 ```text
-~/.centricmem/                 # CENTRICMEM_HOME (product hub)
+~/.centricmem/                 # default library (or any drive: setup --workspace)
   workspace.json
   skills/centricmem-agent/
   projects/
@@ -18,58 +20,59 @@ Code repos stay source-only — memory and Skill live under the Agent product ho
     my-project/
 ```
 
+A unit is one `.md` (or one `##` in lessons / AGENTS): **Identity / Details / Tags / Body**. Optional original: pointer in Details, bytes in `imported/attach/`. SQLite under `.index/` is a cache. Optional Notion browse uses the same situation names as Skill retrieval (Start / Why / Know / Close / Classify).
+
+CLI install (npm / clone) is separate from this library folder.
+
 ## Quick Start
 
 ```bash
 npm install -g centricmem   # or: npm link from a build
-cd <code-project>           # or a parent of many repos
-centricmem setup --bootstrap   # cold start: link-all + install-skill
-# fuller desktop install:
-centricmem setup --migrate-from-local --link-all --install-skill --install-hooks
-# Cloud multi-repo mounts:
-centricmem setup --bootstrap --link /path/to/repo-a --link /path/to/repo-b
+centricmem setup --bootstrap --workspace <library-path> --persist-home
 ```
-
-If `centricmem ambient` prints `state=UNINITIALIZED` (exit 0), run `--bootstrap` then ambient again — do not hard-stop.
 
 Optional (Cursor): `centricmem setup --install-hooks` for automatic session lifecycle — see `skills/centricmem-agent/integrations/`.
 
 **After upgrading the CLI (0.14.x+):** re-run `centricmem setup --install-skill --install-hooks` so Skill + hooks match the linked package.
 
-**Close Non-Micro work (Cloud / no-hooks):**
-
-```bash
-centricmem done --tags work,ops "what shipped / decided"
-```
+**Close Non-Micro work (Cloud / no-hooks):** HTTP sweep when the human stops — `POST /keep/sign`, PUT bytes to `putUrl`, `POST /keep` with `uploadId` (or filename+bytes if `health.r2` is false). Never `path=`. Do not `centricmem done` as an agent fallback.
 
 See [BETA.md](./BETA.md) for the full beta guide.
 
 ### Core commands
 
 ```bash
-centricmem ambient                    # session-start preflight (implicit memory)
+centricmem ambient                    # session-start preflight (always refreshes .ambient.md)
+centricmem doctor                     # CLI / skill / librarian / cwd→library bind
 centricmem skill status               # bundled vs installed Skill (pull-based updates)
-centricmem search "redis" --all       # BM25; add --semantic for hybrid, --explain for scores
+centricmem libraries                  # list libraries (projects is an alias)
+centricmem search "redis" --all       # BM25 across open libraries; add --semantic for hybrid
+centricmem search type:decision "#0016"
+centricmem search project:host wifi   # jump which project index (not --all)
+centricmem note --tags dual-hub --title "Live hub path" --body "…"
+centricmem keep ./notes.md --tags topic
+centricmem show "imported/kept/notes.md" --original
 centricmem search "recipe" --filter civilization=chinese   # corpus metadata filter
 centricmem route "how do we handle auth?"   # retrieval routing hint
 centricmem log-decision --title "Use Redis" --context "..." --decision "..." --refs "1,4"
 centricmem refs 3 --depth 2              # walk memory links (refs/mentions/supersedes)
 centricmem log-session "Migrated auth to NextAuth"
 centricmem import bundle.json
+centricmem inbox                          # unclassified independent files + suggestions
+centricmem inbox --apply                  # high-confidence classify only
 centricmem suggest-classify decisions/0001-x.md
-centricmem classify decisions/0001-x.md --to my-project
+centricmem classify decisions/0001-x.md --to my-library
 centricmem promote --from-distill     # then --pattern "..." --confirm
 centricmem status --workspace         # unclassified backlog + per-project health
 ```
 
 ## Agent integration (recommended)
 
-Follow **`$CENTRICMEM_HOME/skills/centricmem-agent/SKILL.md`** (installed by `centricmem setup --install-skill`):
+Follow **`$CENTRICMEM_HOME/skills/centricmem-agent/SKILL.md`** (short checklist; details in `REFERENCE.md`):
 
-- Session start: `centricmem ambient` (wire lifecycle hooks per `integrations/` if your agent supports them)
-- Search via `centricmem search` (local indexer)
-- Curate high-value memory: decisions, lessons, session summaries
-- Import any source via **ImportBundle** → `centricmem import`
+- Session start: HTTP `/health` then `/ambient` (never a stale `.ambient.md`). If the librarian is unreachable, say so once and continue — do not create a hub.
+- Cloud / worker: inject `CENTRICMEM_URL` + `CENTRICMEM_TOKEN` (secrets, not git). Do not put `centricmem` CLI write on PATH as a fallback.
+- Close Non-Micro with one HTTP sweep (`/keep/sign` then PUT, or filename+bytes if no R2; never `path=`) when the human stops. Search via `/search`; full text via `/show` or `/download`.
 
 ## MCP
 
@@ -82,13 +85,16 @@ Env: `CENTRICMEM_WORKSPACE`, `CENTRICMEM_PROJECT`
 
 ## Features
 
-- Workspace multi-project hub with `unclassified` staging
+- Workspace multi-project hub with `unclassified` inbox (cwd unlinked → inbox, not silent `current`)
 - Episodic `sessions/` layer + implicit `ambient` preflight
 - ImportBundle generic import (decisions/lessons/rules/sessions/research)
 - Local FTS5 + BM25 + intent router + temporal decay + negative feedback (`dismiss`)
 - Optional hybrid semantic search (`--semantic`, OpenAI-compatible embedding API)
 - Decision supersede chains, promote-to-rules workflow, Memory Map
 - **Memory Links**: inline `#NNNN` mentions auto-indexed; `centricmem refs` walks the graph; referenced decisions rank higher
+- **Folksonomy tags**: `search --tag` / `tag:` require the token in the Tags field **or** the body (AND); tagged rows rank higher. Ambient lists existing tags to reuse. Prefixes: `type:`, `project:`, `id:` / `#NNNN`. Bare words like `decision` are FTS, not type filters.
+- **Durable knowledge**: `note` / `log-lesson` stores mental models, facts, logic, and pitfalls — not only gotchas
+- **Originals**: `keep <path>` attaches full source; `show` / `show --original` reads it after search
 - **Corpus metadata**: `--filter key=value` on imported docs with YAML frontmatter; optional `domain_boost` in `config.json`
 - **Skill status**: `centricmem skill status` compares bundled vs installed Skill (v0.13+)
 - **Import contract**: [IMPORT_BUNDLE.md](./IMPORT_BUNDLE.md)

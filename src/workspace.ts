@@ -10,6 +10,7 @@ import {
   LOCAL_MEM_DIR,
   getProductHome,
   projectMemDir,
+  looksLikeClientFolder,
 } from "./core.js";
 import {
   agentsTemplate,
@@ -107,16 +108,21 @@ export function getCurrentProjectSlug(workspaceRoot: string, cwd: string = proce
   if (process.env.CENTRICMEM_PROJECT) return process.env.CENTRICMEM_PROJECT;
   const matched = matchProjectByCwd(workspaceRoot, cwd);
   if (matched) return matched;
+  return UNCLASSIFIED;
+}
+
+/** `use` pin — display only. Writes do not fall back to this. */
+export function getWorkspaceCurrent(workspaceRoot: string): string {
   return loadWorkspace(workspaceRoot).current;
 }
 
 export function listProjects(workspaceRoot: string): { slug: string; entry: ProjectEntry; current: boolean }[] {
   const ws = loadWorkspace(workspaceRoot);
-  const current = getCurrentProjectSlug(workspaceRoot);
+  const pinned = ws.current;
   return Object.entries(ws.projects).map(([slug, entry]) => ({
     slug,
     entry,
-    current: slug === current,
+    current: slug === pinned,
   }));
 }
 
@@ -205,7 +211,7 @@ export function linkProject(workspaceRoot: string, codePath: string, cwd: string
       sourceDir: abs,
     };
     saveWorkspace(workspaceRoot, ws);
-  } else if (!ws.projects[slug].sourceDir) {
+  } else if (path.resolve(ws.projects[slug].sourceDir ?? "") !== abs) {
     ws.projects[slug].sourceDir = abs;
     saveWorkspace(workspaceRoot, ws);
   }
@@ -254,8 +260,37 @@ export function classifyMemory(
 
   ensureProjectRegistered(workspaceRoot, toSlug);
   ensureDir(path.dirname(dest));
+  if (fs.existsSync(dest)) {
+    throw new Error(`Already exists in ${toSlug}: ${relPath}`);
+  }
   fs.renameSync(src, dest);
-  return { moved: [relPath] };
+  const moved = [relPath.replace(/\\/g, "/")];
+  if (src.endsWith(".md")) {
+    const attachRel = companionAttachRel(fs.readFileSync(dest, "utf8"));
+    if (attachRel) {
+      const attachSrc = path.resolve(fromDir, attachRel);
+      const attachDest = path.resolve(toDir, attachRel);
+      if (
+        attachSrc.startsWith(fromDir + path.sep) &&
+        fs.existsSync(attachSrc) &&
+        !fs.existsSync(attachDest)
+      ) {
+        ensureDir(path.dirname(attachDest));
+        fs.renameSync(attachSrc, attachDest);
+        moved.push(attachRel);
+      }
+    }
+  }
+  return { moved };
+}
+
+const ATTACH_LINE = /^- \*\*Attach\*\*:\s*`?([^\n`]+)`?\s*$/m;
+
+function companionAttachRel(content: string): string | undefined {
+  const v = content.match(ATTACH_LINE)?.[1]?.trim();
+  if (!v) return undefined;
+  const norm = v.replace(/\\/g, "/");
+  return norm.startsWith("imported/") ? norm : undefined;
 }
 
 /** Scan a code root for linkable subdirectories. */
@@ -302,6 +337,21 @@ function tokenize(s: string): Set<string> {
   return new Set(words);
 }
 
+/** Optional `classify_hints` in projects/<slug>/config.json — distinctive words for inbox scoring. */
+function projectClassifyHints(workspaceRoot: string, slug: string): string[] {
+  const file = path.join(projectMemDir(workspaceRoot, slug), "config.json");
+  if (!fs.existsSync(file)) return [];
+  try {
+    const raw = JSON.parse(fs.readFileSync(file, "utf8")) as { classify_hints?: unknown };
+    if (!Array.isArray(raw.classify_hints)) return [];
+    return raw.classify_hints
+      .map((h) => String(h).toLowerCase().trim())
+      .filter((h) => h.length >= 2);
+  } catch {
+    return [];
+  }
+}
+
 /** Suggest target project for an unclassified memory file. */
 export function suggestClassify(workspaceRoot: string, relPath: string): ClassifySuggestion[] {
   const fromDir = projectMemDir(workspaceRoot, UNCLASSIFIED);
@@ -312,36 +362,212 @@ export function suggestClassify(workspaceRoot: string, relPath: string): Classif
   if (!fs.existsSync(src)) throw new Error(`Not found in unclassified: ${relPath}`);
 
   const content = fs.readFileSync(src, "utf8");
-  const fileTokens = tokenize(`${relPath} ${content.slice(0, 2000)}`);
+  const relNorm = relPath.replace(/\\/g, "/");
+  const fileTokens = tokenize(`${relNorm} ${content.slice(0, 2000)}`);
+  const tagMatch = (content.match(/\*\*Tags\*\*:\s*(.+)/)?.[1] ?? "")
+    .split(",")
+    .map((t) => t.trim().toLowerCase())
+    .filter(Boolean);
   const ws = loadWorkspace(workspaceRoot);
   const scores: ClassifySuggestion[] = [];
 
   for (const [slug, entry] of Object.entries(ws.projects)) {
     if (slug === UNCLASSIFIED) continue;
+    const slugLc = slug.toLowerCase();
     const slugTokens = tokenize(slug);
-    const nameTokens = tokenize(entry.sourceDir ?? slug);
+    const baseName = entry.sourceDir ? path.basename(entry.sourceDir) : slug;
+    const nameTokens = tokenize(baseName);
     let overlap = 0;
+    const reasons: string[] = [];
+
+    if (slugLc.length >= 3 && relNorm.toLowerCase().includes(slugLc)) {
+      overlap += 4;
+      reasons.push("path");
+    }
+    if (tagMatch.includes(slugLc)) {
+      overlap += 5;
+      reasons.push("tag=slug");
+    }
+    const baseLc = baseName.toLowerCase();
+    if (baseLc.length >= 3 && tagMatch.includes(baseLc)) {
+      overlap += 3;
+      reasons.push("tag=sourceDir");
+    }
     for (const t of fileTokens) {
       if (slugTokens.has(t) || nameTokens.has(t)) overlap++;
     }
-    const tagMatch = (content.match(/\*\*Tags\*\*:\s*(.+)/)?.[1] ?? "")
-      .split(",")
-      .map((t) => t.trim().toLowerCase())
-      .filter(Boolean);
     for (const tag of tagMatch) {
       if (slugTokens.has(tag) || nameTokens.has(tag)) overlap += 2;
+    }
+    const blob = `${relNorm} ${content.slice(0, 2000)}`.toLowerCase();
+    const compact = blob.replace(/[\s_-]+/g, "");
+    for (const hint of projectClassifyHints(workspaceRoot, slug)) {
+      const hintCompact = hint.replace(/[\s_-]+/g, "");
+      if (blob.includes(hint) || compact.includes(hintCompact) || tagMatch.includes(hint)) {
+        overlap += 2;
+        reasons.push(`hint:${hint}`);
+      }
     }
     if (overlap > 0) {
       scores.push({
         slug,
         score: overlap,
-        reason: `token overlap with project "${slug}"`,
+        reason: reasons.length
+          ? `${reasons.join("+")} overlap with "${slug}"`
+          : `token overlap with project "${slug}"`,
       });
     }
   }
 
   scores.sort((a, b) => b.score - a.score);
   return scores.slice(0, 3);
+}
+
+export const INBOX_APPLY_MIN_SCORE = 3;
+export const INBOX_APPLY_LEAD = 2;
+
+export interface InboxItem {
+  relPath: string;
+  kind: "file" | "aggregate";
+  suggestion: ClassifySuggestion | null;
+  skipReason?: string;
+}
+
+export interface InboxApplyResult {
+  moved: { relPath: string; to: string }[];
+  skipped: { relPath: string; reason: string }[];
+}
+
+function listInboxFileRels(unclassifiedDir: string): string[] {
+  const out: string[] = [];
+  const decDir = path.join(unclassifiedDir, "decisions");
+  if (fs.existsSync(decDir)) {
+    for (const f of fs.readdirSync(decDir)) {
+      if (f.endsWith(".md") && !f.startsWith(".")) out.push(`decisions/${f}`);
+    }
+  }
+  const impDir = path.join(unclassifiedDir, "imported");
+  if (fs.existsSync(impDir)) {
+    const walk = (dir: string, rel: string) => {
+      for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
+        if (e.name.startsWith(".")) continue;
+        const childRel = `${rel}/${e.name}`;
+        const childAbs = path.join(dir, e.name);
+        const isDir = e.isDirectory() || (e.isSymbolicLink() && (() => {
+          try { return fs.statSync(childAbs).isDirectory(); } catch { return false; }
+        })());
+        if (isDir) {
+          if (
+            childRel === "imported/attach" ||
+            childRel === "imported/_flat_dump" ||
+            childRel === "imported/academic/_scripts" ||
+            childRel.startsWith("imported/attach/") ||
+            childRel.startsWith("imported/_flat_dump/") ||
+            childRel.startsWith("imported/academic/_scripts/")
+          ) {
+            continue;
+          }
+          walk(childAbs, childRel);
+        } else if (e.name.endsWith(".md")) {
+          out.push(childRel);
+        }
+      }
+    };
+    walk(impDir, "imported");
+  }
+  const sessDir = path.join(unclassifiedDir, "sessions");
+  if (fs.existsSync(sessDir)) {
+    for (const f of fs.readdirSync(sessDir)) {
+      if (!f.endsWith(".md") || f.startsWith(".")) continue;
+      if (/^\d{4}-\d{2}-\d{2}\.md$/.test(f)) continue;
+      out.push(`sessions/${f}`);
+    }
+  }
+  return out.sort();
+}
+
+export function highConfidenceTarget(suggestions: ClassifySuggestion[]): ClassifySuggestion | null {
+  const top = suggestions[0];
+  if (!top || top.score < INBOX_APPLY_MIN_SCORE) return null;
+  const second = suggestions[1];
+  if (second && top.score - second.score < INBOX_APPLY_LEAD) return null;
+  return top;
+}
+
+/** Independent files + whole-file aggregates under unclassified. */
+export function listInbox(workspaceRoot: string): InboxItem[] {
+  const unclassifiedDir = projectMemDir(workspaceRoot, UNCLASSIFIED);
+  const items: InboxItem[] = [];
+  for (const relPath of listInboxFileRels(unclassifiedDir)) {
+    const suggestions = suggestClassify(workspaceRoot, relPath);
+    items.push({
+      relPath,
+      kind: "file",
+      suggestion: suggestions[0] ?? null,
+    });
+  }
+  const lessonsFile = path.join(unclassifiedDir, "lessons.md");
+  if (fs.existsSync(lessonsFile)) {
+    const headings = (fs.readFileSync(lessonsFile, "utf8").match(/^##\s+/gm) ?? []).length;
+    if (headings > 0) {
+      items.push({
+        relPath: "lessons.md",
+        kind: "aggregate",
+        suggestion: null,
+        skipReason: "whole file only — not auto-applied (split lessons in a later release)",
+      });
+    }
+  }
+  const sessDir = path.join(unclassifiedDir, "sessions");
+  if (fs.existsSync(sessDir)) {
+    for (const f of fs.readdirSync(sessDir).filter((x) => /^\d{4}-\d{2}-\d{2}\.md$/.test(x)).sort()) {
+      items.push({
+        relPath: `sessions/${f}`,
+        kind: "aggregate",
+        suggestion: null,
+        skipReason: "legacy daily bundle — not auto-applied (new sessions are one file per close)",
+      });
+    }
+  }
+  return items;
+}
+
+export function countInboxFiles(workspaceRoot: string): number {
+  return listInbox(workspaceRoot).filter((i) => i.kind === "file").length;
+}
+
+/** Auto-move high-confidence independent files; leave the rest for `classify --to`. */
+export function applyInbox(
+  workspaceRoot: string,
+  minScore: number = INBOX_APPLY_MIN_SCORE,
+): InboxApplyResult {
+  const moved: InboxApplyResult["moved"] = [];
+  const skipped: InboxApplyResult["skipped"] = [];
+  for (const item of listInbox(workspaceRoot)) {
+    if (item.kind !== "file") {
+      skipped.push({ relPath: item.relPath, reason: item.skipReason ?? "aggregate" });
+      continue;
+    }
+    const suggestions = suggestClassify(workspaceRoot, item.relPath);
+    const top = highConfidenceTarget(suggestions);
+    if (!top || top.score < minScore) {
+      const hint = item.suggestion
+        ? `score ${item.suggestion.score} → ${item.suggestion.slug} (classify --to)`
+        : "no suggestion (classify --to or link a project)";
+      skipped.push({ relPath: item.relPath, reason: hint });
+      continue;
+    }
+    try {
+      classifyMemory(workspaceRoot, item.relPath, top.slug);
+      moved.push({ relPath: item.relPath, to: top.slug });
+    } catch (e) {
+      skipped.push({
+        relPath: item.relPath,
+        reason: e instanceof Error ? e.message : String(e),
+      });
+    }
+  }
+  return { moved, skipped };
 }
 
 export interface WorkspaceHealthReport {
@@ -428,7 +654,7 @@ export function workspaceHealth(
     if (ageDays >= staleDays) {
       issues.push({
         severity: "warn",
-        message: `oldest unclassified item is ${ageDays} days old — run suggest-classify`,
+        message: `oldest unclassified item is ${ageDays} days old — run centricmem inbox`,
       });
     }
   }
@@ -450,11 +676,18 @@ export function workspaceHealth(
   const envHome = process.env.CENTRICMEM_HOME || process.env.CENTRICMEM_WORKSPACE;
   if (envHome) {
     const resolved = path.resolve(envHome);
+    if (looksLikeClientFolder(resolved)) {
+      const which = process.env.CENTRICMEM_HOME ? "CENTRICMEM_HOME" : "CENTRICMEM_WORKSPACE";
+      issues.push({
+        severity: "warn",
+        message: `${which}=${resolved} is the CLI install folder — set it to the memory library (setup --workspace --persist-home)`,
+      });
+    }
     if (!fs.existsSync(path.join(resolved, "workspace.json"))) {
       const which = process.env.CENTRICMEM_HOME ? "CENTRICMEM_HOME" : "CENTRICMEM_WORKSPACE";
       issues.push({
         severity: "warn",
-        message: `${which}=${resolved} has no workspace.json — set CENTRICMEM_HOME to the product hub (default ~/.centricmem), not a code repo`,
+        message: `${which}=${resolved} has no workspace.json — set CENTRICMEM_HOME to the memory library, not the CLI install folder`,
       });
     }
   }

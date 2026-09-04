@@ -10,18 +10,33 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const distDir = path.resolve(__dirname, "..");
 const toImport = (p) => pathToFileURL(p).href;
-const { initProject, logDecision, updateContext, readContext, healthCheck, autoSessionSummary, logSession, logLesson, countTodaySessions } = await import(toImport(path.join(distDir, "memory.js")));
-const { buildIndex, buildIndexAll, search, searchAll, searchAllAsync, chunkFile, parseYamlFrontmatter } = await import(toImport(path.join(distDir, "indexer.js")));
+const { initProject, logDecision, updateContext, readContext, healthCheck, autoSessionSummary, logSession, logLesson, countTodaySessions, keepOriginal, showMemory } = await import(toImport(path.join(distDir, "memory.js")));
+const { buildIndex, buildIndexAll, search, searchAll, searchAllAsync, searchScoped, chunkFile, parseYamlFrontmatter, folksonomyFromCorpusMeta, slugFolksonomyTag, shouldSkipIndexDir, shouldSkipIndexFile, isCorpusLeafCatalog, pathRetrievalBoost, corpusRetrievalBoost, dedupeSearchByWork, parseAddressQuery, normalizeKey } = await import(toImport(path.join(distDir, "indexer.js")));
 const { migrate } = await import(toImport(path.join(distDir, "migrate.js")));
 const { listTemplates, applyTemplate } = await import(toImport(path.join(distDir, "templates.js")));
-const { resolvePaths } = await import(toImport(path.join(distDir, "core.js")));
-const { linkProject, useProject, listProjects, classifyMemory, UNCLASSIFIED, workspaceHealth, loadWorkspace, saveWorkspace } = await import(toImport(path.join(distDir, "workspace.js")));
+const { resolvePaths, redactSecrets, looksLikeClientFolder, persistProductHome, assertLibraryPath, resolveProductHome } = await import(toImport(path.join(distDir, "core.js")));
+const { linkProject, useProject, listProjects, classifyMemory, UNCLASSIFIED, workspaceHealth, loadWorkspace, saveWorkspace, getCurrentProjectSlug, listInbox, applyInbox, ensureProjectRegistered } = await import(toImport(path.join(distDir, "workspace.js")));
 const { parseImportBundle, importBundle } = await import(toImport(path.join(distDir, "import.js")));
 let tmpRoot;
+let prevCatalogEnv;
+let prevUrlEnv;
 before(() => {
     tmpRoot = fs.mkdtempSync(path.join(os.tmpdir(), "CentricMem-test-"));
+    prevCatalogEnv = process.env.CENTRICMEM_LIBRARIES_JSON;
+    prevUrlEnv = process.env.CENTRICMEM_URL;
+    process.env.CENTRICMEM_LIBRARIES_JSON = path.join(tmpRoot, "libraries.json");
+    // Live guest machines export CENTRICMEM_URL; local hub tests must not inherit it.
+    delete process.env.CENTRICMEM_URL;
 });
 after(() => {
+    if (prevCatalogEnv === undefined)
+        delete process.env.CENTRICMEM_LIBRARIES_JSON;
+    else
+        process.env.CENTRICMEM_LIBRARIES_JSON = prevCatalogEnv;
+    if (prevUrlEnv === undefined)
+        delete process.env.CENTRICMEM_URL;
+    else
+        process.env.CENTRICMEM_URL = prevUrlEnv;
     fs.rmSync(tmpRoot, { recursive: true, force: true });
 });
 function freshDir(name) {
@@ -164,15 +179,40 @@ test("searchAll finds across projects", () => {
 });
 const { promoteToRules, distill, readRecentSessions } = await import(toImport(path.join(distDir, "memory.js")));
 const { routeQuery, buildAmbient, formatUninitializedAmbient, formatUninitializedStatus } = await import(toImport(path.join(distDir, "retrieve.js")));
+const { runDoctor } = await import(toImport(path.join(distDir, "doctor.js")));
 const { dismissChunk, extractDecisionLinks, getLinks, decisionId } = await import(toImport(path.join(distDir, "indexer.js")));
 const { suggestClassify } = await import(toImport(path.join(distDir, "workspace.js")));
 test("logSession appends to sessions/", () => {
     const ws = freshDir("t14-session");
     initProject(ws);
-    const r = logSession(ws, { summary: "Implemented feature X", title: "Morning" });
+    const r = logSession(ws, { summary: "Implemented feature X", title: "Morning", agent: "cursor" });
     assert.ok(r.file.replace(/\\/g, "/").startsWith("sessions/"));
+    assert.match(r.file.replace(/\\/g, "/"), /sessions\/\d{4}-\d{2}-\d{2}T\d{6}Z-cursor-[a-f0-9]{6}\.md/);
     const recent = readRecentSessions(ws, 7, 5);
     assert.ok(recent.some((s) => s.summary.includes("feature X")));
+});
+test("two logSession writes do not share a daily file", () => {
+    const ws = freshDir("t14-session-unique");
+    initProject(ws);
+    const a = logSession(ws, { summary: "Laptop close", title: "desk", agent: "cursor" });
+    const b = logSession(ws, { summary: "VPS close", title: "cloud", agent: "cursor" });
+    assert.notEqual(a.file, b.file);
+    const dir = path.join(projectDir(ws), "sessions");
+    const files = fs.readdirSync(dir).filter((f) => f.endsWith(".md"));
+    assert.equal(files.length, 2);
+    assert.ok(fs.readFileSync(path.join(dir, path.basename(a.file)), "utf8").includes("Laptop close"));
+    assert.ok(fs.readFileSync(path.join(dir, path.basename(b.file)), "utf8").includes("VPS close"));
+});
+test("logSession heading is a short summary when title is omitted", () => {
+    const ws = freshDir("t14-session-title");
+    initProject(ws);
+    const r = logSession(ws, {
+        summary: "Shipped unique session files so two writers can sync. Also documented Drive as L2.",
+        agent: "cursor",
+    });
+    assert.equal(r.heading, "Shipped unique session files so two writers can sync.");
+    const body = fs.readFileSync(path.join(projectDir(ws), r.file), "utf8");
+    assert.ok(body.startsWith("## Shipped unique session files so two writers can sync.\n"));
 });
 test("route returns retrieval action", () => {
     const r = routeQuery("为什么选 Redis");
@@ -277,11 +317,44 @@ test("suggestClassify scores projects", () => {
     const suggestions = suggestClassify(ws, "decisions/0001-sample-project-deployment.md");
     assert.ok(suggestions.length > 0);
 });
+test("suggestClassify uses classify_hints from config.json", () => {
+    const ws = freshDir("t18b-hints");
+    initProject(ws);
+    ensureProjectRegistered(ws, "host");
+    const hostCfg = path.join(projectDir(ws, "host"), "config.json");
+    const cfg = JSON.parse(fs.readFileSync(hostCfg, "utf8"));
+    cfg.classify_hints = ["van68", "vanguard"];
+    fs.writeFileSync(hostCfg, JSON.stringify(cfg, null, 2) + "\n");
+    const logged = logDecision(ws, {
+        title: "LoL VAN 68 is vgc crashing",
+        context: "League handshake then VAN 68",
+        decision: "Check vgc SERVICE_EXIT_CODE before reinstalling Vanguard",
+        tags: ["ops", "infra"],
+    }, UNCLASSIFIED);
+    const rel = logged.file.replace(/\\/g, "/").replace(/^.*?(decisions\/)/, "decisions/");
+    const suggestions = suggestClassify(ws, rel);
+    assert.ok(suggestions.some((s) => s.slug === "host" && s.score >= 3), JSON.stringify(suggestions));
+});
 test("buildAmbient produces preflight text", () => {
     const ws = freshDir("t19-ambient");
     initProject(ws);
     const block = buildAmbient(ws);
     assert.ok(block.text.includes("CentricMem: project="));
+    assert.ok(block.text.includes("inbox="));
+    assert.ok(block.text.includes("working_set=3dec+3tail"));
+});
+test("ambient lists corpus= for domain_boost projects", () => {
+    const ws = freshDir("t-ambient-corpus");
+    initProject(ws);
+    ensureProjectRegistered(ws, "ancient-medicine");
+    const cfgPath = path.join(projectDir(ws, "ancient-medicine"), "config.json");
+    const cfg = JSON.parse(fs.readFileSync(cfgPath, "utf8"));
+    cfg.domain_boost = {
+        dimensions: { "01": { keywords: ["disease"], path_prefix: "imported/academic/" } },
+    };
+    fs.writeFileSync(cfgPath, JSON.stringify(cfg), "utf8");
+    const block = buildAmbient(ws);
+    assert.ok(block.text.includes("corpus=ancient-medicine"), block.text);
 });
 test("classify rejects path traversal", () => {
     const ws = freshDir("t21-traversal");
@@ -367,6 +440,12 @@ test("distill surfaces patterns with enough decisions", () => {
     const d = distill(ws);
     assert.ok(d.patterns.some((p) => p.keyword === "redis"));
 });
+test("parseYamlFrontmatter reads block lists", () => {
+    const raw = "---\ntags:\n- eye-disease\nbody_parts:\n- head\ncivilization: babylonian\n---\n# T\n";
+    const { meta } = parseYamlFrontmatter(raw);
+    assert.deepEqual(meta.tags, ["eye-disease"]);
+    assert.deepEqual(meta.body_parts, ["head"]);
+});
 test("parseYamlFrontmatter extracts metadata and body", () => {
     const raw = "---\ncivilization: babylonian\ntype: recipe\nhas_incantation: true\n---\n# Title\n\nBody text.\n";
     const { meta, body } = parseYamlFrontmatter(raw);
@@ -375,6 +454,56 @@ test("parseYamlFrontmatter extracts metadata and body", () => {
     assert.strictEqual(meta.has_incantation, true);
     assert.ok(body.includes("# Title"));
     assert.ok(!body.startsWith("---"));
+});
+test("corpus folksonomy tags include body_parts and path collection", () => {
+    assert.deepEqual(slugFolksonomyTag("babylonia"), ["babylonian"]);
+    assert.ok(slugFolksonomyTag("Neo-Assyrian / Mesopotamian").includes("neo-assyrian"));
+    const tags = folksonomyFromCorpusMeta({
+        tags: ["eye-disease"],
+        body_parts: ["head"],
+        methods: ["topical"],
+        civilization: "Babylonian",
+        type: "recipe",
+    }, "imported/academic/corpus/recipes/bam10-igi/rec.md");
+    assert.ok(tags.includes("eye-disease"));
+    assert.ok(tags.includes("head"));
+    assert.ok(tags.includes("topical"));
+    assert.ok(tags.includes("babylonian"));
+    assert.ok(tags.includes("recipe"));
+    assert.ok(tags.includes("bam10"));
+    const sessionTags = folksonomyFromCorpusMeta({ tags: ["VAN68"] }, "sessions/2026-01-01.md");
+    assert.ok(sessionTags.includes("VAN68"));
+    assert.ok(!sessionTags.includes("van68"));
+});
+test("search --tag hits YAML body_parts on corpus cards", () => {
+    const ws = freshDir("t-corpus-yaml-tags");
+    initProject(ws);
+    const paths = resolvePaths(ws);
+    const dir = path.join(paths.memDir, "imported", "academic", "corpus", "recipes", "bam10-igi");
+    fs.mkdirSync(dir, { recursive: true });
+    fs.writeFileSync(path.join(dir, "rec-bam10-igi-001.md"), [
+        "---",
+        "civilization: babylonian",
+        "type: recipe",
+        "body_parts:",
+        "- head",
+        "methods:",
+        "- topical",
+        "tags:",
+        "- eye-disease",
+        "---",
+        "# IGI salve",
+        "",
+        "White honey in ghee applied to the eyes.",
+        "",
+    ].join("\n"), "utf8");
+    buildIndex(paths);
+    const byPart = search(paths, "", 8, { tags: ["head"] });
+    assert.ok(byPart.some((h) => h.file.includes("rec-bam10-igi-001")));
+    const byCiv = search(paths, "", 8, { tags: ["babylonian"] });
+    assert.ok(byCiv.length >= 1);
+    const byColl = search(paths, "tag:bam10", 8);
+    assert.ok(byColl.some((h) => h.file.includes("bam10")));
 });
 test("search --filter meta matches imported frontmatter", () => {
     const ws = freshDir("t25-meta-filter");
@@ -453,6 +582,26 @@ test("import bundle writes meta frontmatter and rel_path", () => {
     const hits = search(resolvePaths(ws), "Recipe", 5, { meta: { civilization: "chinese" } });
     assert.ok(hits.length > 0);
 });
+test("import preserves existing YAML frontmatter", () => {
+    const ws = freshDir("t-import-yaml-keep");
+    initProject(ws);
+    const bundle = parseImportBundle({
+        version: 1,
+        imported: [{
+                title: "Should not become a second H1",
+                rel_path: "corpus/keep-yaml.md",
+                body: "---\nid: REC-WW-056\ntags:\n  - wuwei\n  - recipe\n---\n\n# Original heading\n\nBody stays.\n",
+                external_id: "yaml-keep-1",
+            }],
+    });
+    importBundle(ws, bundle);
+    const file = path.join(projectDir(ws), "imported", "corpus", "keep-yaml.md");
+    const content = fs.readFileSync(file, "utf8");
+    assert.match(content, /^---\nid: REC-WW-056/m);
+    assert.match(content, /tags:\n  - wuwei/);
+    assert.doesNotMatch(content, /# Should not become a second H1/);
+    assert.doesNotMatch(content, /updated_by=migration/);
+});
 test("import rejects rel_path traversal outside imported/", () => {
     const ws = freshDir("t-import-traversal");
     initProject(ws);
@@ -504,7 +653,7 @@ test("import rejects traversal stored in idempotency map", () => {
     assert.ok(!fs.existsSync(outside));
 });
 const { skillStatus, compareSemver, satisfiesCliRange, bundledSkillPath, readSkillInfo, formatUninitializedSkillStatus, formatUninitializedSkillStatusText, } = await import(toImport(path.join(distDir, "skill.js")));
-const { runSetup } = await import(toImport(path.join(distDir, "setup.js")));
+const { runSetup, migrateProductHome, retireMixedHub } = await import(toImport(path.join(distDir, "setup.js")));
 const { findWorkspaceRoot } = await import(toImport(path.join(distDir, "core.js")));
 test("compareSemver orders versions", () => {
     assert.ok(compareSemver("0.11.1", "0.11.0") > 0);
@@ -611,7 +760,7 @@ test("import rules with external_id skip on re-import", () => {
     assert.strictEqual((agents2.match(/Imported Rule: Vitest/g) ?? []).length, 1);
 });
 test("matchProjectByCwd selects project from sourceDir", async () => {
-    const { matchProjectByCwd, getCurrentProjectSlug } = await import(toImport(path.join(distDir, "workspace.js")));
+    const { matchProjectByCwd } = await import(toImport(path.join(distDir, "workspace.js")));
     const home = freshDir("t37-cwd-match-home");
     const code = freshDir("t37-cwd-match-code");
     initProject(home);
@@ -620,6 +769,57 @@ test("matchProjectByCwd selects project from sourceDir", async () => {
     assert.ok(slug);
     assert.strictEqual(matchProjectByCwd(home, code), slug);
     assert.strictEqual(getCurrentProjectSlug(home, code), slug);
+});
+test("unlinked cwd writes go to unclassified, not workspace.current", () => {
+    const home = freshDir("t39-write-inbox-home");
+    const code = freshDir("t39-write-inbox-code");
+    const elsewhere = freshDir("t39-write-elsewhere");
+    initProject(home);
+    fs.writeFileSync(path.join(code, "package.json"), "{}");
+    const slug = linkProject(home, code, path.dirname(code));
+    useProject(home, slug);
+    assert.strictEqual(getCurrentProjectSlug(home, elsewhere), UNCLASSIFIED);
+    assert.strictEqual(getCurrentProjectSlug(home, code), slug);
+    const starred = listProjects(home).find((p) => p.slug === slug);
+    assert.ok(starred?.current);
+    const wsCfg = loadWorkspace(home);
+    wsCfg.projects[slug].sourceDir = elsewhere;
+    saveWorkspace(home, wsCfg);
+    linkProject(home, code, path.dirname(code));
+    assert.strictEqual(path.resolve(loadWorkspace(home).projects[slug].sourceDir), path.resolve(code));
+});
+test("inbox lists files and --apply moves high-confidence", () => {
+    const ws = freshDir("t40-inbox");
+    initProject(ws);
+    fs.mkdirSync(path.join(ws, "my-app"));
+    fs.writeFileSync(path.join(ws, "my-app", "package.json"), "{}");
+    const slug = linkProject(ws, "my-app", ws);
+    const hit = logDecision(ws, {
+        title: "Pick runtime",
+        context: "x",
+        decision: "y",
+        tags: ["my-app"],
+    }, UNCLASSIFIED);
+    const miss = logDecision(ws, {
+        title: "Generic note",
+        context: "zzz",
+        decision: "qqq",
+    }, UNCLASSIFIED);
+    const memRel = (file) => {
+        const n = file.replace(/\\/g, "/");
+        const i = n.search(/decisions\//);
+        return i >= 0 ? n.slice(i) : n;
+    };
+    const hitRel = memRel(hit.file);
+    const missRel = memRel(miss.file);
+    const listed = listInbox(ws);
+    const files = listed.filter((i) => i.kind === "file");
+    assert.ok(files.some((i) => i.relPath === hitRel));
+    const applied = applyInbox(ws);
+    assert.ok(applied.moved.some((m) => m.relPath === hitRel && m.to === slug));
+    assert.ok(fs.existsSync(path.join(projectDir(ws, slug), hitRel)));
+    assert.ok(applied.skipped.some((s) => s.relPath === missRel));
+    assert.ok(fs.existsSync(path.join(projectDir(ws, UNCLASSIFIED), missRel)));
 });
 test("migrateFromLocalHub moves repo .centricmem into product home", async () => {
     const { migrateFromLocalHub } = await import(toImport(path.join(distDir, "setup.js")));
@@ -735,6 +935,7 @@ test("setup --bootstrap links children and installs skill", () => {
     assert.ok(result.skillInstalled);
     assert.ok(result.linked.includes("demo-app"));
     assert.ok(fs.existsSync(path.join(home, "skills", "centricmem-agent", "SKILL.md")));
+    assert.ok(fs.existsSync(path.join(home, "skills", "centricmem-agent", "REFERENCE.md")));
     assert.ok(findWorkspaceRoot(home) === home || fs.existsSync(path.join(home, "workspace.json")));
     const block = buildAmbient(home);
     assert.notEqual(block.state, "UNINITIALIZED");
@@ -759,14 +960,84 @@ test("setup --link links explicit paths", () => {
 test("logSession writes Tags line and search finds tag", () => {
     const ws = freshDir("t-session-tags");
     initProject(ws);
-    logSession(ws, { summary: "Deployed matrix trial stack", tags: ["work", "deploy", "matrix"] });
-    const today = new Date().toISOString().slice(0, 10);
-    const body = fs.readFileSync(path.join(ws, "projects", "unclassified", "sessions", `${today}.md`), "utf8");
+    const r = logSession(ws, { summary: "Deployed matrix trial stack", tags: ["work", "deploy", "matrix"] });
+    const body = fs.readFileSync(path.join(projectDir(ws), r.file), "utf8");
     assert.ok(body.includes("- **Tags**: work, deploy, matrix"));
     assert.strictEqual(countTodaySessions(ws), 1);
     buildIndex(resolvePaths(ws));
     const hits = search(resolvePaths(ws), "matrix", 5);
     assert.ok(hits.some((h) => (h.file ?? "").includes("sessions/") || (h.content ?? "").includes("matrix")));
+});
+test("search --tag matches Tags field or body; tagged ranks higher", () => {
+    const ws = freshDir("t-tag-filter");
+    initProject(ws);
+    logSession(ws, { summary: "Talked about wifi handshake only in prose", tags: ["VAN68"] });
+    logSession(ws, { summary: "Unrelated deploy notes mentioning VAN68 by accident", tags: ["deploy"] });
+    buildIndex(resolvePaths(ws));
+    const tagged = search(resolvePaths(ws), "", 10, { tags: ["VAN68"] });
+    assert.ok(tagged.length >= 2, "body mention and Tags field should both hit");
+    assert.ok(tagged[0].tags?.includes("VAN68"), "tagged row ranks above body-only");
+    assert.ok(!(tagged[0].tags ?? []).includes("deploy"));
+    assert.ok(tagged.some((h) => (h.tags ?? []).includes("deploy")));
+    const andHits = search(resolvePaths(ws), "", 10, { tags: ["VAN68", "deploy"] });
+    assert.equal(andHits.length, 1);
+    assert.ok((andHits[0].tags ?? []).includes("deploy"));
+    const kwPlusTag = search(resolvePaths(ws), "handshake", 10, { tags: ["VAN68"] });
+    assert.ok(kwPlusTag.length >= 1);
+    const explained = search(resolvePaths(ws), "", 10, { tags: ["VAN68"] }, undefined, { explain: true });
+    assert.ok((explained[0].explain?.keyBoost ?? 1) > 1);
+});
+test("search prefixes: type: #id; bare decision is FTS not a type filter", () => {
+    const ws = freshDir("t-addr-prefix");
+    initProject(ws);
+    logDecision(ws, { title: "Use Redis", context: "Caching", decision: "Redis", agent: "test" });
+    logSession(ws, { summary: "This meeting mentioned a decision only as a word", tags: ["work"] });
+    const paths = resolvePaths(ws);
+    buildIndex(paths);
+    const parsedType = parseAddressQuery("type:decision");
+    assert.equal(parsedType.type, "decision");
+    assert.equal(parsedType.ftsQuery, "");
+    const parsedBare = parseAddressQuery("decision");
+    assert.equal(parsedBare.type, undefined);
+    assert.equal(parsedBare.ftsQuery, "decision");
+    const typed = search(paths, "type:decision", 10);
+    assert.ok(typed.length >= 1);
+    assert.ok(typed.every((h) => h.docType === "decision"));
+    assert.ok(!typed.some((h) => h.docType === "session"));
+    const bare = search(paths, "decision", 10);
+    assert.ok(bare.some((h) => h.docType === "session"));
+    const byHash = search(paths, "#0001", 10);
+    assert.ok(byHash.some((h) => /decisions[\\/]0001-/.test(h.file)));
+    const byId = search(paths, "id:0001", 10);
+    assert.ok(byId.some((h) => /decisions[\\/]0001-/.test(h.file)));
+});
+test("search project: jumps which index; CJK tag matches Tags or body", () => {
+    const ws = freshDir("t-addr-project");
+    initProject(ws);
+    fs.mkdirSync(path.join(ws, "host"));
+    const host = linkProject(ws, "host", ws);
+    logDecision(ws, { title: "HostOnlyWidget", context: "x", decision: "y" }, host);
+    logSession(ws, { summary: "unrelated local note", tags: ["腹心疾"] });
+    logSession(ws, { summary: "正文里碰巧写了腹心疾", tags: ["other"] });
+    buildIndexAll(ws);
+    const jumped = searchScoped(ws, "project:host HostOnlyWidget");
+    assert.ok(jumped.some((h) => h.heading.includes("HostOnlyWidget")));
+    const local = search(resolvePaths(ws), "HostOnlyWidget");
+    assert.equal(local.length, 0);
+    assert.equal(normalizeKey("腹心疾"), "腹心疾");
+    const cjk = search(resolvePaths(ws), "", 10, { tags: ["腹心疾"] });
+    assert.ok(cjk.length >= 2, "CJK token should hit Tags and body");
+    assert.ok(cjk[0].tags?.includes("腹心疾"));
+});
+test("ambient lists existing tags for reuse", () => {
+    const ws = freshDir("t-ambient-tags");
+    initProject(ws);
+    logSession(ws, { summary: "Did a thing", tags: ["ops", "VAN68"] });
+    const filled = buildAmbient(ws);
+    assert.ok(filled.text.includes("Tags:"));
+    const tagsPart = filled.text.split("Tags:")[1] ?? "";
+    assert.ok(tagsPart.includes("VAN68"));
+    assert.ok(tagsPart.indexOf("VAN68") < tagsPart.indexOf("ops"));
 });
 test("ambient shows today_sessions curate hint", () => {
     const ws = freshDir("t-ambient-curate");
@@ -789,4 +1060,325 @@ test("logLesson accepts tags", () => {
     assert.strictEqual(r.status, "added");
     const body = fs.readFileSync(path.join(ws, "projects", "unclassified", "lessons.md"), "utf8");
     assert.ok(body.includes("- **Tags**: ops, docs"));
+});
+test("route knowledge queries to lessons", () => {
+    const r = routeQuery("这个项目怎么想 tags");
+    assert.strictEqual(r.action, "search");
+    assert.strictEqual(r.suggestedType, "lessons");
+});
+test("import bundle lessons keep tags", () => {
+    const ws = freshDir("t-import-lesson-tags");
+    initProject(ws);
+    const bundle = parseImportBundle({
+        version: 1,
+        lessons: [{ title: "Live hub is E", body: "Not ~/.centricmem", tags: ["dual-hub"] }],
+    });
+    importBundle(ws, bundle);
+    const body = fs.readFileSync(path.join(ws, "projects", "unclassified", "lessons.md"), "utf8");
+    assert.ok(body.includes("Live hub is E"));
+    assert.ok(body.includes("- **Tags**: dual-hub"));
+});
+test("keep stores original; search hits stub; show --original returns full text", () => {
+    const ws = freshDir("t-keep-show");
+    initProject(ws);
+    const src = path.join(ws, "source-note.txt");
+    fs.writeFileSync(src, "UNIQUE_KEEP_PHRASE the full original transcript lives here.\n");
+    const kept = keepOriginal(ws, src, { title: "Source note", tags: ["keep-test"] });
+    assert.ok(kept.stubRel.startsWith("imported/kept/"));
+    assert.ok(kept.attachRel.startsWith("imported/attach/"));
+    buildIndex(resolvePaths(ws));
+    const hits = search(resolvePaths(ws), "UNIQUE_KEEP_PHRASE", 10);
+    assert.ok(hits.some((h) => (h.file ?? "").includes("imported/kept/")));
+    assert.ok(hits.some((h) => (h.attach ?? "").startsWith("imported/attach/")));
+    const full = showMemory(ws, kept.stubRel, { original: true });
+    assert.ok(full.includes("UNIQUE_KEEP_PHRASE"));
+    assert.equal(full, fs.readFileSync(src, "utf8"));
+});
+test("keep of jsonl transcript does not index the dump", () => {
+    const ws = freshDir("t-keep-jsonl");
+    initProject(ws);
+    const src = path.join(ws, "chat.jsonl");
+    fs.writeFileSync(src, '{"role":"user","message":{"content":[{"type":"text","text":"SECRET_CHAT_DUMP"}]}}\n');
+    const kept = keepOriginal(ws, src, { title: "A chat", tags: ["chat"] });
+    const stub = fs.readFileSync(path.join(ws, "projects", "unclassified", kept.stubRel), "utf8");
+    assert.ok(!stub.includes("SECRET_CHAT_DUMP"));
+    buildIndex(resolvePaths(ws));
+    const hits = search(resolvePaths(ws), "SECRET_CHAT_DUMP", 10);
+    assert.equal(hits.length, 0);
+    const original = showMemory(ws, kept.stubRel, { original: true });
+    assert.ok(original.includes("SECRET_CHAT_DUMP"));
+});
+test("note --attach links original; show heading --original reads it", () => {
+    const ws = freshDir("t-note-attach");
+    initProject(ws);
+    const src = path.join(ws, "chat.jsonl");
+    fs.writeFileSync(src, '{"msg":"ATTACHED_ORIGINAL_BODY"}\n');
+    const { attachRel } = keepOriginal(ws, src, { title: "unused-stub-for-copy" });
+    logLesson(ws, {
+        title: "Claim about the chat",
+        body: "The useful judgment, not the dump.",
+        tags: ["attach-test"],
+        attach: attachRel,
+    });
+    buildIndex(resolvePaths(ws));
+    const shown = showMemory(ws, "lessons.md", { heading: "Claim about the chat", original: true });
+    assert.ok(shown.includes("ATTACHED_ORIGINAL_BODY"));
+});
+test("show rejects path traversal", () => {
+    const ws = freshDir("t-show-trav");
+    initProject(ws);
+    assert.throws(() => showMemory(ws, "../secret.md"), /Unsafe|escapes|absolute/i);
+});
+test("imported/attach originals are not FTS-indexed", () => {
+    const ws = freshDir("t-attach-not-fts");
+    initProject(ws);
+    const paths = resolvePaths(ws);
+    const attachDir = path.join(paths.memDir, "imported", "attach");
+    fs.mkdirSync(attachDir, { recursive: true });
+    fs.writeFileSync(path.join(attachDir, "hidden.md"), "# Hidden\n\nONLY_IN_ATTACH_DIR\n");
+    buildIndex(paths);
+    const hits = search(paths, "ONLY_IN_ATTACH_DIR", 10);
+    assert.equal(hits.length, 0);
+});
+test("imported/_flat_dump and academic/_scripts are not FTS-indexed", () => {
+    const ws = freshDir("t-skip-flat-scripts");
+    initProject(ws);
+    const paths = resolvePaths(ws);
+    const dumpDir = path.join(paths.memDir, "imported", "_flat_dump");
+    const scriptsDir = path.join(paths.memDir, "imported", "academic", "_scripts");
+    const liveDir = path.join(paths.memDir, "imported", "academic", "corpus");
+    fs.mkdirSync(dumpDir, { recursive: true });
+    fs.mkdirSync(scriptsDir, { recursive: true });
+    fs.mkdirSync(liveDir, { recursive: true });
+    fs.writeFileSync(path.join(dumpDir, "old.md"), "# Old\n\nFLAT_DUMP_TOKEN\n");
+    fs.writeFileSync(path.join(scriptsDir, "export.md"), "# Export\n\nSCRIPTS_TOKEN\n");
+    fs.writeFileSync(path.join(liveDir, "live.md"), "# Live\n\nLIVE_CORPUS_TOKEN\n");
+    buildIndex(paths);
+    assert.equal(search(paths, "FLAT_DUMP_TOKEN", 10).length, 0);
+    assert.equal(search(paths, "SCRIPTS_TOKEN", 10).length, 0);
+    assert.ok(search(paths, "LIVE_CORPUS_TOKEN", 10).length >= 1);
+});
+test("shouldSkipIndexDir skips strahil OCR and reading copies", () => {
+    assert.equal(shouldSkipIndexDir("imported/academic/sources/strahil-medical-md"), true);
+    assert.equal(shouldSkipIndexDir("imported/academic/sources/strahil-medical-md/foo"), true);
+    assert.equal(shouldSkipIndexDir("imported/academic/sources/early-chinese"), false);
+    assert.equal(shouldSkipIndexDir("imported/academic/secondary/book/reading"), true);
+    assert.equal(shouldSkipIndexDir("imported/academic/corpus/references"), false);
+});
+test("shouldSkipIndexFile skips secondary dumps but keeps catalogs and corpus cards", () => {
+    assert.equal(shouldSkipIndexFile("imported/academic/secondary/chinese-medicine/kuriyama-1999/Kuriyama-Epilogue-1999.md"), true);
+    assert.equal(shouldSkipIndexFile("imported/academic/secondary/_index.md"), false);
+    assert.equal(shouldSkipIndexFile("imported/academic/secondary/foo/_catalog.md"), false);
+    assert.equal(shouldSkipIndexFile("imported/academic/corpus/references/kuriyama1999/ref.md"), false);
+    assert.equal(shouldSkipIndexFile("imported/academic/sources/babylonian/wiggermann/_fulltext.md"), true);
+    assert.equal(shouldSkipIndexFile("imported/academic/sources/early-chinese/mawangdui/_fulltext.md"), false);
+    assert.equal(shouldSkipIndexFile("imported/academic/sources/early-chinese/wuwei/_fulltext_complete.md"), true);
+    assert.equal(isCorpusLeafCatalog("imported/academic/corpus/references/kuriyama1999/_index.md"), true);
+    assert.equal(isCorpusLeafCatalog("imported/academic/corpus/references/_catalog.md"), false);
+    assert.equal(shouldSkipIndexFile("imported/academic/corpus/references/kuriyama1999/_index.md"), true);
+    assert.equal(shouldSkipIndexFile("imported/academic/corpus/references/_catalog.md"), false);
+    assert.equal(pathRetrievalBoost("imported/academic/corpus/references/kuriyama1999/ref.md") > 1, true);
+    assert.equal(pathRetrievalBoost("imported/academic/secondary/_index.md") < 1, true);
+    assert.equal(corpusRetrievalBoost({ card_role: "volume" }) > corpusRetrievalBoost({ card_role: "chapter" }), true);
+    assert.equal(corpusRetrievalBoost({ card_role: "superseded" }) < 0.5, true);
+    const deduped = dedupeSearchByWork([
+        { file: "a.md", heading: "h", snippet: "", docType: "imported", loggedAt: "", agent: "", status: "active", supersededBy: "", score: 2, work: "w1" },
+        { file: "b.md", heading: "h", snippet: "", docType: "imported", loggedAt: "", agent: "", status: "active", supersededBy: "", score: 5, work: "w1" },
+        { file: "c.md", heading: "h", snippet: "", docType: "imported", loggedAt: "", agent: "", status: "active", supersededBy: "", score: 3 },
+    ]);
+    assert.equal(deduped.length, 2);
+    assert.equal(deduped.find((r) => r.file === "b.md")?.workSiblings, 1);
+});
+test("secondary dumps and strahil OCR are not FTS-indexed; catalogs and cards are", () => {
+    const ws = freshDir("t-skip-secondary-strahil");
+    initProject(ws);
+    const paths = resolvePaths(ws);
+    const secDir = path.join(paths.memDir, "imported", "academic", "secondary", "chinese-medicine", "kuriyama-1999");
+    const catalogDir = path.join(paths.memDir, "imported", "academic", "secondary");
+    const cardDir = path.join(paths.memDir, "imported", "academic", "corpus", "references", "kuriyama1999");
+    const strahilDir = path.join(paths.memDir, "imported", "academic", "sources", "strahil-medical-md");
+    const readingDir = path.join(secDir, "reading");
+    fs.mkdirSync(secDir, { recursive: true });
+    fs.mkdirSync(cardDir, { recursive: true });
+    fs.mkdirSync(strahilDir, { recursive: true });
+    fs.mkdirSync(readingDir, { recursive: true });
+    fs.writeFileSync(path.join(secDir, "dump.md"), "# Dump\n\nSECONDARY_DUMP_TOKEN\n");
+    fs.writeFileSync(path.join(catalogDir, "_index.md"), "# Index\n\nSECONDARY_INDEX_TOKEN\n");
+    fs.writeFileSync(path.join(cardDir, "card.md"), "# Card\n\nKURIYAMA_CARD_TOKEN\n");
+    fs.writeFileSync(path.join(strahilDir, "ocr.md"), "# OCR\n\nSTRAHIL_OCR_TOKEN\n");
+    fs.writeFileSync(path.join(readingDir, "copy.md"), "# Copy\n\nREADING_COPY_TOKEN\n");
+    buildIndex(paths);
+    assert.equal(search(paths, "SECONDARY_DUMP_TOKEN", 10).length, 0);
+    assert.ok(search(paths, "SECONDARY_INDEX_TOKEN", 10).length >= 1);
+    assert.ok(search(paths, "KURIYAMA_CARD_TOKEN", 10).length >= 1);
+    assert.equal(search(paths, "STRAHIL_OCR_TOKEN", 10).length, 0);
+    assert.equal(search(paths, "READING_COPY_TOKEN", 10).length, 0);
+});
+test("babylonian fulltext and leaf catalogs are not FTS-indexed; argument beats Opening OCR", () => {
+    const ws = freshDir("t-skip-fulltext-leaf");
+    initProject(ws);
+    const paths = resolvePaths(ws);
+    const babDir = path.join(paths.memDir, "imported", "academic", "sources", "babylonian", "wiggermann");
+    const earlyDir = path.join(paths.memDir, "imported", "academic", "sources", "early-chinese", "mawangdui");
+    const cardDir = path.join(paths.memDir, "imported", "academic", "corpus", "references", "kuriyama1999");
+    const refRoot = path.join(paths.memDir, "imported", "academic", "corpus", "references");
+    fs.mkdirSync(babDir, { recursive: true });
+    fs.mkdirSync(earlyDir, { recursive: true });
+    fs.mkdirSync(cardDir, { recursive: true });
+    fs.writeFileSync(path.join(babDir, "_fulltext.md"), "# Bab\n\nBABYLON_FULLTEXT_TOKEN\n");
+    fs.writeFileSync(path.join(earlyDir, "_fulltext.md"), "# MWD\n\nEARLY_CHINESE_FULLTEXT_TOKEN\n");
+    fs.writeFileSync(path.join(earlyDir, "_fulltext_complete.md"), "# Dup\n\nEARLY_COMPLETE_TOKEN\n");
+    fs.writeFileSync(path.join(cardDir, "_index.md"), "# Leaf\n\nLEAF_CATALOG_TOKEN\n");
+    fs.writeFileSync(path.join(refRoot, "_catalog.md"), "# Root\n\nROOT_CATALOG_TOKEN\n");
+    fs.writeFileSync(path.join(cardDir, "card.md"), "---\nid: REF-KURIYAMA1999-CH01\n---\n# Kuriyama ch.1\n\n## Argument (sequential read)\n\nCARD_ARGUMENT_TOKEN felt different bodies.\n\n## Opening (OCR)\n\n```\n## Page 2\nOPENING_OCR_TOKEN jstor boilerplate.\n```\n");
+    buildIndex(paths);
+    assert.equal(search(paths, "BABYLON_FULLTEXT_TOKEN", 10).length, 0);
+    assert.ok(search(paths, "EARLY_CHINESE_FULLTEXT_TOKEN", 10).length >= 1);
+    assert.equal(search(paths, "EARLY_COMPLETE_TOKEN", 10).length, 0);
+    assert.equal(search(paths, "LEAF_CATALOG_TOKEN", 10).length, 0);
+    assert.ok(search(paths, "ROOT_CATALOG_TOKEN", 10).length >= 1);
+    assert.ok(search(paths, "CARD_ARGUMENT_TOKEN", 10).length >= 1);
+    assert.equal(search(paths, "OPENING_OCR_TOKEN", 10).length, 0);
+    assert.ok(search(paths, "REF-KURIYAMA1999-CH01", 10).length >= 1);
+});
+test("ingest helper markdown is not FTS-indexed", () => {
+    const ws = freshDir("t-skip-resume-ocr");
+    initProject(ws);
+    const paths = resolvePaths(ws);
+    const dumpDir = path.join(paths.memDir, "imported", "academic", "sources", "dump");
+    fs.mkdirSync(dumpDir, { recursive: true });
+    fs.writeFileSync(path.join(dumpDir, "_RESUME-SLICE.md"), "# Slice\n\nRESUME_SLICE_TOKEN\n");
+    fs.writeFileSync(path.join(dumpDir, "ocr_quality_notes.md"), "# Notes\n\nOCR_NOTES_TOKEN\n");
+    fs.writeFileSync(path.join(dumpDir, "ocr_completion_report.md"), "# Report\n\nOCR_REPORT_TOKEN\n");
+    fs.writeFileSync(path.join(dumpDir, "work.md"), "# Work\n\nLIVE_WORK_TOKEN\n");
+    buildIndex(paths);
+    assert.equal(search(paths, "RESUME_SLICE_TOKEN", 10).length, 0);
+    assert.equal(search(paths, "OCR_NOTES_TOKEN", 10).length, 0);
+    assert.equal(search(paths, "OCR_REPORT_TOKEN", 10).length, 0);
+    assert.ok(search(paths, "LIVE_WORK_TOKEN", 10).length >= 1);
+});
+test("directory junction under imported/ is FTS-indexed", () => {
+    const ws = freshDir("t-junction-index");
+    initProject(ws);
+    const paths = resolvePaths(ws);
+    const outside = path.join(ws, "corpus-src");
+    fs.mkdirSync(outside, { recursive: true });
+    fs.writeFileSync(path.join(outside, "card.md"), "---\ncivilization: babylonian\n---\n# Card\n\nJUNCTION_CORPUS_TOKEN\n");
+    const imported = path.join(paths.memDir, "imported");
+    fs.mkdirSync(imported, { recursive: true });
+    const dest = path.join(imported, "academic");
+    const type = process.platform === "win32" ? "junction" : "dir";
+    fs.symlinkSync(outside, dest, type);
+    buildIndex(paths);
+    const hits = search(paths, "JUNCTION_CORPUS_TOKEN", 10);
+    assert.ok(hits.length >= 1);
+    const filtered = search(paths, "JUNCTION_CORPUS_TOKEN", 10, { meta: { civilization: "babylonian" } });
+    assert.ok(filtered.length >= 1);
+});
+test("redactSecrets masks assignment values but keeps prose", () => {
+    assert.equal(redactSecrets("password=hunter2"), "password=[redacted]");
+    assert.equal(redactSecrets("token: abcdef"), "token: [redacted]");
+    assert.ok(redactSecrets("Never store passwords in memory").includes("passwords"));
+    assert.ok(!redactSecrets("ghp_abcdefghijklmnopqrstuvwxyz0123456789").includes("ghp_"));
+});
+test("logSession redacts secrets on write; ambient redacts the word password", () => {
+    const ws = freshDir("t-redact-session");
+    initProject(ws);
+    const r = logSession(ws, { summary: "rotated db password=hunter2", title: "ops" });
+    const body = fs.readFileSync(path.join(projectDir(ws), r.file), "utf8");
+    assert.ok(body.includes("password=[redacted]"));
+    assert.ok(!body.includes("hunter2"));
+    const block = buildAmbient(ws);
+    assert.ok(!block.text.includes("hunter2"));
+    const tail = block.text.split("Session tail:")[1] ?? "";
+    assert.match(tail, /\[redacted\]/i);
+    assert.ok(!/\bpassword\b/i.test(tail.split("|")[0] ?? tail));
+});
+test("doctor reports uninitialized hub", async () => {
+    const home = freshDir("t-doctor-empty");
+    const r = await runDoctor(home);
+    assert.equal(r.ok, false);
+    assert.equal(r.initialized, false);
+    assert.ok(r.errors.some((e) => /uninitialized/i.test(e)));
+});
+test("agent skill stays short", () => {
+    const skillPath = path.resolve(distDir, "..", "skills", "centricmem-agent", "SKILL.md");
+    const raw = fs.readFileSync(skillPath, "utf8");
+    const lines = raw.split("\n").length;
+    assert.ok(lines <= 80, `SKILL.md is ${lines} lines; keep the agent-facing file short`);
+    assert.ok(raw.includes("REFERENCE.md"));
+    assert.ok(raw.includes("HTTP only"));
+    assert.ok(raw.includes("one sweep"));
+    assert.ok(!raw.includes("setup --bootstrap") || raw.includes("Never `setup --bootstrap`"));
+});
+test("looksLikeClientFolder detects CLI package, not a library hub", () => {
+    const client = freshDir("t-client-folder");
+    fs.writeFileSync(path.join(client, "package.json"), JSON.stringify({ name: "centricmem", bin: { centricmem: "./dist/cli.js" } }));
+    fs.mkdirSync(path.join(client, "dist"), { recursive: true });
+    fs.writeFileSync(path.join(client, "dist", "cli.js"), "");
+    const lib = freshDir("t-library-folder");
+    initProject(lib);
+    assert.equal(looksLikeClientFolder(client), true);
+    assert.equal(looksLikeClientFolder(lib), false);
+    assert.throws(() => assertLibraryPath(client), /memory library/);
+});
+test("setup refuses to use the client folder as --workspace", () => {
+    const client = freshDir("t-setup-client");
+    fs.writeFileSync(path.join(client, "package.json"), JSON.stringify({ name: "centricmem", bin: { centricmem: "./dist/cli.js" } }));
+    fs.mkdirSync(path.join(client, "src"), { recursive: true });
+    fs.writeFileSync(path.join(client, "src", "cli.ts"), "");
+    assert.throws(() => runSetup({ workspace: client, bootstrap: true, codeRoot: freshDir("t-setup-client-code") }), /client folder as the memory library/);
+});
+test("persistProductHome pointer wins over env that points at the client", () => {
+    const pointer = path.join(freshDir("t-pointer-dir"), "home.json");
+    const lib = freshDir("t-pointer-lib");
+    initProject(lib);
+    const client = freshDir("t-pointer-client");
+    fs.writeFileSync(path.join(client, "package.json"), JSON.stringify({ name: "centricmem", bin: { centricmem: "./dist/cli.js" } }));
+    fs.mkdirSync(path.join(client, "dist"), { recursive: true });
+    fs.writeFileSync(path.join(client, "dist", "cli.js"), "");
+    const prevPtr = process.env.CENTRICMEM_HOME_POINTER;
+    const prevHome = process.env.CENTRICMEM_HOME;
+    const prevWs = process.env.CENTRICMEM_WORKSPACE;
+    process.env.CENTRICMEM_HOME_POINTER = pointer;
+    try {
+        persistProductHome(lib, { userEnv: false });
+        process.env.CENTRICMEM_HOME = client;
+        delete process.env.CENTRICMEM_WORKSPACE;
+        const r = resolveProductHome();
+        assert.equal(r.home, path.resolve(lib));
+        assert.equal(r.source, "env-client-ignored");
+    }
+    finally {
+        if (prevPtr === undefined)
+            delete process.env.CENTRICMEM_HOME_POINTER;
+        else
+            process.env.CENTRICMEM_HOME_POINTER = prevPtr;
+        if (prevHome === undefined)
+            delete process.env.CENTRICMEM_HOME;
+        else
+            process.env.CENTRICMEM_HOME = prevHome;
+        if (prevWs === undefined)
+            delete process.env.CENTRICMEM_WORKSPACE;
+        else
+            process.env.CENTRICMEM_WORKSPACE = prevWs;
+    }
+});
+test("migrateProductHome copies hub files and can retire a mixed client", () => {
+    const from = freshDir("t-migrate-from");
+    fs.writeFileSync(path.join(from, "package.json"), JSON.stringify({ name: "centricmem", bin: { centricmem: "./dist/cli.js" } }));
+    fs.mkdirSync(path.join(from, "src"), { recursive: true });
+    fs.writeFileSync(path.join(from, "src", "cli.ts"), "export {}\n");
+    initProject(from);
+    fs.writeFileSync(path.join(from, "manager.json"), '{"home":"x"}\n');
+    const dest = freshDir("t-migrate-to");
+    assert.equal(migrateProductHome(from, dest), true);
+    assert.ok(fs.existsSync(path.join(dest, "workspace.json")));
+    assert.ok(fs.existsSync(path.join(dest, "projects")));
+    assert.ok(fs.existsSync(path.join(dest, "manager.json")));
+    assert.ok(fs.existsSync(path.join(from, "src", "cli.ts")));
+    assert.equal(retireMixedHub(from), true);
+    assert.ok(!fs.existsSync(path.join(from, "workspace.json")));
+    assert.ok(fs.existsSync(path.join(from, "workspace.json.bak-library-moved")));
+    assert.ok(fs.existsSync(path.join(from, "src", "cli.ts")));
 });

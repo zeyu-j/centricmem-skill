@@ -5,9 +5,11 @@
 import fs from "node:fs";
 import path from "node:path";
 import { classifyIntent, type QueryIntent } from "./indexer.js";
-import { healthCheck, listDecisions, readRecentSessions, countTodaySessions } from "./memory.js";
-import { getCurrentProjectSlug, workspaceHealth } from "./workspace.js";
+import { healthCheck, listDecisions, readRecentSessions, countTodaySessions, collectTagCounts } from "./memory.js";
+import { countInboxFiles, getCurrentProjectSlug, loadWorkspace, matchProjectByCwd, workspaceHealth } from "./workspace.js";
+import { loadCatalog } from "./libraries.js";
 import { skillStatus, skillStatusHintLine } from "./skill.js";
+import { nowISO, redactSecrets, resolvePaths, loadConfig } from "./core.js";
 
 // ---------------------------------------------------------------------------
 // Retrieval routing
@@ -97,7 +99,7 @@ export function routeQuery(query: string): RouteResult {
       action: "search",
       intent,
       suggestedType: "lessons",
-      reason: "Pitfall/avoid query → search lessons",
+      reason: "Knowledge / pitfall query → search lessons",
     };
   }
 
@@ -106,6 +108,28 @@ export function routeQuery(query: string): RouteResult {
     intent: "general",
     reason: "Default → search project memory",
   };
+}
+
+/** Projects whose config has domain_boost or an imported/academic tree — structured corpora. */
+export function listCorpusSlugs(workspaceRoot: string): string[] {
+  try {
+    const ws = loadWorkspace(workspaceRoot);
+    const slugs: string[] = [];
+    for (const [slug, entry] of Object.entries(ws.projects)) {
+      if (entry.system) continue;
+      const paths = resolvePaths(workspaceRoot, slug);
+      const cfg = loadConfig(paths);
+      if (cfg.domain_boost?.dimensions && Object.keys(cfg.domain_boost.dimensions).length > 0) {
+        slugs.push(slug);
+        continue;
+      }
+      const academic = path.join(paths.memDir, "imported", "academic");
+      if (fs.existsSync(academic)) slugs.push(slug);
+    }
+    return slugs;
+  } catch {
+    return [];
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -125,7 +149,7 @@ export interface AmbientBlock {
 
 /** Parseable preflight when `$CENTRICMEM_HOME` has no workspace.json yet. Exit 0 for agents. */
 export function formatUninitializedAmbient(home: string): AmbientBlock {
-  const text = `CentricMem: state=UNINITIALIZED | home=${home} | next=centricmem setup --bootstrap`;
+  const text = `CentricMem: state=UNINITIALIZED | home=${home} | next=centricmem setup --bootstrap --workspace <library-path> --persist-home`;
   return {
     project: "(none)",
     health: 0,
@@ -142,7 +166,7 @@ export function formatUninitializedStatus(home: string): string {
     "CentricMem Status",
     `state: UNINITIALIZED`,
     `home:  ${home}`,
-    `next:  centricmem setup --bootstrap`,
+    `next:  centricmem setup --bootstrap --workspace <library-path> --persist-home`,
   ].join("\n");
 }
 
@@ -156,7 +180,9 @@ export function buildAmbient(workspaceRoot: string, projectSlug?: string): Ambie
     .map((d) => `${String(d.seq).padStart(4, "0")}. ${d.title}`);
 
   const sessions = readRecentSessions(workspaceRoot, 7, 3, slug);
-  const sessionTail = sessions.map((s) => `${s.heading}: ${s.summary.slice(0, 80)}`);
+  const sessionTail = sessions.map((s) =>
+    redactSecrets(`${s.heading}: ${s.summary.slice(0, 80)}`, "ambient"),
+  );
 
   const issues = h.issues.filter((i) => i.severity === "warn").map((i) => i.message);
 
@@ -172,15 +198,53 @@ export function buildAmbient(workspaceRoot: string, projectSlug?: string): Ambie
   const todaySessions = countTodaySessions(workspaceRoot, slug);
   const curateHint =
     todaySessions === 0
-      ? "Curate: today_sessions=0 — Non-Micro must end with log-session --tags … (or done)"
+      ? "Curate: today_sessions=0 — Non-Micro must end with done --tags …"
       : `Curate: today_sessions=${todaySessions}`;
+  const tagCounts = collectTagCounts(workspaceRoot, slug).slice(0, 8);
+  const tagsHint = tagCounts.length
+    ? `Tags: ${tagCounts.map((t) => `${t.tag}×${t.count}`).join(", ")}`
+    : "Tags: (none yet — mint specific tags on close)";
+
+  const cwdMatch = matchProjectByCwd(workspaceRoot);
+  let workspaceCurrent = slug;
+  try {
+    workspaceCurrent = loadWorkspace(workspaceRoot).current;
+  } catch { /* ignore */ }
+  let inboxN = 0;
+  try {
+    inboxN = countInboxFiles(workspaceRoot);
+  } catch { /* ignore */ }
+  const cwdHint =
+    cwdMatch && cwdMatch !== slug
+      ? `cwd_project=${cwdMatch}`
+      : !cwdMatch && !projectSlug
+        ? `cwd_project=(unlinked) workspace.current=${workspaceCurrent}`
+        : "";
+  const corpusHint = (() => {
+    const slugs = listCorpusSlugs(workspaceRoot);
+    return slugs.length ? `corpus=${slugs.join(",")}` : "";
+  })();
+  let librariesHint = "";
+  try {
+    const cat = loadCatalog();
+    if (cat && path.resolve(cat.hub) === path.resolve(workspaceRoot)) {
+      librariesHint = `libraries=${cat.libraries.map((l) => l.id).join(",")}`;
+    }
+  } catch {
+    /* catalog optional */
+  }
 
   const text = [
-    `CentricMem: project=${slug} | Health=${h.score}`,
+    `CentricMem: project=${slug} | library=${slug} | Health=${h.score} | inbox=${inboxN} | working_set=3dec+3tail`,
+    cwdHint,
+    corpusHint,
+    librariesHint,
+    `generated=${nowISO()}`,
     recentDecisions.length ? `Recent decisions: ${recentDecisions.join("; ")}` : "Recent decisions: (none)",
     sessionTail.length ? `Session tail: ${sessionTail.join(" | ")}` : "Session tail: (none)",
     issues.length ? `Conflicts: ${issues.join("; ")}` : "Conflicts: none",
     curateHint,
+    tagsHint,
     skillHint ?? "",
   ]
     .filter(Boolean)
@@ -189,7 +253,7 @@ export function buildAmbient(workspaceRoot: string, projectSlug?: string): Ambie
   return { project: slug, health: h.score, recentDecisions, sessionTail, issues, text, state: "ok" };
 }
 
-export function writeAmbientFile(workspaceRoot: string, block: AmbientBlock): string {
+export function writeAmbientFile(workspaceRoot: string, block: AmbientBlock): string | null {
   const dest = path.join(workspaceRoot, ".ambient.md");
   const body = `# CentricMem Ambient Context
 
@@ -198,6 +262,12 @@ ${block.text}
 ---
 _Auto-generated at session start. Run \`centricmem ambient\` to refresh._
 `;
-  fs.writeFileSync(dest, body, "utf8");
-  return dest;
+  try {
+    fs.writeFileSync(dest, body, "utf8");
+    return dest;
+  } catch (error) {
+    const code = (error as NodeJS.ErrnoException).code;
+    if (code === "EPERM" || code === "EACCES" || code === "EROFS") return null;
+    throw error;
+  }
 }

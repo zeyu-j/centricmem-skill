@@ -2,72 +2,87 @@
   "decay_rate": 0.01,
   "max_results": 8,
   "ref_weight": 0.1,
+  "classify_hints": [
+    "ancient-medicine",
+    "bam",
+    "bam10",
+    "sakikku",
+    "wuwei",
+    "mawangdui",
+    "recipe",
+    "ritual",
+    "reference",
+    "babylonian",
+    "chinese",
+    "eye-disease",
+    "childbirth"
+  ],
   "metadata": {
     "hot_columns": ["civilization", "type", "has_incantation"],
-    "hot_columns_enabled": false
+    "hot_columns_enabled": true
   },
   "domain_boost": {
     "default_boost": 1.5,
     "dimensions": {
       "01": {
         "keywords": ["疾病", "disease", "鬼祟", "ghost", "disease-map", "nosology"],
-        "path_prefix": "imported/crosswalks/"
+        "path_prefix": "imported/academic/analysis/01-disease-concepts/"
       },
       "02": {
         "keywords": ["身体", "宇宙", "脉", "经络", "omen", "cosmos", "anatomy"],
-        "path_prefix": "imported/references/"
+        "path_prefix": "imported/academic/analysis/02-body-and-cosmos/"
       },
       "03": {
         "keywords": ["药物", "herb", "formula", "pharmacology", "配伍", "剂型"],
-        "path_prefix": "imported/recipes/"
+        "path_prefix": "imported/academic/analysis/03-pharmacology/"
       },
       "04": {
         "keywords": ["治疗", "technique", "灸", "敷", "灌肠", "method-map", "healing"],
-        "path_prefix": "imported/recipes/"
+        "path_prefix": "imported/academic/analysis/04-healing-techniques/"
       },
       "05": {
         "keywords": ["巫术", "仪式", "咒语", "incantation", "magic", "ritual"],
-        "path_prefix": "imported/"
+        "path_prefix": "imported/academic/analysis/05-magic-and-ritual/"
       },
       "06": {
         "keywords": ["医者", "āšipu", "āsû", "practitioner", "方士"],
-        "path_prefix": "imported/references/"
+        "path_prefix": "imported/academic/analysis/06-practitioner/"
       },
       "07": {
         "keywords": ["文本", "传承", "transmission", "竹简", "泥板", "text"],
-        "path_prefix": "imported/references/"
+        "path_prefix": "imported/academic/analysis/07-text-and-transmission/"
       },
       "08": {
         "keywords": ["分类", "nosology", "疾病分类", "鬼病"],
-        "path_prefix": "imported/crosswalks/"
+        "path_prefix": "imported/academic/analysis/08-nosology/"
       },
       "09": {
         "keywords": ["解剖", "生理", "脏腑", "体液", "physiology"],
-        "path_prefix": "imported/references/"
+        "path_prefix": "imported/academic/analysis/09-anatomy-physiology/"
       },
       "10": {
         "keywords": ["病因", "etiology", "外邪", "神罚", "巫术攻击"],
-        "path_prefix": "imported/"
+        "path_prefix": "imported/academic/analysis/10-etiology/"
       },
       "11": {
         "keywords": ["预后", "诊断", "prognosis", "diagnosis", "脉诊", "omen"],
-        "path_prefix": "imported/"
+        "path_prefix": "imported/academic/analysis/11-prognosis-diagnosis/"
       },
       "12": {
         "keywords": ["药源", "materia medica", "drug-map", "矿物", "植物"],
-        "path_prefix": "imported/crosswalks/"
+        "path_prefix": "imported/academic/analysis/12-materia-medica-sources/"
       },
       "13": {
         "keywords": ["性别", "妇科", "产育", "gender", "women"],
-        "path_prefix": "imported/"
+        "path_prefix": "imported/academic/analysis/13-gender-medicine/"
       },
       "14": {
         "keywords": ["时间", "择时", "历法", "病程", "time", "healing"],
-        "path_prefix": "imported/"
+        "path_prefix": "imported/academic/analysis/14-time-healing/"
       },
       "15": {
         "keywords": ["医疗市场", "医者竞争", "marketplace", "theioi andres"],
-        "path_prefix": "imported/references/"
+        "path_prefix": "imported/academic/analysis/15-medical-marketplace/"
       }
     }
   }

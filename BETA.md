@@ -1,4 +1,6 @@
-# CentricMem Beta Guide (v0.14)
+# CentricMem Beta Guide (v0.21.6)
+
+Agents: HTTP only (`CENTRICMEM_URL` or catalog `origin` + library pairing key). Capture stays in the agent's own memory; the librarian is the manager layer. Cards for agents; originals for humans to download. Operators cold-start a hub with `--bootstrap`. Do not treat this file as permission to CLI-write from a guest agent.
 
 ## Install from source
 
@@ -24,24 +26,25 @@ centricmem setup --install-skill --install-hooks
 
 ## Product home setup
 
-Memory and Skill live under the **Agent product home**, not inside business git:
+Memory lives in a **library folder** you choose (`--workspace`). The CLI clone is only the client.
 
 ```bash
-cd <your-code-project>   # or a parent of many repos
-centricmem setup --bootstrap                 # cold start: link-all + install-skill
-# fuller install:
-centricmem setup --link-all --migrate-discover --install-skill
+centricmem setup --bootstrap --workspace <library-path> --persist-home
+# migrate an old hub that sat inside the clone:
+centricmem setup --workspace <library-path> --from-home <old-hub> --migrate-home --persist-home --retire-old-home --install-skill
 # Cloud multi-repo mounts:
-centricmem setup --bootstrap --link /path/to/repo-a --link /path/to/repo-b
+centricmem setup --bootstrap --workspace <library-path> --link /path/to/repo-a --link /path/to/repo-b
 ```
 
-If `centricmem ambient` prints `state=UNINITIALIZED` (exit 0), run `--bootstrap` then ambient again — do not hard-stop.
+If HTTP `/ambient` (or operator `centricmem ambient`) prints `state=UNINITIALIZED`, an **operator** runs `--bootstrap --workspace … --persist-home`. Agents say once and continue — they do not bootstrap.
 
-Non-Micro Cloud close (required):
+### Guest of a remote librarian
 
-```bash
-centricmem done --tags work,ops "natural language summary"
-```
+If `CENTRICMEM_URL` or catalog `origin` is a non-loopback URL, this machine is a **guest**. `centricmem note` / `keep` / `done` / `serve` / `index` refuse the leftover `CENTRICMEM_HOME`. Refresh Skill with `centricmem setup --install-skill` only — do not `--bootstrap`, `--persist-home`, or `--link`. `doctor` lists catalog libraries (HTTP), not leftover `workspace.json` slugs.
+
+Cloud / private worker: inject `CENTRICMEM_URL` + `CENTRICMEM_TOKEN`. A Skill file on disk is not enough. Operators run `centricmem doctor` on the librarian host.
+
+Non-Micro close (agents): one HTTP sweep when the human stops (`/keep/sign` → PUT → `/keep`, then `/note` `/done` as needed). Not `centricmem done` from a guest disk.
 
 First-time migrate from a legacy repo-local hub:
 
@@ -56,12 +59,12 @@ First setup or `centricmem index` on a large import may take a minute or more �
 This creates / uses:
 
 ```text
-~/.centricmem/                 # $CENTRICMEM_HOME (override with env)
+$CENTRICMEM_HOME/              # librarian hub (override with env; not a leftover ~/.centricmem)
   workspace.json
   skills/
     centricmem-agent/SKILL.md
   projects/
-    unclassified/              # default import / staging target
+    unclassified/              # inbox + import staging (writes land here if cwd is unlinked)
     <linked-projects>/
   .ambient.md
 ```
@@ -72,12 +75,11 @@ Code repos stay source-only. Optional Cursor hooks install to `<code-repo>/.curs
 
 Agents should follow **`$CENTRICMEM_HOME/skills/centricmem-agent/SKILL.md`** (also mirrored to `~/.cursor/skills/centricmem-agent/` on install):
 
-- Load: read `projects/<current>/AGENTS.md` + `active_context.md`
-- Session start: `centricmem ambient` (or lifecycle hooks — see `integrations/`)
-- Search: `centricmem search "keywords"` (local indexer, not MCP)
-- Filter corpus: `centricmem search "…" --filter civilization=chinese --filter type=recipe`
-- Import: map any source → ImportBundle JSON → `centricmem import bundle.json` ([IMPORT_BUNDLE.md](./IMPORT_BUNDLE.md))
-- Classify: `centricmem classify decisions/0001-x.md --to my-project`
+- Session start: HTTP `/health` then `/ambient` (`CENTRICMEM_URL`, or loopback only if this machine **is** the librarian)
+- Search: librarian `GET /search` then `GET /show` for the **card**. Humans download originals. Not a second MCP store
+- Close: one HTTP sweep (`/keep` bytes or signed R2 PUT, `/note`, `/done`) when the human stops — not CLI `done`
+- Filter corpus: `GET /search` with that library's Bearer (`filter`, `tag`)
+- Import / classify: operators on the librarian host, or HTTP `/import` `/classify` in the close sweep ([IMPORT_BUNDLE.md](./IMPORT_BUNDLE.md))
 
 ## Skill updates (pull-based)
 
@@ -95,24 +97,27 @@ centricmem setup --migrate-from-local --install-skill
 # Optional Cursor hooks: centricmem setup --install-hooks
 ```
 
-## MCP = external sync only (L2)
+## MCP
 
-MCP (e.g. Google Drive) is **optional** and used to **sync** `$CENTRICMEM_HOME/projects/` to cloud storage.
+Sandbox agents use **centricmem-host** → librarian URL. `centricmem-mcp` is optional/legacy. Search is librarian FTS, not a second store.
 
-It is **not** the local indexer. Local search always uses `centricmem search` + SQLite FTS5.
-
-`centricmem-mcp` is optional for agents that prefer tool-based access. See `skills/centricmem-agent/integrations/mcp-config.snippet.json`.
-
-Run `centricmem setup --drive-mcp-hint` for a generic MCP template.
+Product backup is operator **restic → R2**, not Drive MCP / rsync. See [SYNC.md](./SYNC.md).
 
 ## Multi-project
 
+Writes: `-p` / `CENTRICMEM_PROJECT` → cwd matched to a linked `sourceDir` → otherwise **`unclassified` (inbox)**. `centricmem use` only pins display.
+
 ```bash
 centricmem link my-app/
-centricmem use my-app
+centricmem setup --link /path/to/my-app   # bind this cwd so writes go to my-app
 centricmem projects
+centricmem inbox                          # list unclassified independent files
+centricmem inbox --apply                  # high-confidence only
+centricmem classify decisions/0001-x.md --to my-app
 centricmem search "redis" --all
 ```
+
+`lessons.md` is still whole-file in inbox. New session units are one file per close (`sessions/<stamp>-<writer>-<id>.md`) and can be classified; leftover `YYYY-MM-DD.md` daily bundles stay skip.
 
 ## ImportBundle example
 
@@ -167,7 +172,7 @@ Prefer `centricmem setup --migrate-from-local`. Manual equivalent: move flat fil
 
 - Emoji not searchable (FTS5 unicode61)
 - Semantic search (`--semantic`) needs an OpenAI-compatible API key; BM25 works offline
-- MCP sync is manual / agent-guided (no auto bidirectional DB sync)
+- Product sync is not Drive/rsync; cold backup is operator restic→R2
 
 ## Verify
 

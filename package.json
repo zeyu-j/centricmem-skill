@@ -1,11 +1,12 @@
 {
   "name": "centricmem",
-  "version": "0.14.5",
-  "description": "Cross-agent project memory layer: Markdown as source of truth, SQLite FTS5 as index, MCP server for agents.",
+  "version": "0.21.6",
+  "description": "Manager layer over agent-native memory: Markdown units on the librarian, SQLite FTS5, Skill for agents.",
   "type": "module",
   "bin": {
     "centricmem": "./dist/cli.js",
-    "centricmem-mcp": "./dist/mcp-server.js"
+    "centricmem-mcp": "./dist/mcp-server.js",
+    "centricmem-host": "./dist/host-connector.js"
   },
   "files": [
     "dist",
@@ -21,6 +22,7 @@
     "README.md",
     "CHANGELOG.md",
     "PRODUCT.md",
+    "PRODUCT_HOST.md",
     "BETA.md",
     "SYNC.md",
     "ARCHITECTURE.md",
@@ -29,7 +31,7 @@
   "scripts": {
     "build": "tsc && tsc -p tsconfig.tests.json",
     "dev": "tsc --watch",
-    "test": "node --test dist/tests/integration.test.js",
+    "test": "node --test --test-concurrency=1 dist/tests/integration.test.js dist/tests/host-api.test.js dist/tests/libraries.test.js dist/tests/guest.test.js dist/tests/sweep.test.js dist/tests/account.test.js dist/tests/r2.test.js",
     "test:mcp": "node scripts/test-mcp.mjs",
     "test:scenarios": "node scripts/run-scenarios.mjs",
     "test:all": "npm test && npm run test:mcp && npm run test:scenarios"
@@ -51,9 +53,9 @@
     "type": "git",
     "url": "https://github.com/zeyu-j/centricmem-skill.git"
   },
-  "homepage": "https://github.com/zeyu-j/centricmem#readme",
+  "homepage": "https://github.com/zeyu-j/centricmem-skill#readme",
   "bugs": {
-    "url": "https://github.com/zeyu-j/centricmem/issues"
+    "url": "https://github.com/zeyu-j/centricmem-skill/issues"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.29.0",

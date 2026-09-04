@@ -46,7 +46,7 @@ centricmem import bundle.json --skip-existing   # skip any row with a known exte
 
 ### `lessons[]`
 
-`title` (required), `body`, `agent`, `external_id`
+`title` (required), `body`, `agent`, `tags`, `external_id`
 
 ### `rules[]`
 

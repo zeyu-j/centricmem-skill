@@ -6,7 +6,7 @@
  *   are split by `##` headings (falling back to whole file).
  * - Incremental indexing: per-file content SHA256 stored in `files`; unchanged
  *   files are skipped, changed files have their chunks replaced.
- * - Temporal-aware ranking: score = relevance × time_decay × status × validity × ref × intent × domain × feedback
+ * - Temporal-aware ranking: score = relevance × time_decay × status × validity × ref × intent × domain × feedback × keyBoost
  * - --semantic: dual-list RRF (BM25 ranks ∪ vector ranks), then same multipliers
  * - DB connection: CLI opens/closes per command; MCP server reuses a single
  *   connection via getDb() for the process lifetime.
@@ -15,7 +15,7 @@ import fs from "node:fs";
 import path from "node:path";
 import Database from "better-sqlite3";
 import { MemPaths, sha256, ensureDir, loadConfig, MemConfig, resolvePaths } from "./core.js";
-import { loadWorkspace } from "./workspace.js";
+import { getCurrentProjectSlug, loadWorkspace } from "./workspace.js";
 import {
   embedTexts,
   isEmbeddingEnabled,
@@ -56,6 +56,12 @@ export interface SearchResult {
   supersededBy: string;
   score: number;
   projectSlug?: string;
+  tags?: string[];
+  attach?: string;
+  /** Shared bibliographic work id (YAML `work:`). Same work → one search hit after dedupe. */
+  work?: string;
+  /** Additional indexed cards in this work suppressed from the result list. */
+  workSiblings?: number;
   explain?: ScoreBreakdown;
 }
 
@@ -69,12 +75,15 @@ export interface ScoreBreakdown {
   refBoost: number;
   intentBoost: number;
   domainBoost: number;
+  corpusBoost?: number;
   feedbackPenalty: number;
   final: number;
   bm25Rank?: number;
   vecRank?: number;
   rrf?: number;
   lineage?: string;
+  keyBoost?: number;
+  matchedKeys?: string[];
 }
 
 export interface SearchOptions {
@@ -92,6 +101,8 @@ export interface SearchFilters {
   agent?: string;
   /** Filter by YAML / import metadata (exact match on scalar fields). */
   meta?: Record<string, string>;
+  /** Require each token as tag-key OR body FTS (AND). Tagged rows rank higher. */
+  tags?: string[];
 }
 
 export interface IndexStats {
@@ -115,8 +126,9 @@ export function logIndexStart(scope: string): void {
 
 export function logIndexDone(stats: IndexStats): void {
   const emb = stats.embedded ? `, ${stats.embedded} embedded` : "";
+  const removed = stats.removed ? `, ${stats.removed} removed` : "";
   console.log(
-    `Index complete: ${stats.scanned} file(s) scanned, ${stats.indexed} updated, ${stats.chunks} chunk(s)${emb}.`,
+    `Index complete: ${stats.scanned} file(s) scanned, ${stats.indexed} updated${removed}, ${stats.chunks} chunk(s)${emb}.`,
   );
 }
 
@@ -135,16 +147,36 @@ const HOT_COLUMN_SQL: Record<string, string> = {
   has_incantation: "meta_has_incantation",
 };
 
-/** Parse a minimal YAML block (scalars, booleans, inline lists). */
+/** Parse a minimal YAML block (scalars, booleans, inline lists, block lists). */
 function parseSimpleYaml(yaml: string): Record<string, unknown> {
   const meta: Record<string, unknown> = {};
-  for (const line of yaml.split("\n")) {
-    const trimmed = line.trim();
-    if (!trimmed || trimmed.startsWith("#")) continue;
-    const m = /^([a-zA-Z_][\w-]*)\s*:\s*(.+)$/.exec(trimmed);
-    if (!m) continue;
+  let listKey: string | null = null;
+  for (const rawLine of yaml.split("\n")) {
+    const listItem = listKey ? /^[ \t]*-\s+(.+)$/.exec(rawLine) : null;
+    if (listItem) {
+      const arr = Array.isArray(meta[listKey!]) ? [...(meta[listKey!] as unknown[])] : [];
+      arr.push(listItem[1].trim().replace(/^['"]|['"]$/g, ""));
+      meta[listKey!] = arr;
+      continue;
+    }
+    const trimmed = rawLine.trim();
+    if (!trimmed || trimmed.startsWith("#")) {
+      listKey = null;
+      continue;
+    }
+    const m = /^([a-zA-Z_][\w-]*)\s*:\s*(.*)$/.exec(trimmed);
+    if (!m) {
+      listKey = null;
+      continue;
+    }
     const key = m[1];
-    let val = m[2].trim();
+    const val = m[2].trim();
+    if (!val) {
+      listKey = key;
+      meta[key] = [];
+      continue;
+    }
+    listKey = null;
     if (val.startsWith("[") && val.endsWith("]")) {
       meta[key] = val
         .slice(1, -1)
@@ -202,6 +234,61 @@ function domainBoostForFile(file: string, query: string, config: MemConfig): num
   return boost;
 }
 
+/** Prefer recipe/reference cards over dump catalogs in BM25 ranking. */
+export function pathRetrievalBoost(file: string): number {
+  const n = normalizeRelPath(file);
+  const base = path.posix.basename(n).toLowerCase();
+  if (base === "_index.md" || base === "_catalog.md" || base === "_readme.md" || base === "_manifest.md") {
+    return 0.45;
+  }
+  if (n.includes("/corpus/references/") || n.includes("/corpus/recipes/")) return 1.35;
+  if (n.includes("/corpus/rituals/")) return 1.2;
+  if (n.includes("/corpus/works/")) return 0.55;
+  return 1;
+}
+
+/** Extra boost/penalty from corpus work-unification fields (`work`, `card_role`). */
+export function corpusRetrievalBoost(meta: Record<string, unknown> | undefined): number {
+  const role = scalarMetaString(meta, "card_role")?.toLowerCase();
+  if (role === "superseded" || role === "stub") return 0.35;
+  if (role === "volume" || role === "canonical") return 1.45;
+  if (role === "chapter") return 1.05;
+  if (role === "slice") return 0.85;
+  return 1;
+}
+
+export function workIdFromMeta(meta: Record<string, unknown> | undefined): string | undefined {
+  return scalarMetaString(meta, "work");
+}
+
+/**
+ * One ranked hit per bibliographic `work` id. Parallel ingest paths (dump volume +
+ * chapter cards + recipe cards) share a work id; search surfaces the best match and
+ * reports how many sibling cards were collapsed.
+ */
+export function dedupeSearchByWork(results: SearchResult[]): SearchResult[] {
+  const workGroups = new Map<string, SearchResult[]>();
+  const noWork: SearchResult[] = [];
+  for (const r of results) {
+    if (!r.work) {
+      noWork.push(r);
+      continue;
+    }
+    const g = workGroups.get(r.work) ?? [];
+    g.push(r);
+    workGroups.set(r.work, g);
+  }
+  const deduped: SearchResult[] = [...noWork];
+  for (const [work, hits] of workGroups) {
+    hits.sort((a, b) => b.score - a.score);
+    const best = { ...hits[0], work };
+    if (hits.length > 1) best.workSiblings = hits.length - 1;
+    deduped.push(best);
+  }
+  deduped.sort((a, b) => b.score - a.score);
+  return deduped;
+}
+
 function metaFilterSql(
   key: string,
   value: string,
@@ -223,6 +310,140 @@ function metaFilterSql(
 // ---------------------------------------------------------------------------
 // Chunking
 // ---------------------------------------------------------------------------
+
+/** Parse `- **Tags**: a, b` from a markdown chunk. */
+export function parseTagsLine(content: string): string[] {
+  const m = content.match(/^- \*\*Tags\*\*:\s*(.+)$/m);
+  if (!m) return [];
+  return m[1].split(",").map((t) => t.trim()).filter(Boolean);
+}
+
+const SKIP_FOLK_TAGS = new Set(["none", "null", "undefined", "nan"]);
+
+/** Turn a YAML scalar into one or more retrieval tags (civilization aliases, split types). */
+export function slugFolksonomyTag(raw: string): string[] {
+  const s = raw.trim();
+  if (!s) return [];
+  const lower = s.toLowerCase();
+  if (SKIP_FOLK_TAGS.has(lower)) return [];
+  if (lower === "babylonia") return ["babylonian"];
+  if (/[/+&]/.test(s) || /\band\b/i.test(s)) {
+    const parts = s.split(/[/+&]|\band\b/i).map((p) => p.trim()).filter(Boolean);
+    if (parts.length > 1) return parts.flatMap(slugFolksonomyTag);
+  }
+  if (/[\u4e00-\u9fff]/.test(s) && !/[A-Za-z]/.test(s)) return [s];
+  const slug = s
+    .replace(/\+/g, "-")
+    .replace(/[/_]+/g, "-")
+    .replace(/\s+/g, "-")
+    .replace(/-+/g, "-")
+    .replace(/^-|-$/g, "")
+    .toLowerCase();
+  if (!slug || SKIP_FOLK_TAGS.has(slug)) return [];
+  const extra = [slug];
+  if (slug.includes("babylon")) extra.push("babylonian");
+  if (slug.includes("assyria")) extra.push("neo-assyrian", "mesopotamian");
+  if (slug === "early-chinese") extra.push("chinese");
+  if (slug === "reference-entry" || slug === "text-edition") extra.push("reference");
+  if (slug === "incantation-ritual") extra.push("incantation", "ritual");
+  return extra;
+}
+
+function listMetaStrings(meta: Record<string, unknown>, key: string): string[] {
+  const v = meta[key];
+  if (typeof v === "string") return [v];
+  if (Array.isArray(v)) return v.filter((x): x is string => typeof x === "string" && x.trim().length > 0);
+  return [];
+}
+
+/**
+ * Folksonomy for corpus cards: YAML `tags` plus structured fields and path
+ * (recipe / ritual / bam10 / civilization). Lets `--tag head` hit `body_parts`.
+ */
+export function folksonomyFromCorpusMeta(
+  meta: Record<string, unknown> | undefined,
+  file = "",
+): string[] {
+  const seen = new Set<string>();
+  const out: string[] = [];
+  const add = (raw: string) => {
+    for (const t of slugFolksonomyTag(raw)) {
+      const n = normalizeKey(t);
+      if (!n || seen.has(n)) continue;
+      seen.add(n);
+      out.push(t);
+    }
+  };
+  if (meta) {
+    for (const v of listMetaStrings(meta, "tags")) {
+      const n = normalizeKey(v);
+      if (n && !seen.has(n)) {
+        seen.add(n);
+        out.push(v.trim());
+      }
+      for (const t of slugFolksonomyTag(v)) {
+        const tn = normalizeKey(t);
+        if (!tn || seen.has(tn)) continue;
+        seen.add(tn);
+        out.push(t);
+      }
+    }
+    for (const key of ["body_parts", "methods", "drug_categories"] as const) {
+      for (const v of listMetaStrings(meta, key)) add(v);
+    }
+    for (const key of ["card_role", "type", "subtype", "civilization"] as const) {
+      const v = meta[key];
+      if (typeof v === "string") add(v);
+    }
+  }
+  const pathNorm = file.replace(/\\/g, "/").toLowerCase();
+  const pathTags: Array<[string, string]> = [
+    ["bam10", "bam10"],
+    ["bam-10", "bam10"],
+    ["bam7", "bam7"],
+    ["bam9", "bam9"],
+    ["bam12", "bam12"],
+    ["bam13", "bam13"],
+    ["wuwei", "wuwei"],
+    ["mawangdui", "mawangdui"],
+    ["tianhui", "tianhui"],
+    ["zhoujiatai", "zhoujiatai"],
+    ["sakikku", "sakikku"],
+    ["cmawr", "cmawr"],
+    ["/recipes/", "recipe"],
+    ["/rituals/", "ritual"],
+    ["/references/", "reference"],
+    ["/cases/", "case"],
+  ];
+  for (const [needle, tag] of pathTags) {
+    if (pathNorm.includes(needle)) add(tag);
+  }
+  return out;
+}
+
+/** Parse `- **Attach**: imported/foo` from a markdown chunk. */
+export function parseAttachLine(content: string): string | undefined {
+  const m = content.match(/^- \*\*Attach\*\*:\s*`?([^\n`]+)`?\s*$/m);
+  const v = m?.[1]?.trim();
+  return v || undefined;
+}
+
+function mergeChunkMeta(
+  base: Record<string, unknown> | undefined,
+  content: string,
+  file = "",
+): Record<string, unknown> | undefined {
+  const lineTags = parseTagsLine(content);
+  const attach = parseAttachLine(content);
+  const mergedBase: Record<string, unknown> = { ...(base ?? {}) };
+  if (lineTags.length) mergedBase.tags = lineTags;
+  const folk = folksonomyFromCorpusMeta(mergedBase, file);
+  if (!folk.length && !attach && !Object.keys(mergedBase).length) return undefined;
+  const out: Record<string, unknown> = { ...mergedBase };
+  if (folk.length) out.tags = folk;
+  if (attach) out.attach = attach;
+  return Object.keys(out).length ? out : undefined;
+}
 
 function classifyDocType(relPath: string): string {
   if (relPath.startsWith("decisions/") || relPath.startsWith("decisions\\")) return "decision";
@@ -312,6 +533,7 @@ function splitByHeadings(content: string): { heading: string; body: string }[] {
   const chunks: { heading: string; body: string }[] = [];
   let heading = "";
   let buf: string[] = [];
+  let inFence = false;
   const h1 = lines.find((l) => l.startsWith("# "));
   if (h1) heading = h1.slice(2).trim();
 
@@ -322,7 +544,8 @@ function splitByHeadings(content: string): { heading: string; body: string }[] {
   };
 
   for (const line of lines) {
-    if (line.startsWith("## ")) {
+    if (line.trim().startsWith("```")) inFence = !inFence;
+    if (!inFence && line.startsWith("## ")) {
       flush();
       heading = line.slice(3).trim();
     }
@@ -369,15 +592,13 @@ export function chunkFile(memDir: string, relPath: string): MemoryChunk[] {
     // via the heading and structured columns.
     const bodyText = content
       .split("\n")
-      .filter((l) => !l.startsWith("# ") && !/^- \*\*(Status|Logged at|Logged by|Tags|Supersedes|Superseded by|Valid from|Valid until)\*\*:/.test(l))
+      .filter((l) => !l.startsWith("# ") && !/^- \*\*(Status|Logged at|Logged by|Tags|Attach|Supersedes|Superseded by|Valid from|Valid until)\*\*:/.test(l))
       .join("\n")
       .trim();
     // Append tags as hidden searchable text so FTS5 can match tag words
     // even when the decision body doesn't contain them explicitly.
-    const tagsLine = content.match(/^- \*\*Tags\*\*:\s*(.+)$/m);
-    const tagsText = tagsLine
-      ? "\ntags: " + tagsLine[1].split(",").map((t) => t.trim()).filter(Boolean).join(" ")
-      : "";
+    const folk = folksonomyFromCorpusMeta(mergeChunkMeta(meta, content, relPath), relPath);
+    const tagsText = folk.length ? "\ntags: " + folk.join(" ") : "";
     return [{
       file: relPath,
       heading: h1 ? h1.slice(2).trim() : relPath,
@@ -389,22 +610,32 @@ export function chunkFile(memDir: string, relPath: string): MemoryChunk[] {
       supersededBy,
       validFrom,
       validUntil,
-      meta,
+      meta: mergeChunkMeta(meta, content, relPath),
     }];
   }
 
-  return splitByHeadings(content).map((c) => {
+  const sections = splitByHeadings(content).filter((c) => !/^opening\s*\(ocr\)/i.test(c.heading));
+  return (sections.length ? sections : splitByHeadings(content)).map((c) => {
     // Per-chunk agent attribution: imported rule blocks carry their own
     // provenance line, e.g. "> Source: `...` (imported <ISO> by migration)".
     const imp = /\(imported\s+(\S+?)\s+by\s+([\w-]+)\)/.exec(c.body);
-    const tagsLine = c.body.match(/^- \*\*Tags\*\*:\s*(.+)$/m);
-    const tagsText = tagsLine
-      ? "\ntags: " + tagsLine[1].split(",").map((t) => t.trim()).filter(Boolean).join(" ")
-      : "";
+    const inheritFileMeta = docType === "imported";
+    const fileAttach = inheritFileMeta ? parseAttachLine(content) : undefined;
+    const fileTags = inheritFileMeta ? parseTagsLine(content) : [];
+    const baseMeta: Record<string, unknown> | undefined = (() => {
+      const extra: Record<string, unknown> = { ...(meta ?? {}) };
+      if (fileAttach) extra.attach = fileAttach;
+      if (fileTags.length) extra.tags = fileTags;
+      return Object.keys(extra).length ? extra : undefined;
+    })();
+    const folk = folksonomyFromCorpusMeta(mergeChunkMeta(baseMeta, c.body, relPath), relPath);
+    const tagsText = folk.length ? "\ntags: " + folk.join(" ") : "";
+    const idVal = scalarMetaString(fmMeta, "id");
+    const idText = idVal ? "\nid: " + idVal : "";
     return {
       file: relPath,
       heading: c.heading,
-      content: c.body + tagsText,
+      content: c.body + tagsText + idText,
       docType,
       loggedAt: imp?.[1] ?? loggedAt,
       agent: imp?.[2] ?? agent,
@@ -412,7 +643,7 @@ export function chunkFile(memDir: string, relPath: string): MemoryChunk[] {
       supersededBy,
       validFrom,
       validUntil,
-      meta,
+      meta: mergeChunkMeta(baseMeta, c.body, relPath),
     };
   });
 }
@@ -438,6 +669,159 @@ export function decisionId(seq: number | string): string {
 export function seqFromDecisionPath(relPath: string): number | null {
   const m = /^decisions[\\/](\d{4})-/.exec(relPath);
   return m ? parseInt(m[1], 10) : null;
+}
+
+export type KeyKind = "tag" | "project" | "type" | "status" | "id" | "agent";
+
+/** Bare tokens that must not become type/project filters — FTS only. */
+export const GENERIC_BARE_TOKENS = new Set([
+  "work", "ops", "decision", "research", "lesson", "lessons", "rule", "rules",
+  "session", "imported", "context",
+]);
+
+export function normalizeKey(key: string): string {
+  const t = key.trim();
+  if (!t) return "";
+  return /[A-Za-z]/.test(t) ? t.toLowerCase() : t;
+}
+
+function padDecisionId(raw: string): string {
+  if (/^\d{1,4}$/.test(raw)) return raw.padStart(4, "0");
+  return raw;
+}
+
+function keysForChunk(c: MemoryChunk, projectSlug: string): { kind: KeyKind; key: string; keyNorm: string }[] {
+  const seen = new Set<string>();
+  const out: { kind: KeyKind; key: string; keyNorm: string }[] = [];
+  const add = (kind: KeyKind, key: string) => {
+    const k = key.trim();
+    if (!k) return;
+    const keyNorm = normalizeKey(k);
+    const id = `${kind}|${keyNorm}`;
+    if (seen.has(id)) return;
+    seen.add(id);
+    out.push({ kind, key: k, keyNorm });
+  };
+  add("project", projectSlug);
+  add("type", c.docType);
+  if (c.docType === "lessons") add("type", "lesson");
+  if (c.docType === "rules") add("type", "rule");
+  add("status", c.status);
+  if (c.agent && c.agent !== "unknown") add("agent", c.agent);
+  const metaTags = folksonomyFromCorpusMeta(c.meta, c.file);
+  for (const t of metaTags.length ? metaTags : parseTagsLine(c.content)) add("tag", t);
+  const seq = seqFromDecisionPath(c.file);
+  if (seq !== null) {
+    const pad = String(seq).padStart(4, "0");
+    add("id", pad);
+    add("id", String(seq));
+    add("id", `decision:${pad}`);
+    add("id", `cm:${projectSlug}:decision:${pad}`);
+  }
+  const yamlId = c.meta ? scalarMetaString(c.meta, "id") : undefined;
+  if (yamlId) add("id", yamlId);
+  return out;
+}
+
+export interface AddressQuery {
+  ftsQuery: string;
+  type?: string;
+  status?: string;
+  agent?: string;
+  projectScopes: string[];
+  /** Tokens that must match (key OR FTS): tag:, --tag, id:, #NNNN. */
+  andTokens: string[];
+  /** Non-generic leftover tokens — extra key-union for recall. */
+  boostTokens: string[];
+}
+
+/** Split a search string into FTS remainder + addressing prefixes. */
+export function parseAddressQuery(query: string): AddressQuery {
+  const projectScopes: string[] = [];
+  const andTokens: string[] = [];
+  const boostTokens: string[] = [];
+  const ftsParts: string[] = [];
+  let type: string | undefined;
+  let status: string | undefined;
+  let agent: string | undefined;
+
+  for (const raw of query.trim().split(/\s+/).filter(Boolean)) {
+    const hash = /^#(\d{1,4})$/.exec(raw);
+    if (hash) {
+      andTokens.push(padDecisionId(hash[1]));
+      continue;
+    }
+    const pref = /^(project|type|status|id|tag|agent):(.+)$/i.exec(raw);
+    if (pref) {
+      const kind = pref[1].toLowerCase();
+      const val = pref[2].trim();
+      if (!val) continue;
+      if (kind === "project") projectScopes.push(val);
+      else if (kind === "type") type = val;
+      else if (kind === "status") status = val;
+      else if (kind === "agent") agent = val;
+      else if (kind === "id") andTokens.push(padDecisionId(val));
+      else andTokens.push(val);
+      continue;
+    }
+    const cm = /^cm:[^:]+:[^:]+:.+$/i.exec(raw);
+    if (cm) {
+      andTokens.push(raw);
+      const last = raw.split(":").pop() ?? "";
+      if (/^\d{1,4}$/.test(last)) andTokens.push(padDecisionId(last));
+      continue;
+    }
+    ftsParts.push(raw);
+    if (!GENERIC_BARE_TOKENS.has(raw.toLowerCase())) boostTokens.push(raw);
+  }
+
+  return {
+    ftsQuery: ftsParts.join(" "),
+    type,
+    status,
+    agent,
+    projectScopes,
+    andTokens,
+    boostTokens,
+  };
+}
+
+/** Which project indexes to query. `project:slug` jumps scope; `-p` ANDs with prefixes. */
+export function resolveSearchSlugs(
+  workspaceRoot: string,
+  parsed: AddressQuery,
+  opts?: { project?: string; all?: boolean },
+): string[] {
+  const ws = loadWorkspace(workspaceRoot);
+  const known = Object.keys(ws.projects);
+  const prefixed = parsed.projectScopes.filter((s) => known.includes(s));
+  if (parsed.projectScopes.length && !prefixed.length) return [];
+  if (opts?.all && !prefixed.length) return known;
+  if (prefixed.length && opts?.project) return prefixed.filter((s) => s === opts.project);
+  if (prefixed.length) return [...new Set(prefixed)];
+  if (opts?.all) return known;
+  if (opts?.project) return [opts.project];
+  return [getCurrentProjectSlug(workspaceRoot)];
+}
+
+const KEY_BOOST: Record<KeyKind, number> = {
+  id: 0.25,
+  tag: 0.18,
+  agent: 0.08,
+  type: 0.06,
+  status: 0.04,
+  project: 0.04,
+};
+
+function keyBoostFromKinds(kinds: Iterable<string>): number {
+  let extra = 0;
+  const seen = new Set<string>();
+  for (const k of kinds) {
+    if (seen.has(k)) continue;
+    seen.add(k);
+    extra += KEY_BOOST[k as KeyKind] ?? 0;
+  }
+  return 1 + extra;
 }
 
 /**
@@ -601,6 +985,15 @@ CREATE TABLE IF NOT EXISTS links (
   to_id TEXT NOT NULL,
   PRIMARY KEY (from_file, rel, to_id)
 );
+-- Addressing plane: derived + folksonomy keys. Rebuilds with the index.
+CREATE TABLE IF NOT EXISTS chunk_keys (
+  chunk_id INTEGER NOT NULL,
+  kind TEXT NOT NULL,
+  key TEXT NOT NULL,
+  key_norm TEXT NOT NULL,
+  PRIMARY KEY (chunk_id, kind, key_norm)
+);
+CREATE INDEX IF NOT EXISTS chunk_keys_norm ON chunk_keys(key_norm);
 -- Standalone FTS table (not content=chunks): we index a CJK-bigram-segmented
 -- copy of the text in 'seg' so compound CJK queries match, while 'heading' and
 -- 'content' hold the raw text for snippets. Kept in sync manually in buildIndex.
@@ -610,13 +1003,14 @@ CREATE VIRTUAL TABLE IF NOT EXISTS chunks_fts USING fts5(
 `;
 
 /** Schema version: bump when the FTS layout changes to force a clean rebuild. */
-const SCHEMA_VERSION = 5;
+const SCHEMA_VERSION = 8;
 
 /** Open (or create) the index database and apply the schema. */
 export function openDb(paths: MemPaths): Database.Database {
   ensureDir(paths.indexDir);
-  const db = new Database(paths.dbFile);
+  const db = new Database(paths.dbFile, { timeout: 120000 });
   db.pragma("journal_mode = WAL");
+  db.pragma("busy_timeout = 120000");
   // Version check: the index is fully derivative, so on any schema change we
   // simply drop everything and let buildIndex repopulate from Markdown.
   const version = db.pragma("user_version", { simple: true }) as number;
@@ -628,6 +1022,7 @@ export function openDb(paths: MemPaths): Database.Database {
       DROP TABLE IF EXISTS chunk_meta;
       DROP TABLE IF EXISTS chunk_embeddings;
       DROP TABLE IF EXISTS links;
+      DROP TABLE IF EXISTS chunk_keys;
       DROP TABLE IF EXISTS chunks;
       DROP TABLE IF EXISTS files;
     `);
@@ -663,18 +1058,87 @@ function normalizeRelPath(rel: string): string {
   return rel.replace(/\\/g, "/");
 }
 
+const SKIP_INDEX_DIRS = [
+  "imported/attach",
+  "imported/_flat_dump",
+  "imported/academic/_scripts",
+  /** Dirty Strahil OCR tree. Retrieval grain is corpus/ cards. Files stay on disk. */
+  "imported/academic/sources/strahil-medical-md",
+];
+
+const CATALOG_BASENAMES = new Set([
+  "_index.md",
+  "_catalog.md",
+  "_readme.md",
+  "_manifest.md",
+]);
+
+/** Per-work `_index.md` / `_catalog.md` under corpus/<kind>/<slug>/ — file lists that steal ranking. */
+export function isCorpusLeafCatalog(rel: string): boolean {
+  const n = normalizeRelPath(rel);
+  const base = path.posix.basename(n).toLowerCase();
+  if (base !== "_index.md" && base !== "_catalog.md") return false;
+  const parts = path.posix.dirname(n).split("/");
+  const i = parts.indexOf("corpus");
+  return i >= 0 && parts.length >= i + 3;
+}
+
+/** Dirs that must not enter FTS (binaries, exporter scripts, archived flat dumps, raw OCR). */
+export function shouldSkipIndexDir(rel: string): boolean {
+  const n = normalizeRelPath(rel);
+  if (SKIP_INDEX_DIRS.some((skip) => n === skip || n.startsWith(`${skip}/`))) return true;
+  // Ephemeral reading copies of already-split dumps.
+  const parts = n.split("/");
+  if (parts.includes("reading")) return true;
+  return false;
+}
+
+/** Helper extracts, OCR audit notes, and secondary dumps (cards are the retrieval grain). */
+export function shouldSkipIndexFile(rel: string): boolean {
+  const n = normalizeRelPath(rel);
+  const base = path.posix.basename(n).toLowerCase();
+  if (base === "_resume-slice.md") return true;
+  if (base.startsWith("ocr_completion")) return true;
+  if (base === "ocr_quality_notes.md") return true;
+  if (base === "_ocr-verification.md") return true;
+  if (base === "_sumerogram-concordance.md") return true;
+  if (isCorpusLeafCatalog(n)) return true;
+  // Babylonian article OCR; early-chinese `_fulltext.md` stays (excavated transcriptions).
+  if (base === "_fulltext_complete.md") return true;
+  if (base.startsWith("_fulltext") && n.includes("/sources/babylonian/")) return true;
+  // Keep secondary catalogs searchable; skip the OCR dumps themselves.
+  if (n.startsWith("imported/academic/secondary/") && !CATALOG_BASENAMES.has(base)) {
+    return true;
+  }
+  return false;
+}
+
 function listMarkdownFiles(memDir: string): string[] {
   const out: string[] = [];
   const walk = (dir: string) => {
     for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
       if (entry.name.startsWith(".")) continue;
       const abs = path.join(dir, entry.name);
-      if (entry.isDirectory()) walk(abs);
-      else if (entry.name.endsWith(".md")) out.push(normalizeRelPath(path.relative(memDir, abs)));
+      const rel = normalizeRelPath(path.relative(memDir, abs));
+      const isDir = entry.isDirectory() || (entry.isSymbolicLink() && safeIsDir(abs));
+      if (isDir) {
+        if (shouldSkipIndexDir(rel)) continue;
+        walk(abs);
+      } else if (entry.name.endsWith(".md") && !shouldSkipIndexFile(rel)) {
+        out.push(rel);
+      }
     }
   };
   walk(memDir);
   return out;
+}
+
+function safeIsDir(abs: string): boolean {
+  try {
+    return fs.statSync(abs).isDirectory();
+  } catch {
+    return false;
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -687,7 +1151,11 @@ const MAP_BLOCK_RE = /<!-- (?:centricmem|memproject):map -->[\s\S]*?<!-- \/(?:ce
  * Regenerate the <!-- centricmem:map --> block in AGENTS.md after indexing.
  * If the markers are absent, inserts them under ## Memory Map (or appends at EOF).
  */
-export function updateMemoryMap(paths: MemPaths, stats: IndexStats): void {
+export function updateMemoryMap(
+  paths: MemPaths,
+  stats: IndexStats,
+  totals?: { chunks?: number; imported?: number },
+): void {
   if (!fs.existsSync(paths.agentsFile)) return;
   const agentsContent = fs.readFileSync(paths.agentsFile, "utf8");
 
@@ -722,17 +1190,20 @@ export function updateMemoryMap(paths: MemPaths, stats: IndexStats): void {
     lessonsCount = (lc.match(/^##\s+/gm) ?? []).length;
   }
 
-  // Count imported files (recursively — migrations may create subdirectories).
+  // Count imported files actually in the FTS file list (not skipped dumps).
   const importedDir = path.join(paths.memDir, "imported");
-  let importedCount = 0;
-  if (fs.existsSync(importedDir)) {
-    const walk = (dir: string) => {
-      for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
-        if (e.isDirectory()) walk(path.join(dir, e.name));
-        else if (e.name.endsWith(".md")) importedCount++;
-      }
-    };
-    walk(importedDir);
+  let importedCount = totals?.imported;
+  if (importedCount === undefined) {
+    importedCount = 0;
+    if (fs.existsSync(importedDir)) {
+      const walk = (dir: string) => {
+        for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
+          if (e.isDirectory()) walk(path.join(dir, e.name));
+          else if (e.name.endsWith(".md")) importedCount!++;
+        }
+      };
+      walk(importedDir);
+    }
   }
 
   let sessionsCount = 0;
@@ -757,7 +1228,7 @@ export function updateMemoryMap(paths: MemPaths, stats: IndexStats): void {
     `| Imported | ${importedCount} | \u2014 |`,
     `| Sessions | ${sessionsCount} | \u2014 |`,
     "",
-    `Last indexed: ${now} | Total chunks: ${stats.chunks}`,
+    `Last indexed: ${now} | Indexed files: ${stats.scanned} | Chunks: ${totals?.chunks ?? stats.chunks}`,
     "<!-- /centricmem:map -->",
   ].join("\n");
 
@@ -793,6 +1264,7 @@ export function buildIndex(paths: MemPaths): IndexStats {
   const selChunkIds = db.prepare("SELECT id FROM chunks WHERE file = ?");
   const delMeta = db.prepare("DELETE FROM chunk_meta WHERE chunk_id = ?");
   const delEmb = db.prepare("DELETE FROM chunk_embeddings WHERE chunk_id = ?");
+  const delKeys = db.prepare("DELETE FROM chunk_keys WHERE chunk_id = ?");
   const delFts = db.prepare("DELETE FROM chunks_fts WHERE rowid = ?");
   const delChunksStmt = db.prepare("DELETE FROM chunks WHERE file = ?");
   const delChunks = (rel: string) => {
@@ -800,6 +1272,7 @@ export function buildIndex(paths: MemPaths): IndexStats {
       delMeta.run(r.id);
       delFts.run(r.id);
       delEmb.run(r.id);
+      delKeys.run(r.id);
     }
     delChunksStmt.run(rel);
   };
@@ -807,6 +1280,9 @@ export function buildIndex(paths: MemPaths): IndexStats {
     "INSERT INTO chunks(file, heading, content, doc_type, logged_at, agent, status, superseded_by, meta_civilization, meta_type, meta_has_incantation) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
   );
   const insMeta = db.prepare("INSERT INTO chunk_meta(chunk_id, meta_json) VALUES (?, ?)");
+  const insKey = db.prepare(
+    "INSERT INTO chunk_keys(chunk_id, kind, key, key_norm) VALUES (?, ?, ?, ?) ON CONFLICT(chunk_id, kind, key_norm) DO NOTHING",
+  );
   const insFts = db.prepare("INSERT INTO chunks_fts(rowid, heading, content, seg) VALUES (?, ?, ?, ?)");
   const delLinks = db.prepare("DELETE FROM links WHERE from_file = ?");
   const insLink = db.prepare(
@@ -831,6 +1307,9 @@ export function buildIndex(paths: MemPaths): IndexStats {
         if (c.meta && Object.keys(c.meta).length) {
           insMeta.run(chunkId, JSON.stringify(c.meta));
         }
+        for (const k of keysForChunk(c, paths.projectSlug)) {
+          insKey.run(chunkId, k.kind, k.key, k.keyNorm);
+        }
         insFts.run(chunkId, c.heading, c.content, segmentCjk(`${c.heading}\n${c.content}`));
         stats.chunks++;
       }
@@ -841,8 +1320,9 @@ export function buildIndex(paths: MemPaths): IndexStats {
       stats.indexed++;
     }
     const known = (db.prepare("SELECT path FROM files").all() as { path: string }[]).map((r) => r.path);
+    const live = new Set(files);
     for (const p of known) {
-      if (!files.includes(p)) {
+      if (!live.has(p)) {
         delChunks(p);
         delLinks.run(p);
         db.prepare("DELETE FROM files WHERE path = ?").run(p);
@@ -851,12 +1331,14 @@ export function buildIndex(paths: MemPaths): IndexStats {
     }
   });
   tx();
+  const totalChunks = (db.prepare("SELECT COUNT(*) AS n FROM chunks").get() as { n: number }).n;
+  const importedIndexed = files.filter((f) => /(^|\/)imported\//.test(normalizeRelPath(f))).length;
   // Invalidate any cached connection so next getDb() picks up the fresh WAL.
   const cached = _dbCache.get(paths.dbFile);
   if (cached && cached !== db) { try { cached.close(); } catch { /* ignore */ } _dbCache.delete(paths.dbFile); }
   db.close();
   // Update Memory Map in AGENTS.md (best-effort, never throws).
-  try { updateMemoryMap(paths, stats); } catch { /* ignore */ }
+  try { updateMemoryMap(paths, stats, { chunks: totalChunks, imported: importedIndexed }); } catch { /* ignore */ }
   return stats;
 }
 
@@ -930,6 +1412,43 @@ export function buildIndexAll(workspaceRoot: string, opts?: BuildIndexAllOptions
   return total;
 }
 
+function mergeSearchSlugs(
+  workspaceRoot: string,
+  slugs: string[],
+  query: string,
+  limit: number | undefined,
+  filters: SearchFilters | undefined,
+  options: SearchOptions | undefined,
+): SearchResult[] {
+  if (!slugs.length) return [];
+  const ws = loadWorkspace(workspaceRoot);
+  const config = loadConfig(resolvePaths(workspaceRoot, slugs[0] ?? ws.current));
+  const max = limit ?? config.max_results;
+  if (slugs.length === 1) {
+    return search(resolvePaths(workspaceRoot, slugs[0]), query, max, filters, undefined, options);
+  }
+  const merged: SearchResult[] = [];
+  for (const slug of slugs) {
+    const hits = search(resolvePaths(workspaceRoot, slug), query, max * 3, filters, undefined, options);
+    for (const h of hits) merged.push({ ...h, projectSlug: slug });
+  }
+  merged.sort((a, b) => b.score - a.score);
+  return merged.slice(0, max);
+}
+
+/** Search one or more project indexes. `project:slug` jumps scope; `--all` does not override a prefix. */
+export function searchScoped(
+  workspaceRoot: string,
+  query: string,
+  limit?: number,
+  filters?: SearchFilters,
+  options?: SearchOptions,
+  scope?: { project?: string; all?: boolean },
+): SearchResult[] {
+  const slugs = resolveSearchSlugs(workspaceRoot, parseAddressQuery(query), scope);
+  return mergeSearchSlugs(workspaceRoot, slugs, query, limit, filters, options);
+}
+
 /** Search across all projects in a workspace; merges and re-ranks results. */
 export function searchAll(
   workspaceRoot: string,
@@ -938,13 +1457,40 @@ export function searchAll(
   filters?: SearchFilters,
   options?: SearchOptions,
 ): SearchResult[] {
+  return searchScoped(workspaceRoot, query, limit, filters, options, { all: true });
+}
+
+/** Async scoped search (embeds query once when --semantic). */
+export async function searchScopedAsync(
+  workspaceRoot: string,
+  query: string,
+  limit?: number,
+  filters?: SearchFilters,
+  options?: SearchOptions,
+  scope?: { project?: string; all?: boolean },
+): Promise<SearchResult[]> {
+  const slugs = resolveSearchSlugs(workspaceRoot, parseAddressQuery(query), scope);
+  if (!slugs.length) return [];
   const ws = loadWorkspace(workspaceRoot);
-  const config = loadConfig(resolvePaths(workspaceRoot, ws.current));
+  const config = loadConfig(resolvePaths(workspaceRoot, slugs[0] ?? ws.current));
+  let queryEmbedding = options?.queryEmbedding;
+  if (options?.semantic && isEmbeddingEnabled(config) && !queryEmbedding?.length) {
+    const vecs = await embedTexts([query], config);
+    queryEmbedding = vecs[0];
+  }
   const max = limit ?? config.max_results;
+  const opts = { ...options, queryEmbedding };
+  if (slugs.length === 1) {
+    return opts.semantic
+      ? searchAsync(resolvePaths(workspaceRoot, slugs[0]), query, max, filters, opts)
+      : search(resolvePaths(workspaceRoot, slugs[0]), query, max, filters, undefined, opts);
+  }
   const merged: SearchResult[] = [];
-  for (const slug of Object.keys(ws.projects)) {
+  for (const slug of slugs) {
     const paths = resolvePaths(workspaceRoot, slug);
-    const hits = search(paths, query, max * 3, filters, undefined, options);
+    const hits = opts.semantic
+      ? await searchAsync(paths, query, max * 3, filters, opts)
+      : search(paths, query, max * 3, filters, undefined, opts);
     for (const h of hits) merged.push({ ...h, projectSlug: slug });
   }
   merged.sort((a, b) => b.score - a.score);
@@ -959,34 +1505,12 @@ export async function searchAllAsync(
   filters?: SearchFilters,
   options?: SearchOptions,
 ): Promise<SearchResult[]> {
-  const ws = loadWorkspace(workspaceRoot);
-  const config = loadConfig(resolvePaths(workspaceRoot, ws.current));
-  let queryEmbedding = options?.queryEmbedding;
-  if (options?.semantic && isEmbeddingEnabled(config) && !queryEmbedding?.length) {
-    const vecs = await embedTexts([query], config);
-    queryEmbedding = vecs[0];
-  }
-  // Per-project: if a project has its own embedding config, still use shared query vec when provided.
-  const max = limit ?? config.max_results;
-  const merged: SearchResult[] = [];
-  const opts = { ...options, queryEmbedding };
-  for (const slug of Object.keys(ws.projects)) {
-    const paths = resolvePaths(workspaceRoot, slug);
-    const hits = opts.semantic
-      ? await searchAsync(paths, query, max * 3, filters, opts)
-      : search(paths, query, max * 3, filters, undefined, opts);
-    for (const h of hits) merged.push({ ...h, projectSlug: slug });
-  }
-  merged.sort((a, b) => b.score - a.score);
-  return merged.slice(0, max);
+  return searchScopedAsync(workspaceRoot, query, limit, filters, options, { all: true });
 }
 
 // ---------------------------------------------------------------------------
 // Search
 // ---------------------------------------------------------------------------
-
-// FTS5 reserved words that must not appear bare as query terms.
-const FTS5_RESERVED = new Set(["AND", "OR", "NOT", "NEAR"]);
 
 const CJK_RUN = /[\u3040-\u30ff\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff]{2,}/g;
 
@@ -1005,14 +1529,23 @@ export function segmentCjk(text: string): string {
 }
 
 /** Escape a user query into a safe FTS5 query (OR of prefix terms; CJK bigram phrases). */
-function toFtsQuery(query: string): string {
+export function toFtsQuery(query: string): string {
   const terms = segmentCjk(query)
     .split(/\s+/)
     .map((t) => t.replace(/["'*()]/g, "").trim())
     .filter(Boolean);
   if (!terms.length) return '""';
-  // Wrap each term in double quotes; FTS5 reserved words are already safe when quoted.
-  return terms.map((t) => (FTS5_RESERVED.has(t.toUpperCase()) ? `"${t}"` : `"${t}"*`)).join(" OR ");
+  const expanded: string[] = [];
+  for (const t of terms) {
+    const parts = t.split(/[-_]+/).filter(Boolean);
+    if (parts.length > 1 && parts.every((p) => /^[A-Za-z0-9]+$/.test(p))) {
+      // Catalog ids (REF-KURIYAMA1999-CH01): tokenizer splits on '-', so AND the pieces.
+      expanded.push("(" + parts.map((p) => `"${p}"*`).join(" AND ") + ")");
+    } else {
+      expanded.push(`"${t}"*`);
+    }
+  }
+  return expanded.join(" OR ");
 }
 
 /** Time decay: 1 / (1 + decay_rate * days_old). */
@@ -1032,7 +1565,7 @@ export type QueryIntent = "context" | "decision" | "lessons" | "research" | "gen
 const INTENT_RULES: { intent: QueryIntent; patterns: RegExp }[] = [
   { intent: "context", patterns: /当前|现在|正在|进展|current|right now|working on|today|focus/i },
   { intent: "decision", patterns: /为什么|决策|选择|决定|why|decision|decided|chose|choice|rationale/i },
-  { intent: "lessons", patterns: /避免|坑|注意|教训|pitfall|avoid|gotcha|lesson|careful|went wrong|mistake|failure/i },
+  { intent: "lessons", patterns: /避免|坑|注意|教训|知识|怎么想|心智|逻辑|记住|pitfall|avoid|gotcha|lesson|careful|went wrong|mistake|failure|mental model|heuristic|know that|remember that/i },
   { intent: "research", patterns: /调研|研究|survey|research|external|文献|对比/i },
 ];
 
@@ -1145,48 +1678,33 @@ export function search(
 
   try {
 
+    const parsed = parseAddressQuery(query);
+    const typeFilter = filters?.type || parsed.type;
+    const statusFilter = filters?.status || parsed.status;
+    const agentFilter = filters?.agent || parsed.agent;
+    const andTokens = [...parsed.andTokens, ...(filters?.tags ?? []).map((t) => t.trim()).filter(Boolean)];
+
     const needsMetaJoin = Boolean(filters?.meta && Object.keys(filters.meta).length);
-
     const filterConds: string[] = [];
-
     const filterParams: unknown[] = [];
-
-    if (filters?.type) {
-
+    if (typeFilter) {
       filterConds.push("c.doc_type = ?");
-
-      filterParams.push(normalizeTypeFilter(filters.type));
-
+      filterParams.push(normalizeTypeFilter(typeFilter));
     }
-
-    if (filters?.status) {
-
+    if (statusFilter) {
       filterConds.push("c.status = ?");
-
-      filterParams.push(filters.status.toLowerCase());
-
+      filterParams.push(statusFilter.toLowerCase());
     }
-
-    if (filters?.agent) {
-
+    if (agentFilter) {
       filterConds.push("c.agent = ?");
-
-      filterParams.push(filters.agent.toLowerCase());
-
+      filterParams.push(agentFilter.toLowerCase());
     }
-
     if (filters?.meta) {
-
       for (const [key, value] of Object.entries(filters.meta)) {
-
         const { sql, param } = metaFilterSql(key, value, hotEnabled, hotCols);
-
         filterConds.push(sql);
-
         filterParams.push(param);
-
       }
-
     }
 
     const joinMeta = needsMetaJoin ? "LEFT JOIN chunk_meta cm ON cm.chunk_id = c.id" : "";
@@ -1223,81 +1741,175 @@ export function search(
 
       cosine: number;
 
+      keyKinds: Set<string>;
+
+      matchedKeys: string[];
+
     };
 
 
 
     const byId = new Map<number, Cand>();
 
-
-
-    const ftsConds = ["chunks_fts MATCH ?", ...filterConds];
-
-    const ftsParams: unknown[] = [toFtsQuery(query), ...filterParams, max * 5];
-
-    const ftsRows = conn
-
-      .prepare(
-
-        `SELECT c.id, c.file, c.heading, c.doc_type, c.logged_at, c.agent, c.status, c.superseded_by,
-
-                snippet(chunks_fts, 1, '**', '**', ' … ', 24) AS snip,
-
-                bm25(chunks_fts, 4.0, 2.0, 1.0) AS rank
-
-         FROM chunks_fts JOIN chunks c ON c.id = chunks_fts.rowid
-
-         ${joinMeta}
-
-         WHERE ${ftsConds.join(" AND ")}
-
-         ORDER BY rank LIMIT ?`,
-
-      )
-
-      .all(...ftsParams) as {
-
+    const tagBrowse = !parsed.ftsQuery.trim();
+    type FtsRow = {
       id: number;
-
       file: string; heading: string; doc_type: string; logged_at: string;
-
       agent: string; status: string; superseded_by: string; snip: string; rank: number;
+    };
 
-    }[];
-
-
-
-    ftsRows.forEach((r, i) => {
-
+    const ingest = (r: FtsRow, i: number, kinds?: string[], keys?: string[]) => {
+      const existing = byId.get(r.id);
+      if (existing) {
+        if (r.rank && !existing.bm25Rank) {
+          existing.bm25Raw = -r.rank;
+          existing.bm25Rank = i + 1;
+          existing.snip = r.snip || existing.snip;
+        }
+        for (const k of kinds ?? []) existing.keyKinds.add(k);
+        if (keys?.length) existing.matchedKeys.push(...keys);
+        return;
+      }
       byId.set(r.id, {
-
         id: r.id,
-
         file: r.file,
-
         heading: r.heading,
-
         doc_type: r.doc_type,
-
         logged_at: r.logged_at,
-
         agent: r.agent,
-
         status: r.status,
-
         superseded_by: r.superseded_by ?? "",
-
         snip: r.snip,
-
         bm25Raw: -r.rank,
-
-        bm25Rank: i + 1,
-
+        bm25Rank: r.rank ? i + 1 : undefined,
         cosine: 0,
-
+        keyKinds: new Set(kinds ?? []),
+        matchedKeys: [...(keys ?? [])],
       });
+    };
 
-    });
+    const rowSql = `SELECT c.id, c.file, c.heading, c.doc_type, c.logged_at, c.agent, c.status, c.superseded_by,
+                  substr(c.content, 1, 160) AS snip, 0 AS rank
+           FROM chunks c ${joinMeta}`;
+    const ftsSql = `SELECT c.id, c.file, c.heading, c.doc_type, c.logged_at, c.agent, c.status, c.superseded_by,
+                  snippet(chunks_fts, 1, '**', '**', ' … ', 24) AS snip,
+                  bm25(chunks_fts, 4.0, 2.0, 1.0) AS rank
+           FROM chunks_fts JOIN chunks c ON c.id = chunks_fts.rowid
+           ${joinMeta}`;
+
+    const loadFts = (q: string): FtsRow[] => {
+      if (!q.trim()) return [];
+      const ftsConds = ["chunks_fts MATCH ?", ...filterConds];
+      const ftsParams: unknown[] = [toFtsQuery(q), ...filterParams, max * 5];
+      return conn.prepare(
+        `${ftsSql} WHERE ${ftsConds.join(" AND ")} ORDER BY rank LIMIT ?`,
+      ).all(...ftsParams) as FtsRow[];
+    };
+
+    const loadRecency = (): FtsRow[] => {
+      const where = filterConds.length ? `WHERE ${filterConds.join(" AND ")}` : "";
+      return conn.prepare(
+        `${rowSql} ${where} ORDER BY c.logged_at DESC LIMIT ?`,
+      ).all(...filterParams, max * 5) as FtsRow[];
+    };
+
+    const loadByIds = (ids: number[]): FtsRow[] => {
+      if (!ids.length) return [];
+      const ph = ids.map(() => "?").join(",");
+      const where = filterConds.length
+        ? `WHERE c.id IN (${ph}) AND ${filterConds.join(" AND ")}`
+        : `WHERE c.id IN (${ph})`;
+      return conn.prepare(`${rowSql} ${where}`).all(...ids, ...filterParams) as FtsRow[];
+    };
+
+    const keyHits = (token: string): { id: number; kind: string; key: string }[] => {
+      const norms = [...new Set([normalizeKey(token), normalizeKey(padDecisionId(token))].filter(Boolean))];
+      if (!norms.length) return [];
+      const ph = norms.map(() => "?").join(",");
+      return conn.prepare(
+        `SELECT chunk_id AS id, kind, key FROM chunk_keys
+         WHERE key_norm IN (${ph}) AND kind IN ('tag','id','agent')`,
+      ).all(...norms) as { id: number; kind: string; key: string }[];
+    };
+
+    const tokenSet = (token: string): { ids: Set<number>; kinds: Map<number, string[]>; keys: Map<number, string[]> } => {
+      const ids = new Set<number>();
+      const kinds = new Map<number, string[]>();
+      const keys = new Map<number, string[]>();
+      const add = (id: number, kind?: string, key?: string) => {
+        ids.add(id);
+        if (kind) kinds.set(id, [...(kinds.get(id) ?? []), kind]);
+        if (key) keys.set(id, [...(keys.get(id) ?? []), `${kind ?? "fts"}:${key}`]);
+      };
+      for (const h of keyHits(token)) add(h.id, h.kind, h.key);
+      for (const r of loadFts(token)) add(r.id, "fts", token);
+      if (filterConds.length && ids.size) {
+        const allowed = new Set(loadByIds([...ids]).map((r) => r.id));
+        for (const id of [...ids]) if (!allowed.has(id)) ids.delete(id);
+      }
+      return { ids, kinds, keys };
+    };
+
+    const tokCache = new Map<string, ReturnType<typeof tokenSet>>();
+    const cachedToken = (token: string) => {
+      const hit = tokCache.get(token);
+      if (hit) return hit;
+      const next = tokenSet(token);
+      tokCache.set(token, next);
+      return next;
+    };
+
+    let ftsRows: FtsRow[] = [];
+    const allowed = new Set<number>();
+    if (parsed.ftsQuery.trim()) {
+      ftsRows = loadFts(parsed.ftsQuery);
+      for (const r of ftsRows) allowed.add(r.id);
+      for (const tok of parsed.boostTokens) {
+        for (const id of cachedToken(tok).ids) allowed.add(id);
+      }
+    } else if (!andTokens.length) {
+      ftsRows = loadRecency();
+      for (const r of ftsRows) allowed.add(r.id);
+    }
+
+    if (andTokens.length) {
+      for (let i = 0; i < andTokens.length; i++) {
+        const ids = cachedToken(andTokens[i]).ids;
+        if (i === 0 && !parsed.ftsQuery.trim()) {
+          for (const id of ids) allowed.add(id);
+        } else {
+          for (const id of [...allowed]) if (!ids.has(id)) allowed.delete(id);
+        }
+      }
+    }
+
+    if (parsed.ftsQuery.trim() || andTokens.length) {
+      const have = new Set(ftsRows.map((r) => r.id));
+      const missing = [...allowed].filter((id) => !have.has(id));
+      ftsRows = [...ftsRows.filter((r) => allowed.has(r.id)), ...loadByIds(missing)];
+    }
+
+    ftsRows.forEach((r, i) => ingest(r, i));
+
+    const annotateKeys = (token: string) => {
+      const { kinds, keys } = cachedToken(token);
+      for (const [id, ks] of kinds) {
+        const row = byId.get(id);
+        if (!row) continue;
+        for (const k of ks) row.keyKinds.add(k);
+        row.matchedKeys.push(...(keys.get(id) ?? []));
+      }
+    };
+    for (const tok of [...parsed.boostTokens, ...andTokens]) annotateKeys(tok);
+
+    const andMask = andTokens.length
+      ? andTokens.reduce<Set<number> | undefined>((acc, tok) => {
+          const ids = cachedToken(tok).ids;
+          if (!acc) return new Set(ids);
+          for (const id of [...acc]) if (!ids.has(id)) acc.delete(id);
+          return acc;
+        }, undefined)
+      : undefined;
 
 
 
@@ -1354,48 +1966,31 @@ export function search(
 
 
       scored.forEach((r, i) => {
-
+        if (andMask && !andMask.has(r.id)) return;
         const existing = byId.get(r.id);
-
         if (existing) {
-
           existing.vecRank = i + 1;
-
           existing.cosine = r.cosine;
-
         } else {
-
           byId.set(r.id, {
-
             id: r.id,
-
             file: r.file,
-
             heading: r.heading,
-
             doc_type: r.doc_type,
-
             logged_at: r.logged_at,
-
             agent: r.agent,
-
             status: r.status,
-
             superseded_by: r.superseded_by ?? "",
-
             snip: r.snip || r.heading,
-
             bm25Raw: 0,
-
             vecRank: i + 1,
-
             cosine: r.cosine,
-
+            keyKinds: new Set(),
+            matchedKeys: [],
           });
-
         }
-
       });
+      for (const tok of [...parsed.boostTokens, ...andTokens]) annotateKeys(tok);
 
     }
 
@@ -1414,6 +2009,10 @@ export function search(
     );
 
 
+
+    for (const c of byId.values()) {
+      c.matchedKeys = [...new Set(c.matchedKeys)];
+    }
 
     const candidates = [...byId.values()];
 
@@ -1447,7 +2046,12 @@ export function search(
 
       const rrf = rrfScores.get(r.id) ?? 0;
 
-      const relevance = useSemantic ? rrf / rrfMax : bm25Norm;
+      const keyBoost = keyBoostFromKinds(r.keyKinds);
+      const keyHit = r.keyKinds.has("id") || r.keyKinds.has("tag") || r.keyKinds.has("agent");
+      const addressing = andTokens.length > 0 || parsed.boostTokens.length > 0;
+      const relevance = tagBrowse
+        ? addressing && !keyHit ? 0.72 : 1
+        : useSemantic ? rrf / rrfMax : bm25Norm;
 
       const td = timeDecay(r.logged_at, config.decay_rate);
 
@@ -1459,17 +2063,28 @@ export function search(
 
       let validUntil: string | undefined;
 
+      let tags: string[] | undefined;
+
+      let attach: string | undefined;
+
+      let parsedMeta: Record<string, unknown> | undefined;
+
       const metaRow = getMeta.get(r.id) as { meta_json: string } | undefined;
 
       if (metaRow?.meta_json) {
 
         try {
 
-          const m = JSON.parse(metaRow.meta_json) as Record<string, unknown>;
+          parsedMeta = JSON.parse(metaRow.meta_json) as Record<string, unknown>;
 
-          validFrom = scalarMetaString(m, "valid_from") || scalarMetaString(m, "validFrom");
+          validFrom = scalarMetaString(parsedMeta, "valid_from") || scalarMetaString(parsedMeta, "validFrom");
 
-          validUntil = scalarMetaString(m, "valid_until") || scalarMetaString(m, "validUntil");
+          validUntil = scalarMetaString(parsedMeta, "valid_until") || scalarMetaString(parsedMeta, "validUntil");
+
+          if (Array.isArray(parsedMeta.tags)) {
+            tags = parsedMeta.tags.filter((t): t is string => typeof t === "string" && t.trim().length > 0);
+          }
+          if (typeof parsedMeta.attach === "string" && parsedMeta.attach.trim()) attach = parsedMeta.attach.trim();
 
         } catch { /* ignore */ }
 
@@ -1497,11 +2112,13 @@ export function search(
 
       const ib = intentBoost(intent, r.doc_type);
 
-      const dbBoost = domainBoostForFile(r.file, query, config);
+      const corpusBoost = corpusRetrievalBoost(parsedMeta);
+
+      const dbBoost = domainBoostForFile(r.file, query, config) * pathRetrievalBoost(r.file) * corpusBoost;
 
       const fb = feedbackPenalty(conn, r.file, r.heading);
 
-      const score = relevance * td * statusPenalty * vp * refBoost * ib * dbBoost * fb;
+      const score = relevance * td * statusPenalty * vp * refBoost * ib * dbBoost * fb * keyBoost;
 
 
 
@@ -1545,6 +2162,13 @@ export function search(
 
       };
 
+      if (tags?.length) result.tags = tags;
+
+      if (attach) result.attach = attach;
+
+      const work = workIdFromMeta(parsedMeta);
+      if (work) result.work = work;
+
       if (options?.explain) {
 
         result.explain = {
@@ -1567,6 +2191,8 @@ export function search(
 
           domainBoost: dbBoost,
 
+          corpusBoost,
+
           feedbackPenalty: fb,
 
           final: score,
@@ -1578,6 +2204,10 @@ export function search(
           rrf: useSemantic ? rrf : undefined,
 
           lineage,
+
+          keyBoost,
+
+          matchedKeys: r.matchedKeys.length ? r.matchedKeys : undefined,
 
         };
 
@@ -1591,7 +2221,9 @@ export function search(
 
     results.sort((a, b) => b.score - a.score);
 
-    const top = results.slice(0, max);
+    const deduped = dedupeSearchByWork(results);
+
+    const top = deduped.slice(0, max);
 
 
 

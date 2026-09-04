@@ -11,6 +11,10 @@ export const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "
 export const CLI = path.join(ROOT, "dist", "cli.js");
 export const DIST = path.join(ROOT, "dist");
 
+delete process.env.CENTRICMEM_URL;
+process.env.CENTRICMEM_LIBRARIES_JSON =
+  process.env.CENTRICMEM_LIBRARIES_JSON || path.join(os.tmpdir(), `cm-scen-nocat-${process.pid}.json`);
+
 export function tmpdir(name) {
   const d = path.join(os.tmpdir(), `cm-scenario-${name}-${Date.now()}`);
   fs.rmSync(d, { recursive: true, force: true });
@@ -25,6 +29,8 @@ export function runCli(args, cwd) {
   env.CENTRICMEM_HOME = cwd;
   delete env.CENTRICMEM_WORKSPACE;
   delete env.CENTRICMEM_PROJECT;
+  delete env.CENTRICMEM_URL;
+  env.CENTRICMEM_LIBRARIES_JSON = path.join(cwd, "scenario-libraries.json");
   return execFileSync("node", [CLI, ...args], { cwd, encoding: "utf8", env });
 }
 

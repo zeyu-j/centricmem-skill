@@ -26,10 +26,10 @@ export function agentsTemplate(projectName: string, createdAt: string): string {
 
 ## How Agents Should Use This Memory
 
-1. At session start, run \`centricmem ambient\` (or read product-home \`AGENTS.md\` + \`active_context.md\`).
-2. Before assumptions, run \`centricmem search "<keywords>"\`.
-3. After significant decisions, append via \`centricmem import\` or \`log-decision\`, then index as needed.
-4. When focus changes, update \`active_context.md\` or \`centricmem\` workflow per Skill.
+1. At session start, HTTP \`GET /ambient\`. Do not use a stale \`.ambient.md\` as a substitute.
+2. Before assumptions, \`GET /search\`. Then \`GET /show\` for the Markdown **card** (agent context). Do not load attached originals into the chat.
+3. Hold new knowledge in the chat. One sweep at session end: \`/keep\` (bytes or signed R2 PUT), \`/note\`, \`/log-decision\`, \`/done\` as needed.
+4. Humans download originals (\`GET /download?original=1\`). Operators on the librarian host may still use the CLI.
 
 ## Memory Map
 
@@ -50,8 +50,8 @@ Last indexed: — | Total chunks: 0
 | \`AGENTS.md\` | Global rules and project overview (this file) | Always (Level 0) |
 | \`active_context.md\` | Current task focus, overwritable | Always (Level 0) |
 | \`decisions/\` | Append-only architecture decision records | On demand via \`centricmem search\` (Level 1) |
-| \`lessons.md\` | Common pitfalls and hard-won knowledge | On demand via \`centricmem search\` (Level 1) |
-| \`sessions/\` | Episodic session log (append-only) | Recent tail at session start; search on demand |
+| \`lessons.md\` | Durable knowledge (models, facts, logic, pitfalls) | On demand via \`centricmem search\` / \`--tag\` |
+| \`sessions/\` | Episodic session log (one file per close; writer in the filename) | Recent tail at session start; search on demand |
 | \`imported/\` | Archived documents imported by \`centricmem migrate\` | On demand (Level 1) |
 
 <!-- centricmem:meta created_at=${createdAt} -->
@@ -74,7 +74,7 @@ export function activeContextTemplate(createdAt: string): string {
 export function lessonsTemplate(): string {
   return `# Lessons
 
-> Common pitfalls and hard-won knowledge. Append new lessons at the end.
+> Durable knowledge — mental models, facts, reasoning, pitfalls. Append at the end.
 `;
 }
 
@@ -89,9 +89,11 @@ export function decisionTemplate(opts: {
   tags?: string[];
   supersedes?: number;
   refs?: number[];
+  attach?: string;
 }): string {
   const id = String(opts.seq).padStart(4, "0");
   const tagsLine = opts.tags?.length ? `\n- **Tags**: ${opts.tags.join(", ")}` : "";
+  const attachLine = opts.attach ? `\n- **Attach**: ${opts.attach}` : "";
   const supersedesLine = opts.supersedes
     ? `\n- **Supersedes**: #${String(opts.supersedes).padStart(4, "0")}`
     : "";
@@ -102,7 +104,7 @@ export function decisionTemplate(opts: {
 
 - **Status**: Accepted
 - **Logged at**: ${opts.loggedAt}
-- **Logged by**: ${opts.agent}${tagsLine}${supersedesLine}${refsLine}
+- **Logged by**: ${opts.agent}${tagsLine}${attachLine}${supersedesLine}${refsLine}
 
 ## Context
 

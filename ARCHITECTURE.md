@@ -1,25 +1,28 @@
-# CentricMem Architecture (v0.13.0)
+# CentricMem Architecture (v0.21.6)
 
 > **设计真源**：[PRODUCT.md](./PRODUCT.md)（记忆架构 / 存储 / 检索）  
+> **使用面**：[PRODUCT_HOST.md](./PRODUCT_HOST.md)（云馆员、HTTP、钥匙）  
 > 本文档描述**技术实现**与模块划分。
 
 ## Layers
 
 ```text
-L1  Skill + CLI (centricmem-agent)  — when/how to read, import, classify, curate
-L0  Local core                       — Markdown SOT + SQLite FTS5 (+ optional embeddings)
-L2  External (optional)              — Drive MCP sync only; see SYNC.md
+L1  Skill + librarian HTTP + host MCP  — when/how to read, import, classify, curate
+L0  Librarian disk                     — Markdown SOT + SQLite FTS5 (+ optional embeddings)
+    Attach originals                   — imported/attach/ on disk or R2 (not FTS)
+Ops Cold backup                        — restic → separate R2 bucket (see SYNC.md)
 ```
 
 ## Product home layout (Agent-side)
 
 ```text
-$CENTRICMEM_HOME/   # default ~/.centricmem  (env CENTRICMEM_HOME)
+$CENTRICMEM_HOME/   # librarian hub (operators). Guests: leftover copy; CLI refuses writes.
   workspace.json
   .ambient.md
   skills/
     centricmem-agent/
       SKILL.md
+      REFERENCE.md
       integrations/
   projects/
     <slug>/
@@ -27,10 +30,12 @@ $CENTRICMEM_HOME/   # default ~/.centricmem  (env CENTRICMEM_HOME)
       active_context.md
       decisions/
       lessons.md
-      sessions/
+      sessions/                 # one file per close: <stamp>-<writer>-<id>.md
       imported/
-      .index/memory.db
+      .index/memory.db          # cache — delete and rebuild
 ```
+
+A unit is a Markdown file (or one `##` in lessons / AGENTS): Identity / Details / Tags / Body. Optional original bytes live under `imported/attach/` (pointer in Details). See PRODUCT.md §1.1.
 
 - Code repositories do **not** contain the hub — and should not contain product usage pointers either. Skill installs to `$CENTRICMEM_HOME/skills/` and `~/.cursor/skills/`.
 
@@ -39,7 +44,7 @@ $CENTRICMEM_HOME/   # default ~/.centricmem  (env CENTRICMEM_HOME)
 | Module | Role |
 |--------|------|
 | `core.ts` | Paths, config, hashing |
-| `workspace.ts` | Registry, link/use/classify (+path validation), suggest-classify, workspace health |
+| `workspace.ts` | Registry, write routing, link/use/classify, inbox, suggest-classify, workspace health |
 | `memory.ts` | All memory-unit writes/reads: decisions, context, lessons, sessions; distill, promote, health |
 | `indexer.ts` | Chunking, FTS5, hybrid ranking, dismiss feedback, Memory Map, **memory links** |
 | `embedding.ts` | OpenAI-compatible embedding API (env key only) |
@@ -49,8 +54,10 @@ $CENTRICMEM_HOME/   # default ~/.centricmem  (env CENTRICMEM_HOME)
 | `setup.ts` | Guided onboarding (skill + hooks install) |
 | `skill.ts` | Bundled vs installed Skill status (`skill status`) |
 | `templates.ts` | Markdown templates (decision, AGENTS, pointers) |
-| `cli.ts` | Primary user/agent surface |
-| `mcp-server.ts` | Optional legacy MCP tools (not the primary path) |
+| `cli.ts` | Operator exec surface on the librarian host (not an agent write fallback) |
+| `host-api.ts` / `host-server.ts` | Librarian HTTP (same handlers as CLI). Bind loopback until TLS; public bind behind proxy |
+| `host-connector.ts` | Host MCP proxy → librarian URL (not a second store) |
+| `mcp-server.ts` | Optional legacy MCP tools (not the sandbox path) |
 
 ## ImportBundle flow
 
@@ -101,7 +108,7 @@ Legacy `embedding.hybrid_alpha` is ignored for `--semantic` ranking (kept for ol
 
 ## Index invariants
 
-- The SQLite index is fully derivative: schema bump (`SCHEMA_VERSION` = 5) drops and rebuilds.
+- The SQLite index is fully derivative: schema bump (`SCHEMA_VERSION` = 8) drops and rebuilds. `chunk_keys` holds addressing keys (tag/id/agent/type/status/project) derived at index time.
 - Chunk paths are normalized to forward slashes (cross-platform).
 - Embeddings are cached by content hash; only stale chunks re-embed.
 - Links are re-extracted per file on every index pass (no stale edges).

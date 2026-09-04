@@ -10,6 +10,9 @@ import { fileURLToPath } from "node:url";
 import fs from "node:fs";
 import os from "node:os";
 
+delete process.env.CENTRICMEM_URL;
+process.env.CENTRICMEM_LIBRARIES_JSON = path.join(os.tmpdir(), `cm-mcp-nocat-${process.pid}.json`);
+
 let root = process.argv[2];
 if (!root) {
   root = fs.mkdtempSync(path.join(os.tmpdir(), "cm-mcp-"));
@@ -19,7 +22,7 @@ if (!fs.existsSync(path.join(root, "workspace.json"))) {
   const cli = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../dist/cli.js");
   execFileSync("node", [cli, "init", "--no-git-hook"], {
     cwd: root,
-    env: { ...process.env, CENTRICMEM_HOME: root },
+    env: { ...process.env, CENTRICMEM_HOME: root, CENTRICMEM_LIBRARIES_JSON: process.env.CENTRICMEM_LIBRARIES_JSON },
   });
 }
 
@@ -28,7 +31,7 @@ const serverPath = path.resolve(path.dirname(fileURLToPath(import.meta.url)), ".
 const transport = new StdioClientTransport({
   command: "node",
   args: [serverPath],
-  env: { ...process.env, CENTRICMEM_HOME: root, CENTRICMEM_AGENT: "test-client" },
+  env: { ...process.env, CENTRICMEM_HOME: root, CENTRICMEM_AGENT: "test-client", CENTRICMEM_LIBRARIES_JSON: process.env.CENTRICMEM_LIBRARIES_JSON },
 });
 const client = new Client({ name: "test-client", version: "0.0.1" });
 await client.connect(transport);
@@ -122,16 +125,17 @@ const lesson2 = await client.callTool({
 });
 check("log_lesson is idempotent", lesson2.content[0].text.includes("skipped"), lesson2.content[0].text);
 
-// 10. tag-only search
+// 10. tag-field search (no query)
 const tagSearch = await client.callTool({
   name: "centricmem_search",
-  arguments: { query: "performance", type: "decision" },
+  arguments: { tags: ["performance"], type: "decision" },
 });
 check("tag-only search hits tagged decision", tagSearch.content[0].text.includes("Redis"), tagSearch.content[0].text.split("\n")[0]);
+check("tag-only search prints tags line", tagSearch.content[0].text.includes("performance"), tagSearch.content[0].text);
 
 const sess = await client.callTool({
   name: "centricmem_log_session",
-  arguments: { summary: "Fixed auth bug", title: "Auth session" },
+  arguments: { summary: "Fixed auth bug", title: "Auth session", tags: ["auth-bug"] },
 });
 check("log_session creates entry", sess.content[0].text.includes("Session logged"), sess.content[0].text);
 

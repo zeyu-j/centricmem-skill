@@ -89,7 +89,7 @@ CREATE TABLE chunk_meta (chunk_id INTEGER PRIMARY KEY, meta_json TEXT NOT NULL);
 
 ## 5. 明确不做
 
-- 核心识别 Cursor / Reasonix / 任何 Agent 品牌
+- 核心识别任何具体 Agent 品牌
 - 核心扫描 session 目录或对接会话浏览器
 - Web UI、token 成本追踪
 - 在 `classifyIntent()` 硬编码学术维度
@@ -112,19 +112,16 @@ CREATE TABLE chunk_meta (chunk_id INTEGER PRIMARY KEY, meta_json TEXT NOT NULL);
 > 以下仅适用于已选择 `ancient-medicine` 项目 slug 的部署，**不是** CentricMem 通用安装步骤。
 
 ```bash
-# 1. 导出（你的脚本 → ImportBundle）
-python academic/_scripts/export_to_centricmem.py
-
-# 2. 导入
-centricmem import academic/_scripts/bundles/corpus-batch-001.json -p ancient-medicine
-
-# 3. 项目 config（domain_boost 示例）
-cp templates/config.ancient-medicine.json .centricmem/projects/ancient-medicine/config.json
-
-# 4. 索引与验证
+# Index the live markdown tree (junctioned at imported/academic/)
 centricmem index -p ancient-medicine
+
+# Optional: copy domain_boost template if the project config is still empty
+# cp templates/config.ancient-medicine.json $CENTRICMEM_HOME/projects/ancient-medicine/config.json
+
 centricmem search "hemorrhoid" -p ancient-medicine --filter civilization=babylonian -t imported
 ```
+
+`imported/_flat_dump/` is an archived flatten and is not indexed. PDF/docx stay on the source tree; attach with `keep --original` if needed.
 
 合成路径：`search` → 读 crosswalk 全文 → 草稿表 → `log-decision --refs "…"`。
 

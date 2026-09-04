@@ -1,32 +1,34 @@
-# CentricMem Sync Contract (L2)
+# CentricMem backup (not product sync)
 
-> External sync layer — optional. Local Markdown remains the Source of Truth.
+The librarian disk is the source of truth. Product sync is **not** rsync, Drive MCP, or a bidirectional folder replica. Agents do not write R2. Humans do not push a laptop copy back as the hub.
 
-## Scope
+## Disaster recovery (operators)
 
 | Item | Value |
 |------|-------|
-| Sync unit | **Project-level** — `$CENTRICMEM_HOME/projects/<slug>/` |
-| Remote role | Replica / backup only |
-| Conflict resolution | **Local wins** — never auto-merge decision files |
+| Cold backup | **restic → Cloudflare R2** (a **separate** bucket from attach originals) |
+| What | Markdown + `imported/attach/` pointers; attach bytes already live in the keep bucket when R2 is on |
+| Skip | `.index/` — rebuild with `centricmem index --all` after restore |
+| Secrets | restic password ≠ pairing keys ≠ R2 keep credentials |
 
-## Recommended flow
+Restore: R2 → librarian disk → start the process → `index`. Do not treat the backup bucket as a writable memory store.
 
-1. `centricmem index --all` — ensure local index is current
-2. Sync project folder to remote (e.g. Drive MCP)
-3. On pull: treat remote as read-only unless human confirms overwrite
+## Human pull-only copy
+
+Owners may export Markdown (no keys) and open files on their computer. Pull, do not push. A downloaded folder is not the hub.
+
+## Session units (multi-writer)
+
+Each `log-session` / `done` writes `sessions/<UTC-stamp>-<writer>-<id>.md`. Pre-0.15.1 daily `YYYY-MM-DD.md` files still read. Do not auto-merge leftover daily files.
 
 ## Do not
 
 - Auto-merge `decisions/` on conflict
-- Use MCP as local search/write path
-- Store secrets in synced memory files
-
-## Roadmap: remote read-only index
-
-`config.json` may include `remote_index_url` for future read-only remote indexes. Not implemented as of v0.12.
+- Use MCP as a second search/write store
+- Store secrets in memory files
+- Dual-write a leftover Windows Manager hub and the cloud librarian (guest CLI refuses leftover-hub writes)
 
 ## Related
 
-- [PRODUCT.md](./PRODUCT.md) — L2 external layer
-- [BETA.md](./BETA.md) — setup with `--drive-mcp-hint`
+- [PRODUCT_HOST.md](./PRODUCT_HOST.md) — hosted use, restic, no Drive/rsync product path
+- [PRODUCT.md](./PRODUCT.md) — memory architecture

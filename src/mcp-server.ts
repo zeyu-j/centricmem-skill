@@ -19,10 +19,14 @@ import path from "node:path";
 import { findWorkspaceRoot, resolvePaths, getProductHome } from "./core.js";
 import { getCurrentProjectSlug } from "./workspace.js";
 import { initProject, logDecision, updateContext, readContext, logLesson, logSession } from "./memory.js";
-import { buildIndex, getDb, search, searchAsync, classifyIntent, closeAllCached } from "./indexer.js";
+import { buildIndex, getDb, search, searchScoped, searchScopedAsync, parseAddressQuery, resolveSearchSlugs, classifyIntent, closeAllCached } from "./indexer.js";
 import { cliVersion } from "./skill.js";
+import { isLibrarianGuest, guestHubWriteMessage } from "./guest.js";
 
 function getWorkspace(): string {
+  if (isLibrarianGuest()) {
+    throw new Error(guestHubWriteMessage("centricmem-mcp"));
+  }
   const env = process.env.CENTRICMEM_HOME || process.env.CENTRICMEM_WORKSPACE || process.env.CENTRICMEM_ROOT;
   if (env) {
     initProject(path.resolve(env));
@@ -50,9 +54,9 @@ server.registerTool(
   {
     title: "Search project memory",
     description:
-      "Full-text search over the project's memory (.centricmem/): decisions, rules, context, lessons. Supports type, status, and agent filters. Use before making assumptions about project conventions or past decisions.",
+      "Search project memory. Keywords use FTS. tags / tag: / --tag require the token in the Tags field OR the body (AND); tagged rows rank higher. Prefixes: type: status: id: #NNNN project: agent:.",
     inputSchema: {
-      query: z.string().describe("Search query (keywords, class names, topics)"),
+      query: z.string().optional().describe("Keywords and prefixes (type:, tag:, id:, #NNNN, project:). Optional if tags or type is set."),
       limit: z.number().int().min(1).max(50).optional().describe("Max results (default from config, 5)"),
       type: z
         .enum(["decision", "rule", "lesson", "context", "session", "imported"])
@@ -64,24 +68,35 @@ server.registerTool(
         .describe("Filter by status"),
       agent: z.string().optional().describe("Filter by source agent, e.g. 'cursor', 'claude-code', 'migration'"),
       meta: z.record(z.string(), z.string()).optional().describe("Metadata filters, e.g. { civilization: 'chinese', type: 'recipe' }"),
+      tags: z.array(z.string()).optional().describe("Require each token in Tags or body (AND); tagged rows rank higher"),
       explain: z.boolean().optional().describe("Include score breakdown per result"),
       semantic: z.boolean().optional().describe("Hybrid BM25 + embedding search"),
     },
   },
-  async ({ query, limit, type, status, agent, meta, explain, semantic }) => {
+  async ({ query, limit, type, status, agent, meta, tags, explain, semantic }) => {
     try {
       const ws = getWorkspace();
       const slug = getProjectSlug(ws);
       const paths = resolvePaths(ws, slug);
       const db = getDb(paths);
-      const filters = { type, status, agent, meta };
-      const results = semantic
-        ? await searchAsync(paths, query, limit, filters, { explain, semantic })
-        : search(paths, query, limit, filters, db, { explain, semantic });
-      if (!results.length) {
-        return { content: [{ type: "text", text: `No memory found for "${query}". BM25 needs at least one overlapping content word — try broader or alternative keywords (e.g. the technology name instead of a synonym), or call centricmem_read_context to see the Memory Map overview.` }] };
+      const q = (query ?? "").trim();
+      const parsed = parseAddressQuery(q);
+      if (!q && !tags?.length && !type && !status && !agent) {
+        return { isError: true, content: [{ type: "text", text: "Provide query, tags, or type:/--type" }] };
       }
-      const intent = classifyIntent(query);
+      const filters = { type, status, agent, meta, tags };
+      const scope = parsed.projectScopes.length ? undefined : { project: slug };
+      const slugs = resolveSearchSlugs(ws, parsed, scope);
+      const results = slugs.length === 1 && slugs[0] === slug && !semantic
+        ? search(paths, q, limit, filters, db, { explain, semantic })
+        : semantic
+          ? await searchScopedAsync(ws, q, limit, filters, { explain, semantic }, scope)
+          : searchScoped(ws, q, limit, filters, { explain, semantic }, scope);
+      if (!results.length) {
+        const hint = q ? `"${q}"` : tags?.length ? `tags ${tags.join(", ")}` : "this filter";
+        return { content: [{ type: "text", text: `No memory found for ${hint}. Tokens match Tags or body; tagged rows rank higher. Try type:decision, #0016, project:slug, or broader keywords. Or call centricmem_read_context to see the Memory Map overview.` }] };
+      }
+      const intent = parsed.ftsQuery ? classifyIntent(parsed.ftsQuery) : "general";
       const header = intent !== "general" ? `(query intent: ${intent})\n\n` : "";
       const text =
         header +
@@ -89,7 +104,9 @@ server.registerTool(
           .map((r, i) => {
             const statusTag = r.status && r.status !== "active" ? ` [${r.status.toUpperCase()}]` : "";
             const supTag = r.supersededBy ? ` → superseded by #${r.supersededBy.padStart(4, "0")}` : "";
-            return `${i + 1}. [${r.docType}]${statusTag}${supTag} ${r.heading} (score ${r.score.toFixed(2)})\n   file: .centricmem/${r.file} | at: ${r.loggedAt} | by: ${r.agent}\n   ${r.snippet.replace(/\n/g, " ")}${r.explain ? `\n   explain: rel=${r.explain.relevance.toFixed(3)} time=${r.explain.timeDecay.toFixed(3)}` : ""}`;
+            const tagsLine = r.tags?.length ? `\n   tags: ${r.tags.join(", ")}` : "";
+            const attachLine = r.attach ? `\n   attach: ${r.attach}` : "";
+            return `${i + 1}. [${r.docType}]${statusTag}${supTag} ${r.heading} (score ${r.score.toFixed(2)})\n   file: .centricmem/${r.file} | at: ${r.loggedAt} | by: ${r.agent}\n   ${r.snippet.replace(/\n/g, " ")}${tagsLine}${attachLine}${r.explain ? `\n   explain: rel=${r.explain.relevance.toFixed(3)} time=${r.explain.timeDecay.toFixed(3)}` : ""}`;
           })
           .join("\n\n");
       return { content: [{ type: "text", text }] };
@@ -205,20 +222,21 @@ server.registerTool(
 server.registerTool(
   "centricmem_log_lesson",
   {
-    title: "Log a lesson learned",
+    title: "Log durable knowledge",
     description:
-      "Append a lesson (pitfall, gotcha, hard-won knowledge) to the current project's lessons.md. Call when you discover something that future sessions should know to avoid repeating mistakes.",
+      "Append durable knowledge to lessons.md: mental models, facts, logic, or pitfalls. Call whenever a future session would benefit — do not wait for session end, and do not limit this to mistakes.",
     inputSchema: {
-      title: z.string().min(1).describe("Short lesson title, e.g. 'N+1 queries in user endpoint'"),
-      body: z.string().min(1).describe("What happened, why it matters, and how to avoid it"),
+      title: z.string().min(1).describe("Short title"),
+      body: z.string().min(1).describe("The knowledge itself"),
       agent: z.string().optional().describe("Calling agent name"),
+      tags: z.array(z.string()).optional().describe("Folksonomy tags — reuse ambient Tags or mint"),
     },
   },
-  async ({ title, body, agent }) => {
+  async ({ title, body, agent, tags }) => {
     try {
       const ws = getWorkspace();
       const slug = getProjectSlug(ws);
-      const result = logLesson(ws, { title, body, agent }, slug);
+      const result = logLesson(ws, { title, body, agent, tags }, slug);
       if (result.status === "skipped") {
         return { content: [{ type: "text", text: `Lesson "${title}" already exists in lessons.md — skipped.` }] };
       }
@@ -234,18 +252,19 @@ server.registerTool(
   "centricmem_log_session",
   {
     title: "Log session summary",
-    description: "Append episodic session entry to sessions/YYYY-MM-DD.md (implicit memory capture).",
+    description: "Log one session unit (unique file per close, tagged with writer). Always pass tags: reuse ambient Tags or mint a specific new one.",
     inputSchema: {
       summary: z.string().min(1).describe("Session summary"),
       title: z.string().optional().describe("Section heading"),
       agent: z.string().optional(),
+      tags: z.array(z.string()).optional().describe("Folksonomy tags — reuse existing or mint new"),
     },
   },
-  async ({ summary, title, agent }) => {
+  async ({ summary, title, agent, tags }) => {
     try {
       const ws = getWorkspace();
       const slug = getProjectSlug(ws);
-      const result = logSession(ws, { summary, title, agent }, slug);
+      const result = logSession(ws, { summary, title, agent, tags }, slug);
       buildIndex(resolvePaths(ws, slug));
       return { content: [{ type: "text", text: `Session logged: ${result.file} → ## ${result.heading}` }] };
     } catch (err) {

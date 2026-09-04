@@ -27,6 +27,7 @@ export const ImportLessonSchema = z.object({
     title: z.string().min(1),
     body: z.string().default(""),
     agent: z.string().optional(),
+    tags: z.array(z.string()).optional(),
     external_id: z.string().optional(),
 });
 export const ImportRuleSchema = z.object({
@@ -116,8 +117,12 @@ function formatMetaYaml(meta) {
     return lines.join("\n");
 }
 function formatImportedDoc(title, body, meta) {
+    const trimmed = body.trim();
+    if (trimmed.startsWith("---")) {
+        return trimmed.endsWith("\n") ? trimmed : `${trimmed}\n`;
+    }
     const fm = meta && Object.keys(meta).length ? `---\n${formatMetaYaml(meta)}\n---\n\n` : "";
-    return `${fm}# ${title}\n\n${body.trim()}\n\n<!-- centricmem:meta imported_at=${nowISO()} updated_by=migration -->\n`;
+    return `${fm}# ${title}\n\n${trimmed}\n`;
 }
 function appendToAgents(agentsFile, sectionTitle, body, source) {
     let content = fs.existsSync(agentsFile) ? fs.readFileSync(agentsFile, "utf8") : "# AGENTS.md\n";
@@ -183,7 +188,7 @@ export function importBundle(workspaceRoot, bundle, opts) {
             skipped++;
             continue;
         }
-        const r = logLesson(workspaceRoot, { title: l.title, body: l.body, agent: l.agent ?? "migration" }, project);
+        const r = logLesson(workspaceRoot, { title: l.title, body: l.body, agent: l.agent ?? "migration", tags: l.tags }, project);
         if (r.status === "skipped")
             skipped++;
         else
@@ -267,6 +272,8 @@ export function importBundle(workspaceRoot, bundle, opts) {
             research++;
     }
     saveIdempotency(paths.memDir, idem);
-    buildIndex(paths);
+    const wrote = decisions + lessons + rules + imported + sessions + research + updated + (bundle.context?.body ? 1 : 0);
+    if (wrote > 0)
+        buildIndex(paths);
     return { project, decisions, lessons, rules, imported, sessions, research, skipped, updated };
 }

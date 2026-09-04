@@ -1,12 +1,16 @@
 # Capture adapters (export → ImportBundle)
 
-Other memory skills stay the **capture** endpoint. CentricMem is the **organize / retrieve** layer.
+Other memory skills stay the **capture** endpoint. CentricMem is the **organise / retrieve** layer.
 
 ```text
 capture tool  →  map fields  →  ImportBundle JSON  →  centricmem import
 ```
 
 CentricMem core does **not** scan agent install directories. Your adapter (script or Skill) owns the mapping.
+
+**Cursor chats already have a local backup.** Desktop writes JSONL under `~/.cursor/projects/<workspace>/agent-transcripts/<uuid>/<uuid>.jsonl`. That is Cursor backup, not CentricMem capture. Do not ingest it by default. Cursor memories (and other memory plugins) stay the capture store; CentricMem files a unit only when organising.
+
+Other agents: only map a file that runtime actually writes. No file → no dump.
 
 ## Contract checklist
 
@@ -15,7 +19,7 @@ CentricMem core does **not** scan agent install directories. Your adapter (scrip
 3. Prefer `imported[]` / `research[]` for raw capture dumps (default **upsert** on re-import).
 4. Use `decisions[]` / `lessons[]` only when the source already looks like curated ADRs — they stay **skip-only** (append-only).
 5. Run `centricmem import export.json` (add `--skip-existing` for one-shot migrate semantics).
-6. Classify out of `unclassified` when ready: `suggest-classify` → `classify --to <slug>`.
+6. Classify out of `unclassified` when ready: `centricmem inbox` then `classify --to <slug>`.
 
 See [IMPORT_BUNDLE.md](../../../../IMPORT_BUNDLE.md) for the full field contract and re-import table.
 
@@ -40,7 +44,7 @@ Rules from `cursor-rules` now carry `external_id` = relative path so repeated mi
 # 2) Upsert raw material into CentricMem
 centricmem import /tmp/capture-bundle.json -p unclassified
 
-# 3) Optional: search / ambient use the organized index
+# 3) Optional: search / ambient use the organised index
 centricmem search "auth" --all
 ```
 

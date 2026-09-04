@@ -6,7 +6,7 @@ import { Command } from "commander";
 import fs from "node:fs";
 import path from "node:path";
 import readline from "node:readline";
-import { findWorkspaceRoot, resolvePaths, loadConfig, getProductHome } from "./core.js";
+import { findWorkspaceRoot, resolvePaths, loadConfig, getProductHome, assertLibraryPath } from "./core.js";
 import {
   initProject,
   distill,
@@ -17,6 +17,10 @@ import {
   logLesson,
   logSession,
   autoSessionSummary,
+  ingestOriginal,
+  keepOriginal,
+  showMemory,
+  parseAttachLine,
 } from "./memory.js";
 import { listTemplates, applyTemplate } from "./templates.js";
 import { migrate } from "./migrate.js";
@@ -26,10 +30,10 @@ import {
   buildIndexAsync,
   logIndexStart,
   logIndexDone,
-  search,
-  searchAsync,
-  searchAll,
-  searchAllAsync,
+  searchScoped,
+  searchScopedAsync,
+  parseAddressQuery,
+  resolveSearchSlugs,
   classifyIntent,
   dismissChunk,
   getLinks,
@@ -37,15 +41,31 @@ import {
 } from "./indexer.js";
 import { parseImportBundle, importBundle } from "./import.js";
 import {
-  linkProject,
   useProject,
   listProjects,
   classifyMemory,
   getCurrentProjectSlug,
   suggestClassify,
+  listInbox,
+  applyInbox,
   workspaceHealth,
-  loadWorkspace,
 } from "./workspace.js";
+import {
+  createLibrary,
+  ensureHubCatalog,
+  formatLibrariesList,
+  linkCwdToLibrary,
+  loadCatalog,
+  setCurrentLibrary,
+} from "./libraries.js";
+import {
+  AccountError,
+  accountFetch,
+  bootstrapOwner,
+  clearGuestSession,
+  loadGuestSession,
+  saveGuestSession,
+} from "./account.js";
 import { runSetup, printSetupSummary, installCursorHooks } from "./setup.js";
 import {
   routeQuery,
@@ -54,6 +74,11 @@ import {
   formatUninitializedAmbient,
   formatUninitializedStatus,
 } from "./retrieve.js";
+import { runDoctor, formatDoctorText } from "./doctor.js";
+import { listenHostServer } from "./host-server.js";
+import { DEFAULT_HOST_PORT, librarianRequest } from "./host-discover.js";
+import { fillAttachFromDir, isR2Enabled, loadAttachOriginal } from "./r2.js";
+import { isLibrarianGuest, librarianGuestOrigin, guestHubWriteMessage } from "./guest.js";
 import { isEmbeddingEnabled } from "./embedding.js";
 import {
   skillStatus,
@@ -65,7 +90,7 @@ import {
 } from "./skill.js";
 
 const program = new Command();
-program.name("centricmem").description("Cross-agent project memory layer (workspace hub)").version(cliVersion());
+program.name("centricmem").description("Manager layer over agent-native memory (librarian hub)").version(cliVersion());
 
 function parseMetaFilters(pairs: string[] | undefined): Record<string, string> | undefined {
   if (!pairs?.length) return undefined;
@@ -78,6 +103,21 @@ function parseMetaFilters(pairs: string[] | undefined): Record<string, string> |
   return meta;
 }
 
+function attachRel(ws: string, src: string | undefined, project?: string): string | undefined {
+  if (!src?.trim()) return undefined;
+  return ingestOriginal(ws, src.trim(), project).attachRel;
+}
+
+function showHint(r: { file: string; heading: string; docType: string; attach?: string }): string {
+  const q = (s: string) => JSON.stringify(s);
+  const heading =
+    (r.docType === "lessons" || r.docType === "session") && r.heading
+      ? ` --heading ${q(r.heading)}`
+      : "";
+  if (r.attach) return `attach: ${r.attach}  →  GET /download?file=…&original=1 (humans; operators: show --original on the librarian host)`;
+  return `show: centricmem show ${q(r.file)}${heading}`;
+}
+
 function tryWorkspace(): string | null {
   return findWorkspaceRoot();
 }
@@ -85,10 +125,21 @@ function tryWorkspace(): string | null {
 function requireWorkspace(): string {
   const root = tryWorkspace();
   if (!root) {
-    console.error("Error: no CentricMem product home found. Run `centricmem init` (creates ~/.centricmem).");
+    console.error("Error: no CentricMem memory library found. Run `centricmem setup --bootstrap --workspace <path> --persist-home`.");
     process.exit(1);
   }
   return root;
+}
+
+function denyGuestHubWrite(action: string): void {
+  if (!isLibrarianGuest()) return;
+  console.error(guestHubWriteMessage(action));
+  process.exit(1);
+}
+
+function requireLocalWriter(): string {
+  denyGuestHubWrite("this command");
+  return requireWorkspace();
 }
 
 function askYesNo(question: string): Promise<boolean> {
@@ -121,7 +172,7 @@ function installGitHook(root: string): string {
 
 program
   .command("init")
-  .description("Initialise Agent product home (~/.centricmem) + optional code-repo pointers")
+  .description("Initialise the memory library (CENTRICMEM_HOME or ~/.centricmem); not the CLI folder")
   .option("--template <name>", "apply template to current project after init")
   .option("--list-templates", "list built-in templates")
   .option("--git-hook", "install post-commit index hook in the code repo")
@@ -132,6 +183,8 @@ program
       return;
     }
     const home = getProductHome();
+    denyGuestHubWrite("init");
+    assertLibraryPath(home);
     const cwd = process.cwd();
     const result = initProject(home, cwd);
     for (const f of result.created) console.log(`  created  ${f}`);
@@ -157,24 +210,32 @@ program
 
 program
   .command("setup")
-  .description("Guided product-home setup (link code projects, migrate, install skill)")
-  .option("--workspace <path>", "product home override (default: CENTRICMEM_HOME or ~/.centricmem)")
+  .description("Guided setup: pick a memory library (--workspace), then link code / install skill")
+  .option("--workspace <path>", "memory library path (Steam-style games folder). Default: CENTRICMEM_HOME, pointer, or ~/.centricmem")
+  .option("--persist-home", "remember --workspace (pointer file + Windows user env CENTRICMEM_HOME)")
+  .option("--migrate-home", "copy hub files (workspace.json, projects/, skills/) into --workspace")
+  .option("--from-home <path>", "source hub for --migrate-home (default: current library)")
+  .option("--retire-old-home", "after --migrate-home, rename workspace.json if the source was the CLI folder")
   .option("--bootstrap", "cold-start: --link-all + --install-skill (no hooks)")
   .option("--link-all", "link subdirectories of cwd that have .git or package.json")
   .option(
     "--link <path>",
-    "link an explicit project path (repeatable)",
+    "link an explicit code path to a library (repeatable)",
     (v: string, prev: string[]) => [...prev, v],
     [] as string[],
   )
   .option("--migrate-discover", "import discovered cursor-rules / memory-bank into unclassified")
   .option("--migrate-from-local", "move cwd/.centricmem into product home and remove the local hub")
-  .option("--install-skill", "install bundled skills to $CENTRICMEM_HOME/skills/ (+ ~/.cursor/skills)")
+  .option("--install-skill", "install bundled skills to $CENTRICMEM_HOME/skills/ (+ ~/.cursor, ~/.codex, ~/.agents)")
   .option("--install-academic-skill", "install academic-db-agent SKILL to product home")
   .option("--install-hooks", "install Cursor session hooks into the code repo .cursor/hooks/")
-  .option("--drive-mcp-hint", "print Drive MCP sync configuration hint")
+  .option("--drive-mcp-hint", "print backup note (restic; Drive/rsync is not a product path)")
   .action((opts: {
     workspace?: string;
+    persistHome?: boolean;
+    migrateHome?: boolean;
+    fromHome?: string;
+    retireOldHome?: boolean;
     bootstrap?: boolean;
     linkAll?: boolean;
     link?: string[];
@@ -185,6 +246,14 @@ program
     installHooks?: boolean;
     driveMcpHint?: boolean;
   }) => {
+    if ((opts.migrateHome || opts.persistHome) && !opts.workspace) {
+      console.error("Error: --workspace <library-path> is required with --persist-home / --migrate-home");
+      process.exitCode = 1;
+      return;
+    }
+    if (opts.bootstrap || opts.migrateHome || opts.migrateFromLocal || opts.migrateDiscover || opts.persistHome || opts.linkAll || opts.link?.length) {
+      denyGuestHubWrite("setup hub mutate");
+    }
     const result = runSetup({
       workspace: opts.workspace,
       codeRoot: process.cwd(),
@@ -193,68 +262,172 @@ program
       linkPaths: opts.link?.length ? opts.link : undefined,
       migrateDiscover: opts.migrateDiscover,
       migrateFromLocal: opts.migrateFromLocal,
+      migrateHome: opts.migrateHome,
+      fromHome: opts.fromHome,
+      persistHome: opts.persistHome,
+      retireOldHome: opts.retireOldHome,
       installSkill: opts.installSkill,
       installAcademicSkill: opts.installAcademicSkill,
       installHooks: opts.installHooks,
       driveMcpHint: opts.driveMcpHint,
     });
-    printSetupSummary(result.workspaceRoot);
+    if (isLibrarianGuest()) {
+      console.log(`Guest of ${librarianGuestOrigin()} — leftover hub not written.`);
+    } else {
+      printSetupSummary(result.workspaceRoot);
+    }
     if (result.linked.length) console.log(`Linked: ${result.linked.join(", ")}`);
     if (result.migrated) console.log(`Migrated ${result.migrated} source(s) → unclassified`);
     if (result.migratedFromLocal) console.log("Migrated local .centricmem/ → product home");
-    if (result.skillInstalled) console.log(`Skill installed to ${path.join(result.workspaceRoot, "skills", "centricmem-agent")}/`);
+    if (result.migratedHome) console.log("Copied memory library into --workspace");
+    if (result.persistedHome) console.log(`Remembered library at ${result.persistedHome}`);
+    if (result.retiredOldHome) console.log("Retired workspace.json in the old client folder");
+    if (result.skillInstalled) {
+      console.log(
+        isLibrarianGuest()
+          ? "Skill installed to ~/.cursor/skills/centricmem-agent/ (and ~/.codex, ~/.agents)"
+          : `Skill installed to ${path.join(result.workspaceRoot, "skills", "centricmem-agent")}/`,
+      );
+    }
     if (result.academicSkillInstalled) console.log("Academic skill installed");
     if (result.hooksInstalled) console.log("Cursor hooks installed to .cursor/hooks/");
   });
 
 program
   .command("link <path>")
-  .description("Register a subdirectory as a memory project")
+  .description("Link a code folder to its own library (pairing key + projects/<slug>/)")
   .action((subpath: string) => {
-    const ws = requireWorkspace();
-    const slug = linkProject(ws, subpath);
-    console.log(`Linked ${subpath} → project "${slug}"`);
-    buildIndex(resolvePaths(ws, slug));
+    const ws = requireLocalWriter();
+    const lib = linkCwdToLibrary(ws, subpath);
+    console.log(`Linked ${subpath} → library "${lib.id}"`);
+    buildIndex(resolvePaths(ws, lib.id));
   });
 
 program
   .command("use <slug>")
-  .description("Switch current project")
+  .description("Open a library (display/ambient current; writes still follow cwd link / -p)")
   .action((slug: string) => {
-    const ws = requireWorkspace();
+    const ws = requireLocalWriter();
     useProject(ws, slug);
-    console.log(`Current project: ${slug}`);
+    try {
+      setCurrentLibrary(slug);
+    } catch {
+      ensureHubCatalog(ws);
+      setCurrentLibrary(slug);
+    }
+    console.log(`Opened library: ${slug} (writes still use env / -p / cwd link, else Inbox)`);
+  });
+
+program
+  .command("libraries")
+  .description("List libraries (pairing keys per library). `projects` is an alias.")
+  .option("--json", "machine-readable JSON")
+  .option("--create <id>", "create a library folder and pairing key")
+  .option("--use <id>", "open this library")
+  .action((opts: { json?: boolean; create?: string; use?: string }) => {
+    if (opts.create || opts.use) denyGuestHubWrite("libraries --create/--use");
+    if (isLibrarianGuest() && !opts.create && !opts.use) {
+      const cat = loadCatalog();
+      if (!cat) {
+        console.error("No guest catalog. Pairing keys live in %APPDATA%/centricmem/libraries.json");
+        process.exit(1);
+      }
+      if (opts.json) {
+        console.log(JSON.stringify({
+          current: cat.current,
+          origin: cat.origin,
+          libraries: cat.libraries.map((lib) => ({
+            id: lib.id,
+            displayName: lib.displayName,
+            sourceDirs: lib.sourceDirs,
+            system: lib.system || undefined,
+          })),
+        }, null, 2));
+        return;
+      }
+      console.log(formatLibrariesList(cat) || "(no libraries)");
+      return;
+    }
+    const ws = requireWorkspace();
+    if (opts.create) {
+      const lib = createLibrary(ws, opts.create);
+      console.log(`Created library ${lib.id} (${lib.displayName})`);
+    }
+    if (opts.use) {
+      useProject(ws, opts.use);
+      setCurrentLibrary(opts.use);
+      console.log(`Opened library: ${opts.use}`);
+    }
+    const cat = ensureHubCatalog(ws);
+    if (opts.json) {
+      console.log(JSON.stringify({
+        current: cat.current,
+        libraries: cat.libraries.map((lib) => ({
+          id: lib.id,
+          displayName: lib.displayName,
+          sourceDirs: lib.sourceDirs,
+          system: lib.system || undefined,
+        })),
+      }, null, 2));
+      return;
+    }
+    console.log(formatLibrariesList(cat) || "(no libraries)");
   });
 
 program
   .command("projects")
-  .description("List registered projects")
-  .action(() => {
-    const ws = requireWorkspace();
-    for (const p of listProjects(ws)) {
-      console.log(`${p.current ? "*" : " "} ${p.slug}${p.entry.sourceDir ? `  (${p.entry.sourceDir})` : ""}`);
+  .description("Alias of `libraries`")
+  .option("--json", "machine-readable JSON")
+  .action((opts: { json?: boolean }) => {
+    if (isLibrarianGuest()) {
+      const cat = loadCatalog();
+      if (!cat) {
+        console.error("No guest catalog.");
+        process.exit(1);
+      }
+      if (opts.json) {
+        console.log(JSON.stringify({ current: cat.current, origin: cat.origin, libraries: cat.libraries.map((lib) => ({ id: lib.id, displayName: lib.displayName, sourceDirs: lib.sourceDirs })) }, null, 2));
+        return;
+      }
+      console.log(formatLibrariesList(cat) || "(no libraries)");
+      return;
     }
+    const ws = requireWorkspace();
+    const cat = ensureHubCatalog(ws);
+    if (opts.json) {
+      console.log(JSON.stringify({
+        current: cat.current,
+        libraries: cat.libraries.map((lib) => ({
+          id: lib.id,
+          displayName: lib.displayName,
+          sourceDirs: lib.sourceDirs,
+        })),
+        projects: listProjects(ws),
+      }, null, 2));
+      return;
+    }
+    console.log(formatLibrariesList(cat));
   });
 
 program
   .command("classify <relPath>")
-  .description("Move memory from unclassified to a project (path relative to project memDir)")
-  .requiredOption("--to <slug>", "target project slug")
+  .description("Move memory from the Inbox library to another library")
+  .requiredOption("--to <slug>", "target library id")
   .action((relPath: string, opts: { to: string }) => {
-    const ws = requireWorkspace();
+    const ws = requireLocalWriter();
     const r = classifyMemory(ws, relPath, opts.to);
     buildIndex(resolvePaths(ws, opts.to));
-    console.log(`Moved: ${r.moved.join(", ")} → ${opts.to}`);
+    console.log(`Moved: ${r.moved.join(", ")} → library ${opts.to}`);
   });
 
 program
   .command("suggest-classify <relPath>")
   .description("Suggest target project for unclassified memory")
   .action((relPath: string) => {
-    const ws = requireWorkspace();
+    const ws = requireLocalWriter();
     const suggestions = suggestClassify(ws, relPath);
     if (!suggestions.length) {
-      console.log("No strong matches. Consider creating a new project with `centricmem link`.");
+      console.log("No strong matches. Consider creating a library with `centricmem libraries --create <id>` or `centricmem link`.");
       return;
     }
     for (const s of suggestions) {
@@ -263,14 +436,65 @@ program
   });
 
 program
+  .command("inbox")
+  .description("List Inbox library files; --apply moves high-confidence matches to another library")
+  .option("--apply", "move high-confidence files; print the rest for classify --to")
+  .option("--json", "output JSON")
+  .action((opts: { apply?: boolean; json?: boolean }) => {
+    denyGuestHubWrite("inbox");
+    const ws = requireWorkspace();
+    if (opts.apply) {
+      const r = applyInbox(ws);
+      if (opts.json) {
+        console.log(JSON.stringify(r, null, 2));
+        return;
+      }
+      if (!r.moved.length && !r.skipped.length) {
+        console.log("Inbox empty.");
+        return;
+      }
+      for (const m of r.moved) {
+        console.log(`moved  ${m.relPath} → ${m.to}`);
+        buildIndex(resolvePaths(ws, m.to));
+      }
+      for (const s of r.skipped) {
+        console.log(`skip   ${s.relPath}  — ${s.reason}`);
+      }
+      console.log(`\n${r.moved.length} moved, ${r.skipped.length} left. Move leftovers: centricmem classify <rel> --to <library>`);
+      return;
+    }
+    const items = listInbox(ws);
+    if (opts.json) {
+      console.log(JSON.stringify(items, null, 2));
+      return;
+    }
+    if (!items.length) {
+      console.log("Inbox empty.");
+      return;
+    }
+    for (const item of items) {
+      if (item.kind === "aggregate") {
+        console.log(`skip   ${item.relPath}  — ${item.skipReason}`);
+        continue;
+      }
+      const hint = item.suggestion
+        ? `${item.suggestion.slug} (score ${item.suggestion.score})`
+        : "(no suggestion)";
+      console.log(`file   ${item.relPath}  → ${hint}`);
+    }
+    console.log("\nHigh-confidence auto-move: centricmem inbox --apply");
+    console.log("Manual: centricmem classify <rel> --to <library>");
+  });
+
+program
   .command("import [file]")
   .description("Import ImportBundle JSON into project memory (raw docs upsert by default)")
   .option("--stdin", "read bundle from stdin")
   .option("--dry-run", "preview counts only")
   .option("--skip-existing", "skip any external_id already imported (one-shot migrate style)")
-  .option("-p, --project <slug>", "target project (default: unclassified)")
+  .option("-p, --project <slug>", "target library id (default: Inbox)")
   .action((file: string | undefined, opts: { stdin?: boolean; dryRun?: boolean; skipExisting?: boolean; project?: string }) => {
-    const ws = requireWorkspace();
+    const ws = requireLocalWriter();
     let raw: string;
     if (opts.stdin) {
       raw = fs.readFileSync(0, "utf8");
@@ -299,7 +523,7 @@ program
         console.log("\nIndex rebuilt. Next:");
         console.log(`  centricmem search "<keywords>" -p ${r.project}`);
         if (r.project === "unclassified") {
-          console.log("  centricmem suggest-classify <relPath>   # then classify --to <slug>");
+          console.log("  centricmem inbox                     # then classify --to <library>");
         }
         console.log("  centricmem status --workspace");
       }
@@ -311,8 +535,9 @@ program
   .description("One-way import from cursor-rules | memory-bank | markdown → unclassified")
   .requiredOption("--from <type>", "cursor-rules | memory-bank | markdown")
   .requiredOption("--path <path>", "source path")
-  .option("-p, --project <slug>", "target project (default: unclassified)")
+  .option("-p, --project <slug>", "target library id (default: Inbox)")
   .action((opts: { from: string; path: string; project?: string }) => {
+    denyGuestHubWrite("migrate");
     const home = findWorkspaceRoot() ?? getProductHome();
     if (!findWorkspaceRoot()) initProject(home, process.cwd());
     try {
@@ -328,25 +553,78 @@ program
   });
 
 program
-  .command("search <query...>")
-  .description("Search project memory (FTS5 + optional semantic)")
+  .command("search [query...]")
+  .description("Search library memory (FTS5 + optional semantic); --tag / tag: match Tags or body")
   .option("-n, --limit <n>", "max results")
   .option("-t, --type <type>", "decision | rule | lesson | context | session | imported")
   .option("-s, --status <status>", "active | superseded | ...")
   .option("-a, --agent <agent>", "filter by agent")
   .option("-f, --filter <pair>", "metadata filter key=value (repeatable)", (v, acc: string[]) => { acc.push(v); return acc; }, [])
-  .option("-p, --project <slug>", "search one project")
-  .option("--all", "search all projects")
+  .option("--tag <tag>", "require this token in Tags or body (repeatable, AND)", (v, acc: string[]) => { acc.push(v); return acc; }, [])
+  .option("-p, --project <slug>", "search one library (alias of --library)")
+  .option("--library <id>", "search one library")
+  .option("--all", "search all open libraries in the catalogue")
   .option("--semantic", "hybrid BM25 + embedding search via RRF (requires API key)")
   .option("--explain", "show score breakdown")
+  .option("--json", "machine-readable JSON output")
   .action(async (queryParts: string[], opts: {
     limit?: string; type?: string; status?: string; agent?: string; filter?: string[];
-    project?: string; all?: boolean; semantic?: boolean; explain?: boolean;
+    tag?: string[]; project?: string; library?: string; all?: boolean; semantic?: boolean; explain?: boolean; json?: boolean;
   }) => {
+    const query = (queryParts ?? []).join(" ").trim();
+    const tags = (opts.tag ?? []).map((t) => t.trim()).filter(Boolean);
+    const parsed = parseAddressQuery(query);
+    const hasAddr = Boolean(
+      tags.length || parsed.type || parsed.status || parsed.agent || parsed.andTokens.length ||
+      parsed.projectScopes.length || opts.type || opts.status || opts.agent,
+    );
+    if (!query && !hasAddr) {
+      console.error('Provide a query, --tag, type: / #id, or --type, e.g. centricmem search "auth" --tag redis');
+      process.exit(1);
+    }
+    if (isLibrarianGuest()) {
+      const params = new URLSearchParams();
+      if (query) params.set("q", query);
+      if (opts.limit) params.set("limit", opts.limit);
+      if (opts.type) params.set("type", opts.type);
+      if (opts.status) params.set("status", opts.status);
+      if (opts.agent) params.set("agent", opts.agent);
+      for (const t of tags) params.append("tags", t);
+      for (const f of opts.filter ?? []) params.append("filter", f);
+      const library = opts.library || opts.project;
+      const res = await librarianRequest(`/search?${params.toString()}`, { library });
+      const body = (await res.json()) as { ok?: boolean; results?: Array<{
+        score: number; heading: string; docType: string; status?: string; file: string;
+        loggedAt?: string; agent?: string; snippet?: string; tags?: string[]; projectSlug?: string;
+        attach?: string;
+      }>; error?: { message?: string } };
+      if (!res.ok || !body.ok) {
+        console.error(body.error?.message || `Search failed (${res.status}).`);
+        process.exit(1);
+      }
+      const results = body.results ?? [];
+      if (opts.json) {
+        console.log(JSON.stringify(results));
+        return;
+      }
+      if (!results.length) {
+        console.log("No results. Try broader keywords or `centricmem status`.");
+        return;
+      }
+      for (const r of results) {
+        const proj = r.projectSlug ? `[${r.projectSlug}] ` : "";
+        const statusTag = r.status && r.status !== "active" ? ` [${r.status.toUpperCase()}]` : "";
+        console.log(`\n${proj}[${Number(r.score).toFixed(2)}] ${r.heading}  (${r.docType})${statusTag}`);
+        console.log(`  file: ${r.file}  |  at: ${r.loggedAt}  |  by: ${r.agent}`);
+        console.log(`  ${(r.snippet || "").replace(/\n/g, " ")}`);
+        if (r.tags?.length) console.log(`  tags: ${r.tags.join(", ")}`);
+        console.log(`  ${showHint(r)}`);
+      }
+      return;
+    }
     const ws = requireWorkspace();
-    const query = queryParts.join(" ");
-    const intent = classifyIntent(query);
-    if (intent !== "general") console.log(`(intent: ${intent})`);
+    const intent = query ? classifyIntent(parsed.ftsQuery || query) : "general";
+    if (!opts.json && intent !== "general") console.log(`(intent: ${intent})`);
     const limit = opts.limit ? parseInt(opts.limit, 10) : undefined;
     let meta: Record<string, string> | undefined;
     try {
@@ -355,22 +633,28 @@ program
       console.error((err as Error).message);
       process.exit(1);
     }
-    const filters = { type: opts.type, status: opts.status, agent: opts.agent, meta };
+    const filters = { type: opts.type, status: opts.status, agent: opts.agent, meta, tags: tags.length ? tags : undefined };
     const searchOpts = { semantic: opts.semantic, explain: opts.explain };
-
-    if (opts.semantic) {
-      const anyEnabled = opts.all
-        ? Object.keys(loadWorkspace(ws).projects).some((slug) => isEmbeddingEnabled(loadConfig(resolvePaths(ws, slug))))
-        : isEmbeddingEnabled(loadConfig(resolvePaths(ws, opts.project)));
-      if (!anyEnabled) console.log("(semantic disabled — no embedding config/API key; using BM25)");
+    const scope = { project: opts.library || opts.project, all: opts.all };
+    const slugs = resolveSearchSlugs(ws, parsed, scope);
+    if (!slugs.length) {
+      console.error("No matching library index for this query (check library: / -p / --library).");
+      process.exit(1);
     }
 
-    const results = opts.all
-      ? await searchAllAsync(ws, query, limit, filters, searchOpts)
-      : opts.semantic
-        ? await searchAsync(resolvePaths(ws, opts.project), query, limit, filters, searchOpts)
-        : search(resolvePaths(ws, opts.project), query, limit, filters, undefined, searchOpts);
+    if (opts.semantic) {
+      const anyEnabled = slugs.some((slug) => isEmbeddingEnabled(loadConfig(resolvePaths(ws, slug))));
+      if (!opts.json && !anyEnabled) console.log("(semantic disabled — no embedding config/API key; using BM25)");
+    }
 
+    const results = opts.semantic
+      ? await searchScopedAsync(ws, query, limit, filters, searchOpts, scope)
+      : searchScoped(ws, query, limit, filters, searchOpts, scope);
+
+    if (opts.json) {
+      console.log(JSON.stringify(results));
+      return;
+    }
     if (!results.length) {
       console.log("No results. Try broader keywords or `centricmem status`.");
       return;
@@ -381,6 +665,8 @@ program
       console.log(`\n${proj}[${r.score.toFixed(2)}] ${r.heading}  (${r.docType})${statusTag}`);
       console.log(`  file: ${r.file}  |  at: ${r.loggedAt}  |  by: ${r.agent}`);
       console.log(`  ${r.snippet.replace(/\n/g, " ")}`);
+      if (r.tags?.length) console.log(`  tags: ${r.tags.join(", ")}`);
+      console.log(`  ${showHint(r)}`);
       if (r.explain) {
         const e = r.explain;
         const ranks = [
@@ -390,8 +676,9 @@ program
         ].filter(Boolean).join(" | ");
         if (ranks) console.log(`  trajectory: ${ranks}`);
         console.log(
-          `  explain: bm25=${e.bm25.toFixed(3)} cos=${e.cosine.toFixed(3)} rel=${e.relevance.toFixed(3)} time=${e.timeDecay.toFixed(3)} status=${e.statusPenalty} valid=${e.validityPenalty ?? 1} ref=${e.refBoost.toFixed(3)} intent=${e.intentBoost} domain=${e.domainBoost.toFixed(3)} fb=${e.feedbackPenalty.toFixed(3)}`,
+          `  explain: bm25=${e.bm25.toFixed(3)} cos=${e.cosine.toFixed(3)} rel=${e.relevance.toFixed(3)} time=${e.timeDecay.toFixed(3)} status=${e.statusPenalty} valid=${e.validityPenalty ?? 1} ref=${e.refBoost.toFixed(3)} intent=${e.intentBoost} domain=${e.domainBoost.toFixed(3)} fb=${e.feedbackPenalty.toFixed(3)}${e.keyBoost != null ? ` key=${e.keyBoost.toFixed(3)}` : ""}`,
         );
+        if (e.matchedKeys?.length) console.log(`  keys: ${e.matchedKeys.join(", ")}`);
         if (e.lineage) console.log(`  lineage: ${e.lineage}`);
       }
     }
@@ -415,16 +702,17 @@ program
 
 program
   .command("log-session [summary...]")
-  .description("Append episodic session entry to sessions/YYYY-MM-DD.md")
-  .option("-p, --project <slug>", "project slug")
+  .description("Log one session unit to sessions/<stamp>-<writer>-<id>.md")
+  .option("-p, --project <slug>", "library id (-p alias)")
   .option("--stdin", "read summary from stdin")
   .option("--title <title>", "session heading")
-  .option("--tags <tags>", "comma-separated tags (e.g. work,ops,deploy)")
+  .option("--tags <tags>", "comma-separated folksonomy tags (reuse ambient Tags, or mint)")
+  .option("--attach <path>", "copy original file into imported/attach and link it")
   .option("--auto", "derive summary from active_context Current Focus (hooks)")
   .action((summaryParts: string[], opts: {
-    project?: string; stdin?: boolean; title?: string; auto?: boolean; tags?: string;
+    project?: string; stdin?: boolean; title?: string; auto?: boolean; tags?: string; attach?: string;
   }) => {
-    const ws = requireWorkspace();
+    const ws = requireLocalWriter();
     let summary: string;
     if (opts.auto) {
       summary = autoSessionSummary(ws, opts.project);
@@ -433,9 +721,10 @@ program
     } else {
       summary = summaryParts.join(" ");
     }
-    const title = opts.title ?? (opts.auto ? "auto" : undefined);
+    const title = opts.title;
     const tags = opts.tags?.split(",").map((t) => t.trim()).filter(Boolean);
-    const r = logSession(ws, { summary, title, tags }, opts.project);
+    const attach = attachRel(ws, opts.attach, opts.project);
+    const r = logSession(ws, { summary, title, tags, attach }, opts.project);
     buildIndex(resolvePaths(ws, opts.project));
     console.log(`Session logged: ${r.file} → ## ${r.heading}`);
   });
@@ -443,18 +732,20 @@ program
 program
   .command("done [summary...]")
   .description("Close-contract alias for log-session (prefer with --tags)")
-  .option("-p, --project <slug>", "project slug")
-  .option("--tags <tags>", "comma-separated tags (e.g. work,ops,deploy)")
+  .option("-p, --project <slug>", "library id (-p alias)")
+  .option("--tags <tags>", "comma-separated folksonomy tags (reuse ambient Tags, or mint)")
   .option("--title <title>", "session heading")
-  .action((summaryParts: string[], opts: { project?: string; tags?: string; title?: string }) => {
-    const ws = requireWorkspace();
+  .option("--attach <path>", "copy original file into imported/attach and link it")
+  .action((summaryParts: string[], opts: { project?: string; tags?: string; title?: string; attach?: string }) => {
+    const ws = requireLocalWriter();
     const summary = summaryParts.join(" ").trim();
     if (!summary) {
-      console.error('Provide a summary: centricmem done --tags work "what shipped"');
+      console.error('Provide a summary: centricmem done --tags VAN68 "what shipped"');
       process.exit(1);
     }
     const tags = opts.tags?.split(",").map((t) => t.trim()).filter(Boolean);
-    const r = logSession(ws, { summary, title: opts.title, tags }, opts.project);
+    const attach = attachRel(ws, opts.attach, opts.project);
+    const r = logSession(ws, { summary, title: opts.title, tags, attach }, opts.project);
     buildIndex(resolvePaths(ws, opts.project));
     console.log(`Session logged: ${r.file} → ## ${r.heading}`);
   });
@@ -466,21 +757,23 @@ program
   .option("--context <text>", "why the decision was needed", "")
   .option("--decision <text>", "what was decided", "")
   .option("--consequences <text>", "trade-offs / follow-ups")
-  .option("--tags <tags>", "comma-separated tags")
+  .option("--tags <tags>", "comma-separated folksonomy tags (reuse ambient Tags, or mint)")
+  .option("--attach <path>", "copy original file into imported/attach and link it")
   .option("--supersedes <seq>", "sequence number this replaces")
   .option("--refs <seqs>", "comma-separated decision numbers this references, e.g. \"1,4\"")
-  .option("-p, --project <slug>", "project slug")
+  .option("-p, --project <slug>", "library id (-p alias)")
   .action((opts: {
     title: string; context: string; decision: string; consequences?: string;
-    tags?: string; supersedes?: string; refs?: string; project?: string;
+    tags?: string; attach?: string; supersedes?: string; refs?: string; project?: string;
   }) => {
-    const ws = requireWorkspace();
+    const ws = requireLocalWriter();
     const r = logDecision(ws, {
       title: opts.title,
       context: opts.context,
       decision: opts.decision,
       consequences: opts.consequences,
       tags: opts.tags?.split(",").map((t) => t.trim()).filter(Boolean),
+      attach: attachRel(ws, opts.attach, opts.project),
       supersedes: opts.supersedes ? parseInt(opts.supersedes, 10) : undefined,
       refs: opts.refs
         ?.split(",")
@@ -493,21 +786,112 @@ program
 
 program
   .command("log-lesson")
-  .description("Append a lesson to lessons.md (idempotent by title)")
+  .description("Append durable knowledge to lessons.md (idempotent by title)")
   .requiredOption("--title <title>", "lesson title")
-  .requiredOption("--body <text>", "what happened and how to avoid it")
-  .option("--tags <tags>", "comma-separated tags")
-  .option("-p, --project <slug>", "project slug")
-  .action((opts: { title: string; body: string; tags?: string; project?: string }) => {
-    const ws = requireWorkspace();
+  .requiredOption("--body <text>", "the knowledge: model, fact, logic, or pitfall")
+  .option("--tags <tags>", "comma-separated folksonomy tags (reuse ambient Tags, or mint)")
+  .option("--attach <path>", "copy original file into imported/attach and link it")
+  .option("-p, --project <slug>", "library id (-p alias)")
+  .action((opts: { title: string; body: string; tags?: string; attach?: string; project?: string }) => {
+    const ws = requireLocalWriter();
     const tags = opts.tags?.split(",").map((t) => t.trim()).filter(Boolean);
-    const r = logLesson(ws, { title: opts.title, body: opts.body, tags }, opts.project);
+    const r = logLesson(ws, {
+      title: opts.title, body: opts.body, tags, attach: attachRel(ws, opts.attach, opts.project),
+    }, opts.project);
     if (r.status === "skipped") {
       console.log(`Lesson "${opts.title}" already exists — skipped.`);
       return;
     }
     buildIndex(resolvePaths(ws, opts.project));
     console.log(`Lesson "${opts.title}" appended to lessons.md`);
+  });
+
+program
+  .command("note")
+  .description("Close-contract alias for log-lesson (durable knowledge, not only pitfalls)")
+  .requiredOption("--title <title>", "short name for this knowledge")
+  .requiredOption("--body <text>", "the knowledge: model, fact, logic, or pitfall")
+  .option("--tags <tags>", "comma-separated folksonomy tags (reuse ambient Tags, or mint)")
+  .option("--attach <path>", "copy original file into imported/attach and link it")
+  .option("-p, --project <slug>", "library id (-p alias)")
+  .action((opts: { title: string; body: string; tags?: string; attach?: string; project?: string }) => {
+    const ws = requireLocalWriter();
+    const tags = opts.tags?.split(",").map((t) => t.trim()).filter(Boolean);
+    const r = logLesson(ws, {
+      title: opts.title, body: opts.body, tags, attach: attachRel(ws, opts.attach, opts.project),
+    }, opts.project);
+    if (r.status === "skipped") {
+      console.log(`Lesson "${opts.title}" already exists — skipped.`);
+      return;
+    }
+    buildIndex(resolvePaths(ws, opts.project));
+    console.log(`Note logged: ${opts.title}`);
+  });
+
+program
+  .command("keep <path>")
+  .description("Collect any file: searchable stub + attached original (humans download; not FTS)")
+  .option("--title <title>", "stub title (default: filename)")
+  .option("--tags <tags>", "comma-separated folksonomy tags (reuse ambient Tags, or mint)")
+  .option("-p, --project <slug>", "library id (-p alias)")
+  .action((src: string, opts: { title?: string; tags?: string; project?: string }) => {
+    const ws = requireLocalWriter();
+    const tags = opts.tags?.split(",").map((t) => t.trim()).filter(Boolean);
+    const r = keepOriginal(ws, src, { title: opts.title, tags, projectSlug: opts.project });
+    buildIndex(resolvePaths(ws, opts.project));
+    console.log(`Kept ${r.stubRel}`);
+    console.log(`  attach: ${r.attachRel}`);
+    console.log(`  download: GET /download?file=…&original=1 (humans)`);
+  });
+
+program
+  .command("show <file>")
+  .description("Print a memory card, or --original to stdout for operators (not the agent path)")
+  .option("--heading <heading>", "one ## section (lessons / sessions)")
+  .option("--original", "operator: write attached original to stdout; agents must not")
+  .option("-p, --project <slug>", "library id (-p alias)")
+  .action(async (file: string, opts: { heading?: string; original?: boolean; project?: string }) => {
+    if (isLibrarianGuest()) {
+      if (opts.original) {
+        console.error("Guest: humans download originals. Do not centricmem show --original.");
+        process.exit(1);
+      }
+      const params = new URLSearchParams({ file });
+      if (opts.heading) params.set("heading", opts.heading);
+      if (opts.project) params.set("library", opts.project);
+      const res = await librarianRequest(`/show?${params.toString()}`, { library: opts.project });
+      const body = (await res.json()) as { ok?: boolean; text?: string; error?: { message?: string } };
+      if (!res.ok || !body.ok) {
+        console.error(body.error?.message || `Show failed (${res.status}).`);
+        process.exit(1);
+      }
+      process.stdout.write(body.text || "");
+      return;
+    }
+    const ws = requireWorkspace();
+    try {
+      if (opts.original) {
+        const unit = showMemory(ws, file, {
+          heading: opts.heading, original: false, projectSlug: opts.project,
+        });
+        const attachRel = parseAttachLine(unit);
+        if (!attachRel) throw new Error(`No Attach line on ${file}`);
+        const slug = opts.project ?? getCurrentProjectSlug(ws);
+        const buf = await loadAttachOriginal(ws, slug, attachRel);
+        if (buf.includes(0)) {
+          process.stdout.write(`(binary original, ${buf.length} bytes)\npath: ${attachRel}\n`);
+        } else {
+          process.stdout.write(buf.toString("utf8"));
+        }
+        return;
+      }
+      process.stdout.write(showMemory(ws, file, {
+        heading: opts.heading, original: false, projectSlug: opts.project,
+      }));
+    } catch (err) {
+      console.error((err as Error).message);
+      process.exit(1);
+    }
   });
 
 const skillCmd = program.command("skill").description("Installed Skill vs bundled copy (pull-based updates)");
@@ -538,12 +922,66 @@ skillCmd
     if (result.status !== "ok") process.exitCode = 1;
   });
 
+const r2cmd = program.command("r2").description("Object store for attach originals (operator)");
+
+r2cmd
+  .command("fill-attach")
+  .description("Upload files from a local attach directory to R2 using existing imported/attach/ names. Does not create stubs.")
+  .requiredOption("--library <id>", "library id (object key prefix), e.g. Academic")
+  .requiredOption("--dir <path>", "directory of originals (usually imported/attach)")
+  .option("--dry-run", "count files only; do not contact R2")
+  .option("--delete-source", "delete each local file after HEAD confirms the object")
+  .option("--concurrency <n>", "parallel uploads", "3")
+  .action(async (opts: { library: string; dir: string; dryRun?: boolean; deleteSource?: boolean; concurrency?: string }) => {
+    if (!opts.dryRun && !isR2Enabled()) {
+      console.error("R2 is not configured. Set CENTRICMEM_R2_* in the environment.");
+      process.exit(1);
+    }
+    const result = await fillAttachFromDir({
+      libraryId: opts.library,
+      dir: path.resolve(opts.dir),
+      dryRun: Boolean(opts.dryRun),
+      deleteSource: Boolean(opts.deleteSource),
+      concurrency: opts.concurrency ? parseInt(opts.concurrency, 10) : 3,
+    });
+    console.log(
+      `${opts.dryRun ? "dry-run" : "fill"} library=${result.libraryId} scanned=${result.scanned} uploaded=${result.uploaded} skipped=${result.skipped} failed=${result.failed} bytes=${result.bytes} deleted=${result.deleted}`,
+    );
+    if (result.failed > 0) process.exitCode = 1;
+  });
+
+program
+  .command("doctor")
+  .description("Check CLI, skill, librarian, and whether cwd is linked to a memory project")
+  .option("--json", "machine-readable JSON output")
+  .action(async (opts: { json?: boolean }) => {
+    const home = getProductHome();
+    const ws = tryWorkspace();
+    const r = await runDoctor(ws ?? home);
+    if (opts.json) {
+      console.log(JSON.stringify(r, null, 2));
+    } else {
+      console.log(formatDoctorText(r));
+    }
+    if (!r.ok) process.exitCode = 1;
+  });
+
 program
   .command("ambient")
   .description("Implicit memory preflight block (session start)")
-  .option("-p, --project <slug>", "project slug")
-  .option("--write", "write .centricmem/.ambient.md")
-  .action((opts: { project?: string; write?: boolean }) => {
+  .option("-p, --project <slug>", "library id (-p alias)")
+  .option("--write", "also print the path of the refreshed .ambient.md")
+  .action(async (opts: { project?: string; write?: boolean }) => {
+    if (isLibrarianGuest()) {
+      const res = await librarianRequest("/ambient", { library: opts.project });
+      const body = (await res.json()) as { ok?: boolean; text?: string; error?: { message?: string } };
+      if (!res.ok) {
+        console.error(body.error?.message || `Ambient failed (${res.status}).`);
+        process.exit(1);
+      }
+      console.log(body.text || "");
+      return;
+    }
     const ws = tryWorkspace();
     if (!ws) {
       console.log(formatUninitializedAmbient(getProductHome()).text);
@@ -551,9 +989,9 @@ program
     }
     const block = buildAmbient(ws, opts.project);
     console.log(block.text);
+    const f = writeAmbientFile(ws, block);
     if (opts.write) {
-      const f = writeAmbientFile(ws, block);
-      console.log(`\nWritten: ${path.relative(ws, f)}`);
+      console.log(f ? `\nWritten: ${path.relative(ws, f)}` : "\nWritten: (skipped — library not writable)");
     }
   });
 
@@ -562,10 +1000,10 @@ program
   .description("Promote recurring patterns to Global Rules")
   .option("--from-distill", "show distill suggestions")
   .option("--pattern <text>", "rule text to promote")
-  .option("-p, --project <slug>", "project slug")
+  .option("-p, --project <slug>", "library id (-p alias)")
   .option("--confirm", "write to AGENTS.md (required)")
   .action((opts: { fromDistill?: boolean; pattern?: string; project?: string; confirm?: boolean }) => {
-    const ws = requireWorkspace();
+    const ws = requireLocalWriter();
     const slug = opts.project ?? getCurrentProjectSlug(ws);
 
     if (opts.fromDistill) {
@@ -598,8 +1036,12 @@ program
   .command("refs <seq>")
   .description("Show link neighborhood of a decision (refs / mentions / supersedes)")
   .option("--depth <n>", "hops to expand (1-3)", "1")
-  .option("-p, --project <slug>", "project slug")
+  .option("-p, --project <slug>", "library id (-p alias)")
   .action((seqArg: string, opts: { depth?: string; project?: string }) => {
+    if (isLibrarianGuest()) {
+      console.error("Guest: refs reads the leftover hub index. Search HTTP instead.");
+      process.exit(1);
+    }
     const ws = requireWorkspace();
     const seq = parseInt(seqArg.replace(/^#/, ""), 10);
     if (!Number.isInteger(seq) || seq < 1) {
@@ -625,9 +1067,9 @@ program
   .command("dismiss <file>")
   .description("Negative feedback — down-rank a memory chunk")
   .option("--heading <heading>", "specific section heading")
-  .option("-p, --project <slug>", "project slug")
+  .option("-p, --project <slug>", "library id (-p alias)")
   .action((file: string, opts: { heading?: string; project?: string }) => {
-    const ws = requireWorkspace();
+    const ws = requireLocalWriter();
     dismissChunk(resolvePaths(ws, opts.project), file, opts.heading);
     console.log(`Dismissed: ${file}${opts.heading ? ` / ${opts.heading}` : ""}`);
   });
@@ -635,9 +1077,16 @@ program
 program
   .command("status")
   .description("Memory health for current project or workspace")
-  .option("-p, --project <slug>", "project slug")
+  .option("-p, --project <slug>", "library id (-p alias)")
   .option("--workspace", "workspace-level health including unclassified backlog")
   .action((opts: { project?: string; workspace?: boolean }) => {
+    if (isLibrarianGuest()) {
+      const cat = loadCatalog();
+      console.log(`Guest of ${librarianGuestOrigin()} — leftover hub is not the writer.`);
+      console.log(`libraries: ${cat?.libraries.map((lib) => lib.id).join(", ") || "(none)"}`);
+      console.log("Use HTTP /ambient or `centricmem doctor`.");
+      return;
+    }
     const ws = tryWorkspace();
     if (!ws) {
       console.log(formatUninitializedStatus(getProductHome()));
@@ -693,11 +1142,11 @@ program
   .command("index")
   .description("Rebuild FTS5 index (and embeddings when --embed)")
   .option("--all", "index all projects")
-  .option("-p, --project <slug>", "index one project")
+  .option("-p, --project <slug>", "index one library")
   .option("-q, --quiet", "suppress output")
   .option("--embed", "also embed chunks via API")
   .action(async (opts: { all?: boolean; project?: string; quiet?: boolean; embed?: boolean }) => {
-    const ws = requireWorkspace();
+    const ws = requireLocalWriter();
     let stats: import("./indexer.js").IndexStats;
     if (opts.all) {
       stats = buildIndexAll(ws, { quiet: opts.quiet });
@@ -721,6 +1170,240 @@ program
       }
       stats = opts.embed ? await buildIndexAsync(paths, { embed: true }) : buildIndex(paths);
       if (!opts.quiet) logIndexDone(stats);
+    }
+  });
+
+program
+  .command("serve")
+  .description("Run the librarian HTTP API (Manager starts this automatically)")
+  .option("--port <n>", "preferred port", String(DEFAULT_HOST_PORT))
+  .option("--bind <addr>", "listen address (default 127.0.0.1; 0.0.0.0 until TLS is behind a proxy)")
+  .option("--token <token>", "bind this token to the Inbox library (default: mint/keep catalogue keys)")
+  .action(async (opts: { port?: string; bind?: string; token?: string }) => {
+    denyGuestHubWrite("serve");
+    const ws = tryWorkspace() ?? getProductHome();
+    const port = opts.port ? parseInt(opts.port, 10) : DEFAULT_HOST_PORT;
+    await listenHostServer({
+      home: ws,
+      token: opts.token?.trim() || undefined,
+      port,
+      bind: opts.bind?.trim() || process.env.CENTRICMEM_BIND?.trim(),
+    });
+    console.error("Librarian is listening. Leave this process running. Pairing keys are in the library catalogue (not printed).");
+  });
+
+function readAccountPassword(opts: { passwordFile?: string }): string {
+  if (opts.passwordFile) {
+    const value = fs.readFileSync(path.resolve(opts.passwordFile), "utf8").replace(/^\uFEFF/, "").trim();
+    if (!value) throw new Error("Password file is empty.");
+    return value;
+  }
+  const env = process.env.CENTRICMEM_ACCOUNT_PASSWORD?.trim();
+  if (env) return env;
+  throw new Error("Set CENTRICMEM_ACCOUNT_PASSWORD or pass --password-file. Do not put the password on the command line.");
+}
+
+function librarianUrl(opts: { url?: string }): string {
+  return (opts.url || process.env.CENTRICMEM_URL || `http://127.0.0.1:${DEFAULT_HOST_PORT}`).replace(/\/+$/, "");
+}
+
+function accountError(error: unknown): never {
+  if (error instanceof AccountError) {
+    console.error(error.message);
+    process.exit(error.http >= 500 ? 1 : 1);
+  }
+  throw error;
+}
+
+const account = program.command("account").description("Owner login for a librarian (website register is POST /register)");
+
+account
+  .command("bootstrap")
+  .description("Create the single owner on this hub. Refuses if one already exists.")
+  .requiredOption("--email <email>", "owner email")
+  .option("--password-file <path>", "read password from this file (or CENTRICMEM_ACCOUNT_PASSWORD)")
+  .action((opts: { email: string; passwordFile?: string }) => {
+    denyGuestHubWrite("account bootstrap");
+    const ws = requireLocalWriter();
+    try {
+      const owner = bootstrapOwner(ws, opts.email, readAccountPassword(opts));
+      console.log(`Owner ${owner.email} created. Sign in on the website or with centricmem account login.`);
+    } catch (error) {
+      accountError(error);
+    }
+  });
+
+account
+  .command("login")
+  .description("Sign in to a librarian and store a local session (not an agent pairing key)")
+  .requiredOption("--email <email>", "owner email")
+  .option("--url <url>", "librarian origin")
+  .option("--password-file <path>", "read password from this file (or CENTRICMEM_ACCOUNT_PASSWORD)")
+  .action(async (opts: { email: string; url?: string; passwordFile?: string }) => {
+    const url = librarianUrl(opts);
+    const password = readAccountPassword(opts);
+    const res = await accountFetch(url, undefined, "POST", "/login", { email: opts.email, password });
+    const body = res.json as { ok?: boolean; token?: string; email?: string; expiresAt?: string; error?: { message?: string } };
+    if (res.status !== 200 || !body.token || !body.email) {
+      console.error(body.error?.message || `Login failed (${res.status}).`);
+      process.exit(1);
+    }
+    saveGuestSession({ url, email: body.email, token: body.token, expiresAt: body.expiresAt || "" });
+    console.log(`Signed in as ${body.email} at ${url}. This session is not an agent pairing key.`);
+  });
+
+account
+  .command("forgot")
+  .description("Email a password-reset link if this address is the librarian owner")
+  .requiredOption("--email <email>", "owner email")
+  .option("--url <url>", "librarian origin")
+  .action(async (opts: { email: string; url?: string }) => {
+    const url = librarianUrl(opts);
+    const res = await accountFetch(url, undefined, "POST", "/forgot-password", { email: opts.email });
+    const body = res.json as { ok?: boolean; message?: string; error?: { message?: string } };
+    if (res.status !== 200 || !body.ok) {
+      console.error(body.error?.message || `Forgot password failed (${res.status}).`);
+      process.exit(1);
+    }
+    console.log(body.message || "If that email is the owner, we sent a reset link.");
+  });
+
+account
+  .command("reset")
+  .description("Set a new owner password from a reset token file (do not pass the token on the command line)")
+  .requiredOption("--token-file <path>", "file containing the reset token")
+  .option("--password-file <path>", "read password from this file (or CENTRICMEM_ACCOUNT_PASSWORD)")
+  .option("--url <url>", "librarian origin")
+  .action(async (opts: { tokenFile: string; passwordFile?: string; url?: string }) => {
+    const url = librarianUrl(opts);
+    const token = fs.readFileSync(path.resolve(opts.tokenFile), "utf8").replace(/^\uFEFF/, "").trim();
+    if (!token) {
+      console.error("Token file is empty.");
+      process.exit(1);
+    }
+    const password = readAccountPassword(opts);
+    const res = await accountFetch(url, undefined, "POST", "/reset-password", { token, password });
+    const body = res.json as { ok?: boolean; token?: string; email?: string; expiresAt?: string; error?: { message?: string } };
+    if (res.status !== 200 || !body.token || !body.email) {
+      console.error(body.error?.message || `Reset failed (${res.status}).`);
+      process.exit(1);
+    }
+    saveGuestSession({ url, email: body.email, token: body.token, expiresAt: body.expiresAt || "" });
+    console.log(`Password updated. Signed in as ${body.email} at ${url}.`);
+  });
+
+account
+  .command("logout")
+  .description("Drop the local owner session")
+  .option("--url <url>", "librarian origin")
+  .action(async (opts: { url?: string }) => {
+    const session = loadGuestSession();
+    const url = opts.url || session?.url;
+    if (session?.token && url) {
+      await accountFetch(url, session.token, "POST", "/account/logout");
+    }
+    clearGuestSession();
+    console.log("Signed out.");
+  });
+
+account
+  .command("status")
+  .description("Show the local owner session (no pairing tokens)")
+  .action(async () => {
+    const session = loadGuestSession();
+    if (!session) {
+      console.log("Not signed in.");
+      return;
+    }
+    const res = await accountFetch(session.url, session.token, "GET", "/account");
+    if (res.status !== 200) {
+      console.log(`Session at ${session.url} is not valid (${res.status}).`);
+      return;
+    }
+    const body = res.json as { email?: string; libraries?: Array<{ id: string; displayName: string; keys?: Array<{ name: string; active: boolean }> }> };
+    console.log(`Signed in as ${body.email || session.email} at ${session.url}`);
+    for (const lib of body.libraries ?? []) {
+      const live = (lib.keys ?? []).filter((k) => k.active).length;
+      console.log(`  ${lib.id}  ${lib.displayName}  ${live} active key(s)`);
+    }
+  });
+
+account
+  .command("library")
+  .description("Create a library on the signed-in librarian")
+  .requiredOption("--create <id>", "new library id")
+  .option("--url <url>", "librarian origin")
+  .action(async (opts: { create: string; url?: string }) => {
+    const session = loadGuestSession();
+    if (!session) {
+      console.error("Not signed in. centricmem account login --email …");
+      process.exit(1);
+    }
+    const url = opts.url || session.url;
+    const res = await accountFetch(url, session.token, "POST", "/account/libraries", { id: opts.create });
+    const body = res.json as { ok?: boolean; library?: { id: string }; error?: { message?: string } };
+    if (res.status !== 200 || !body.ok) {
+      console.error(body.error?.message || `Create failed (${res.status}).`);
+      process.exit(1);
+    }
+    console.log(`Created library ${body.library?.id || opts.create}`);
+  });
+
+account
+  .command("key")
+  .description("Mint or revoke a named pairing key (prints a new token once)")
+  .option("--library <id>", "library id")
+  .option("--create <name>", "mint a named key")
+  .option("--revoke <keyId>", "revoke a key id")
+  .option("--list", "list key names (no tokens)")
+  .option("--url <url>", "librarian origin")
+  .action(async (opts: { library?: string; create?: string; revoke?: string; list?: boolean; url?: string }) => {
+    const session = loadGuestSession();
+    if (!session) {
+      console.error("Not signed in. centricmem account login --email …");
+      process.exit(1);
+    }
+    if (!opts.library) {
+      console.error("Pass --library <id>.");
+      process.exit(1);
+    }
+    const url = opts.url || session.url;
+    if (opts.create) {
+      const res = await accountFetch(url, session.token, "POST", "/account/keys", {
+        library: opts.library,
+        name: opts.create,
+      });
+      const body = res.json as { ok?: boolean; id?: string; name?: string; token?: string; error?: { message?: string } };
+      if (res.status !== 200 || !body.token) {
+        console.error(body.error?.message || `Mint failed (${res.status}).`);
+        process.exit(1);
+      }
+      console.log(`Key ${body.name} (${body.id}) — copy now, it is not shown again:`);
+      console.log(body.token);
+      return;
+    }
+    if (opts.revoke) {
+      const res = await accountFetch(url, session.token, "POST", "/account/keys/revoke", {
+        library: opts.library,
+        id: opts.revoke,
+      });
+      const body = res.json as { ok?: boolean; error?: { message?: string } };
+      if (res.status !== 200 || !body.ok) {
+        console.error(body.error?.message || `Revoke failed (${res.status}).`);
+        process.exit(1);
+      }
+      console.log(`Revoked key ${opts.revoke} on ${opts.library}`);
+      return;
+    }
+    const res = await accountFetch(url, session.token, "GET", "/account");
+    const body = res.json as { libraries?: Array<{ id: string; keys?: Array<{ id: string; name: string; active: boolean; createdAt: string }> }> };
+    const lib = body.libraries?.find((row) => row.id === opts.library);
+    if (!lib) {
+      console.error(`Unknown library: ${opts.library}`);
+      process.exit(1);
+    }
+    for (const key of lib.keys ?? []) {
+      console.log(`${key.active ? " " : "x"} ${key.id}  ${key.name}  ${key.createdAt}`);
     }
   });
 

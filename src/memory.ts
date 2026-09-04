@@ -3,6 +3,7 @@
  */
 import fs from "node:fs";
 import path from "node:path";
+import crypto from "node:crypto";
 import {
   MemPaths,
   resolvePaths,
@@ -13,6 +14,8 @@ import {
   readFileIfExists,
   detectAgent,
   getProductHome,
+  resolveUnderDir,
+  redactSecrets,
 } from "./core.js";
 import {
   decisionTemplate,
@@ -56,6 +59,8 @@ export interface LogDecisionInput {
   supersedes?: number;
   /** Sequence numbers of related decisions this one references (Memory Links). */
   refs?: number[];
+  /** Relative path under the project memory dir to the original source. */
+  attach?: string;
 }
 
 export interface LogDecisionResult {
@@ -76,6 +81,13 @@ export function logDecision(
   if (!input.title || !input.title.trim()) {
     throw new Error("Decision title must not be empty.");
   }
+  input = {
+    ...input,
+    title: redactSecrets(input.title),
+    context: redactSecrets(input.context),
+    decision: redactSecrets(input.decision),
+    consequences: input.consequences ? redactSecrets(input.consequences) : input.consequences,
+  };
   const paths = pathsFor(workspaceRoot, projectSlug);
   ensureDir(paths.decisionsDir);
 
@@ -109,6 +121,7 @@ export function logDecision(
     tags: input.tags,
     supersedes: input.supersedes,
     refs: input.refs,
+    attach: input.attach,
   });
   // 'wx' flag guarantees append-only semantics: fail rather than overwrite.
   fs.writeFileSync(file, content, { encoding: "utf8", flag: "wx" });
@@ -265,7 +278,8 @@ const STOPWORDS = new Set(
   (
     "the a an and or of to in for on with is are was were be been being this that these those it its as at by from we our not no use used using when must should never always api all one two more than into over " +
     "via through per within without across during before after under above between about against toward towards upon onto like unlike each every any some most both only just also very much such own same other another " +
-    "add adopt adopting adding switch switching replace replacing migrate migrating choose choosing pick new make making enable enabling set setting"
+    "add adopt adopting adding switch switching replace replacing migrate migrating choose choosing pick new make making enable enabling set setting " +
+    "retract duplicate decision sot batch ingest"
   ).split(" ")
 );
 
@@ -450,7 +464,11 @@ export function healthCheck(workspaceRoot: string, projectSlug?: string): Health
   // 3. Potentially conflicting decisions: pairs of Active decisions whose title
   //    keywords overlap heavily (>= 2 shared words and >= 60% of the smaller set).
   const titleWords = active.map((d) => ({
+    seq: d.seq,
     label: `${String(d.seq).padStart(4, "0")}. ${d.title}`,
+    mentioned: new Set(
+      [...d.title.matchAll(/#0*(\d+)\b/g)].map((m) => parseInt(m[1], 10)),
+    ),
     words: new Set(
       (d.title.toLowerCase().match(/[a-z][a-z0-9_-]{2,}|[\u4e00-\u9fff]{2,}/g) ?? []).filter((w) => !STOPWORDS.has(w))
     ),
@@ -461,6 +479,8 @@ export function healthCheck(workspaceRoot: string, projectSlug?: string): Health
       const a = titleWords[i];
       const b = titleWords[j];
       if (!a.words.size || !b.words.size) continue;
+      // A title that cites the other sequence is housekeeping, not a conflict.
+      if (a.mentioned.has(b.seq) || b.mentioned.has(a.seq)) continue;
       let shared = 0;
       for (const w of a.words) if (b.words.has(w)) shared++;
       const minSize = Math.min(a.words.size, b.words.size);
@@ -519,6 +539,7 @@ export interface LogLessonInput {
   body: string;
   agent?: string;
   tags?: string[];
+  attach?: string;
 }
 
 export interface LogLessonResult {
@@ -538,6 +559,11 @@ export function logLesson(
   if (!input.title || !input.title.trim()) {
     throw new Error("Lesson title must not be empty.");
   }
+  input = {
+    ...input,
+    title: redactSecrets(input.title),
+    body: redactSecrets(input.body),
+  };
   const paths = pathsFor(workspaceRoot, projectSlug);
   ensureDir(paths.memDir);
   const by = input.agent || detectAgent();
@@ -557,7 +583,7 @@ export function logLesson(
 
   const section = `\n## ${input.title}\n\n${input.body.trim()}\n${
     input.tags?.length ? `\n- **Tags**: ${input.tags.join(", ")}\n` : ""
-  }\n<!-- centricmem:meta logged_at=${ts} logged_by=${by} -->\n`;
+  }${input.attach ? `\n- **Attach**: ${input.attach}\n` : ""}\n<!-- centricmem:meta logged_at=${ts} logged_by=${by} -->\n`;
   fs.appendFileSync(paths.lessonsFile, section, "utf8");
   return { status: "added" };
 }
@@ -623,6 +649,7 @@ export interface LogSessionInput {
   agent?: string;
   loggedAt?: string;
   tags?: string[];
+  attach?: string;
 }
 
 export interface LogSessionResult {
@@ -666,56 +693,115 @@ export function autoSessionSummary(workspaceRoot: string, projectSlug?: string):
   }
 }
 
-function sessionFileForDate(memDir: string, date: Date): string {
-  const y = date.getFullYear();
-  const m = String(date.getMonth() + 1).padStart(2, "0");
-  const d = String(date.getDate()).padStart(2, "0");
-  return path.join(memDir, "sessions", `${y}-${m}-${d}.md`);
+function compactUtcStamp(date: Date): string {
+  const iso = date.toISOString();
+  return `${iso.slice(0, 10)}T${iso.slice(11, 13)}${iso.slice(14, 16)}${iso.slice(17, 19)}Z`;
 }
 
-function ensureSessionFile(file: string, date: Date): void {
-  if (fs.existsSync(file)) return;
-  ensureDir(path.dirname(file));
-  const label = date.toISOString().slice(0, 10);
-  fs.writeFileSync(
-    file,
-    `# Sessions — ${label}\n\n> Append-only episodic memory. Auto-captured or logged at session end.\n`,
-    "utf8",
-  );
+function sessionAgentSlug(agent: string): string {
+  return slugify(agent).slice(0, 24) || "agent";
 }
 
-/** Append a session entry to sessions/YYYY-MM-DD.md (append-only). */
+/** True for pre-0.15.1 daily bundles `YYYY-MM-DD.md` (many ## in one file). */
+export function isLegacyDailySessionFile(name: string): boolean {
+  return /^\d{4}-\d{2}-\d{2}\.md$/.test(name);
+}
+
+function uniqueSessionFile(memDir: string, date: Date, agent: string): string {
+  const dir = path.join(memDir, "sessions");
+  ensureDir(dir);
+  const stamp = compactUtcStamp(date);
+  const who = sessionAgentSlug(agent);
+  for (let i = 0; i < 32; i++) {
+    const id = crypto.randomBytes(3).toString("hex");
+    const dest = path.join(dir, `${stamp}-${who}-${id}.md`);
+    if (!fs.existsSync(dest)) return dest;
+  }
+  throw new Error("Could not allocate a unique session filename.");
+}
+
+/** Short conversation-style title from the session summary (no LLM). */
+export function sessionTitleFromSummary(summary: string): string {
+  const one = summary.replace(/\s+/g, " ").trim();
+  if (!one) return "session";
+  const first = one.split(/(?<=[.!?。！？])\s+/)[0] ?? one;
+  if (first.length <= 72) return first;
+  const cut = first.slice(0, 72).replace(/\s+\S*$/, "").trim();
+  return cut || first.slice(0, 72);
+}
+
+/** Write one session unit to sessions/<stamp>-<writer>-<id>.md (sync-safe; no shared daily file). */
 export function logSession(
   workspaceRoot: string,
   input: LogSessionInput,
   projectSlug?: string,
 ): LogSessionResult {
-  const summary = input.summary?.trim();
+  const summary = redactSecrets(input.summary?.trim() ?? "");
   if (!summary) throw new Error("Session summary must not be empty.");
+  const title = input.title ? redactSecrets(input.title) : input.title;
 
   const paths = resolvePaths(workspaceRoot, projectSlug);
   const at = input.loggedAt ? new Date(input.loggedAt) : new Date();
-  const sessionFile = sessionFileForDate(paths.memDir, at);
-  ensureSessionFile(sessionFile, at);
-
   const by = input.agent || detectAgent();
+  const sessionFile = uniqueSessionFile(paths.memDir, at, by);
   const ts = input.loggedAt || nowISO();
-  const time = ts.slice(11, 16);
-  const heading = input.title?.trim() || `${time} session`;
+  const heading = title?.trim() || sessionTitleFromSummary(summary);
   let block = `## ${heading}\n\n${summary}\n`;
   if (input.tags?.length) {
     block += `\n- **Tags**: ${input.tags.join(", ")}\n`;
+  }
+  if (input.attach) {
+    block += `\n- **Attach**: ${input.attach}\n`;
   }
   if (input.artifacts?.length) {
     block += `\n**Artifacts**: ${input.artifacts.map((a) => `\`${a}\``).join(", ")}\n`;
   }
   block += `\n<!-- centricmem:meta logged_at=${ts} logged_by=${by} -->\n`;
-  fs.appendFileSync(sessionFile, block, "utf8");
+  fs.writeFileSync(sessionFile, block, { encoding: "utf8", flag: "wx" });
 
   return {
-    file: path.relative(paths.memDir, sessionFile),
+    file: path.relative(paths.memDir, sessionFile).replace(/\\/g, "/"),
     heading,
   };
+}
+
+/** Session-class words — optional extra, never the folksonomy. Rank them last so agents reuse specific tags. */
+const GENERIC_TAGS = new Set(["work", "ops", "decision", "research"]);
+
+/** Folksonomy in this project — reuse these names before minting new ones. */
+export function collectTagCounts(
+  workspaceRoot: string,
+  projectSlug?: string,
+): { tag: string; count: number }[] {
+  const counts = new Map<string, number>();
+  for (const d of listDecisions(workspaceRoot, projectSlug)) {
+    for (const t of d.tags) counts.set(t, (counts.get(t) ?? 0) + 1);
+  }
+  const paths = resolvePaths(workspaceRoot, projectSlug);
+  const scanFile = (abs: string) => {
+    if (!fs.existsSync(abs)) return;
+    const text = fs.readFileSync(abs, "utf8");
+    for (const m of text.matchAll(/^- \*\*Tags\*\*:\s*(.+)$/gm)) {
+      for (const t of m[1].split(",").map((s) => s.trim()).filter(Boolean)) {
+        counts.set(t, (counts.get(t) ?? 0) + 1);
+      }
+    }
+  };
+  scanFile(path.join(paths.memDir, "lessons.md"));
+  const sessDir = path.join(paths.memDir, "sessions");
+  if (fs.existsSync(sessDir)) {
+    for (const f of fs.readdirSync(sessDir)) {
+      if (f.endsWith(".md")) scanFile(path.join(sessDir, f));
+    }
+  }
+  return [...counts.entries()]
+    .sort((a, b) => {
+      const ga = GENERIC_TAGS.has(a[0].toLowerCase()) ? 1 : 0;
+      const gb = GENERIC_TAGS.has(b[0].toLowerCase()) ? 1 : 0;
+      if (ga !== gb) return ga - gb;
+      return b[1] - a[1] || a[0].localeCompare(b[0]);
+    })
+    .map(([tag, count]) => ({ tag, count }));
 }
 
 export interface SessionEntry {
@@ -726,7 +812,7 @@ export interface SessionEntry {
   agent: string;
 }
 
-/** Read recent session entries across daily files (newest first). */
+/** Read recent session entries (newest first). Understands unique unit files and legacy daily bundles. */
 export function readRecentSessions(
   workspaceRoot: string,
   days = 7,
@@ -740,7 +826,7 @@ export function readRecentSessions(
   const cutoff = Date.now() - days * 86400000;
   const files = fs
     .readdirSync(sessionsDir)
-    .filter((f) => /^\d{4}-\d{2}-\d{2}\.md$/.test(f))
+    .filter((f) => /^\d{4}-\d{2}-\d{2}.*\.md$/.test(f))
     .sort()
     .reverse();
 
@@ -776,14 +862,190 @@ export function readRecentSessions(
   return out;
 }
 
-/** Count session ## entries in today's sessions/YYYY-MM-DD.md for the project. */
+/** Count session units dated today (unique files + ## in a leftover daily bundle). */
 export function countTodaySessions(workspaceRoot: string, projectSlug?: string): number {
   const paths = resolvePaths(workspaceRoot, projectSlug);
   const today = nowISO().slice(0, 10);
-  const file = path.join(paths.memDir, "sessions", `${today}.md`);
-  if (!fs.existsSync(file)) return 0;
-  const content = fs.readFileSync(file, "utf8");
-  return (content.match(/^## /gm) ?? []).length;
+  const sessionsDir = path.join(paths.memDir, "sessions");
+  if (!fs.existsSync(sessionsDir)) return 0;
+  let n = 0;
+  for (const f of fs.readdirSync(sessionsDir)) {
+    if (!f.endsWith(".md") || !f.startsWith(today)) continue;
+    const abs = path.join(sessionsDir, f);
+    const content = fs.readFileSync(abs, "utf8");
+    const headings = (content.match(/^## /gm) ?? []).length;
+    n += headings > 0 ? headings : 1;
+  }
+  return n;
+}
+
+const ATTACH_LINE = /^- \*\*Attach\*\*:\s*`?([^\n`]+)`?\s*$/m;
+const MAX_EXCERPT = 8000;
+const MAX_SHOW = 2 * 1024 * 1024;
+
+export function parseAttachLine(content: string): string | undefined {
+  const m = content.match(ATTACH_LINE);
+  const v = m?.[1]?.trim();
+  return v || undefined;
+}
+
+function isInsideDir(dir: string, file: string): boolean {
+  const rel = path.relative(path.resolve(dir), path.resolve(file));
+  return Boolean(rel) && !rel.startsWith("..") && !path.isAbsolute(rel);
+}
+
+function isChatTranscript(srcAbs: string): boolean {
+  const lower = srcAbs.replace(/\\/g, "/").toLowerCase();
+  return lower.endsWith(".jsonl") || lower.includes("/agent-transcripts/");
+}
+
+function stubExcerpt(srcAbs: string, raw: Buffer): string {
+  if (isChatTranscript(srcAbs)) {
+    return "_Chat transcript — use `centricmem show … --original` for the full jsonl. Not indexed._\n";
+  }
+  if (!isProbablyText(raw)) {
+    return `_Binary original — use \`centricmem show imported/kept/${path.basename(srcAbs)} --original\`._\n`;
+  }
+  const excerpt = raw.toString("utf8").slice(0, MAX_EXCERPT);
+  return `## Excerpt\n\n${excerpt}${raw.length > MAX_EXCERPT ? "\n\n… (truncated; original is a human download, not indexed)\n" : "\n"}`;
+}
+
+function isProbablyText(buf: Buffer): boolean {
+  const sample = buf.subarray(0, 512);
+  if (sample.includes(0)) return false;
+  return true;
+}
+
+function safeAttachName(src: string): string {
+  const base = path.basename(src).replace(/[^\w.\u4e00-\u9fff-]+/g, "_");
+  return base || "original";
+}
+
+/** Copy an original into `imported/attach/` (or reuse it if already in this project). */
+export function ingestOriginal(
+  workspaceRoot: string,
+  srcPath: string,
+  projectSlug?: string,
+): { attachRel: string; copied: boolean } {
+  const paths = resolvePaths(workspaceRoot, projectSlug);
+  const src = path.resolve(srcPath);
+  if (!fs.existsSync(src) || !fs.statSync(src).isFile()) {
+    throw new Error(`Attach source not found: ${srcPath}`);
+  }
+  if (isInsideDir(paths.memDir, src)) {
+    return { attachRel: path.relative(paths.memDir, src).replace(/\\/g, "/"), copied: false };
+  }
+  const destDir = path.join(paths.memDir, "imported", "attach");
+  ensureDir(destDir);
+  const stamp = nowISO().slice(0, 10);
+  const base = safeAttachName(src);
+  let name = `${stamp}-${base}`;
+  let dest = path.join(destDir, name);
+  for (let n = 2; fs.existsSync(dest); n++) {
+    name = `${stamp}-${n}-${base}`;
+    dest = path.join(destDir, name);
+  }
+  fs.copyFileSync(src, dest);
+  return { attachRel: `imported/attach/${name}`, copied: true };
+}
+
+export interface KeepOriginalResult {
+  stubRel: string;
+  attachRel: string;
+}
+
+/** Write the searchable stub. Bytes may live on disk under attachRel or on R2 with the same pointer. */
+export function writeKeepStub(
+  workspaceRoot: string,
+  attachRel: string,
+  opts?: { title?: string; tags?: string[]; projectSlug?: string; sourceName?: string; excerpt?: string },
+): KeepOriginalResult {
+  const paths = resolvePaths(workspaceRoot, opts?.projectSlug);
+  const title = (opts?.title?.trim() || path.parse(attachRel).name || "original").trim();
+  const keptDir = path.join(paths.memDir, "imported", "kept");
+  ensureDir(keptDir);
+  const stubName = `${slugify(title)}.md`;
+  const { rel: stubRel, abs: stubAbs } = resolveUnderDir(keptDir, stubName);
+  const tagsLine = opts?.tags?.length ? `- **Tags**: ${opts.tags.join(", ")}\n` : "";
+  const excerptBlock = opts?.excerpt?.trim()
+    ? opts.excerpt.trimEnd() + "\n"
+    : "_Original is not indexed. Agents read this card; humans download the file._\n";
+  const source = opts?.sourceName || path.basename(attachRel);
+  const body = `# ${title}
+
+${tagsLine}- **Attach**: ${attachRel}
+
+${excerptBlock}
+<!-- centricmem:meta kept_at=${nowISO()} source=${source} -->
+`;
+  fs.writeFileSync(stubAbs, body, "utf8");
+  return { stubRel: `imported/kept/${stubRel}`, attachRel };
+}
+
+/** Ingest any file as searchable stub + attached original (originals are not FTS-indexed). */
+export function keepOriginal(
+  workspaceRoot: string,
+  srcPath: string,
+  opts?: { title?: string; tags?: string[]; projectSlug?: string },
+): KeepOriginalResult {
+  const { attachRel } = ingestOriginal(workspaceRoot, srcPath, opts?.projectSlug);
+  const srcAbs = path.resolve(srcPath);
+  const attachAbs = path.join(resolvePaths(workspaceRoot, opts?.projectSlug).memDir, ...attachRel.split("/"));
+  const raw = fs.readFileSync(attachAbs);
+  return writeKeepStub(workspaceRoot, attachRel, {
+    title: opts?.title,
+    tags: opts?.tags,
+    projectSlug: opts?.projectSlug,
+    sourceName: path.basename(srcAbs),
+    excerpt: stubExcerpt(srcAbs, raw),
+  });
+}
+
+function extractHeadingSection(content: string, heading: string): string {
+  const want = heading.trim().toLowerCase();
+  const parts = content.split(/^## /m);
+  if (parts.length <= 1) {
+    const h1 = content.split("\n").find((l) => l.startsWith("# "));
+    if (h1 && h1.slice(2).trim().toLowerCase().includes(want)) return content;
+    throw new Error(`Heading not found: ${heading}`);
+  }
+  const hit = parts.slice(1).find((p) => {
+    const nl = p.indexOf("\n");
+    const h = (nl >= 0 ? p.slice(0, nl) : p).trim().toLowerCase();
+    return h === want || h.includes(want);
+  });
+  if (!hit) throw new Error(`Heading not found: ${heading}`);
+  return `## ${hit}`.trimEnd() + "\n";
+}
+
+/** Print a memory unit, or its attached original (`--original`). */
+export function showMemory(
+  workspaceRoot: string,
+  relPath: string,
+  opts?: { heading?: string; original?: boolean; projectSlug?: string },
+): string {
+  const paths = resolvePaths(workspaceRoot, opts?.projectSlug);
+  const { abs } = resolveUnderDir(paths.memDir, relPath);
+  if (!fs.existsSync(abs) || !fs.statSync(abs).isFile()) {
+    throw new Error(`Memory file not found: ${relPath}`);
+  }
+  let text = fs.readFileSync(abs, "utf8");
+  if (opts?.heading) text = extractHeadingSection(text, opts.heading);
+  if (!opts?.original) return text;
+  const attachRel = parseAttachLine(text);
+  if (!attachRel) throw new Error(`No Attach line on ${relPath}${opts.heading ? ` ## ${opts.heading}` : ""}`);
+  const attach = resolveUnderDir(paths.memDir, attachRel);
+  if (!fs.existsSync(attach.abs) || !fs.statSync(attach.abs).isFile()) {
+    throw new Error(`Attached original missing: ${attachRel}`);
+  }
+  const buf = fs.readFileSync(attach.abs);
+  if (!isProbablyText(buf)) {
+    return `(binary original, ${buf.length} bytes)\npath: ${attachRel}\nabsolute: ${attach.abs}\n`;
+  }
+  if (buf.length > MAX_SHOW) {
+    return `${buf.toString("utf8").slice(0, MAX_SHOW)}\n\n… truncated (${buf.length} bytes). File: ${attach.abs}\n`;
+  }
+  return buf.toString("utf8");
 }
 
 export { resolvePaths };

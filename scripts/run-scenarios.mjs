@@ -2,8 +2,12 @@
  * run-scenarios.mjs — workspace scenario smoke tests.
  */
 import { spawnSync } from "node:child_process";
+import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+
+delete process.env.CENTRICMEM_URL;
+process.env.CENTRICMEM_LIBRARIES_JSON = path.join(os.tmpdir(), `cm-scen-run-nocat-${process.pid}.json`);
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const scenariosDir = path.join(here, "..", "scenarios");
@@ -28,7 +32,11 @@ let failures = 0;
 for (const s of scenarios) {
   const p = path.join(scenariosDir, s);
   const t0 = Date.now();
-  const r = spawnSync("node", [p], { encoding: "utf8", cwd: scenariosDir });
+  const r = spawnSync("node", [p], {
+    encoding: "utf8",
+    cwd: scenariosDir,
+    env: { ...process.env },
+  });
   const ms = Date.now() - t0;
   if (r.status === 0) console.log(`PASS  ${s} (${ms}ms)`);
   else {
