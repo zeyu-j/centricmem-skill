@@ -1,71 +1,24 @@
 {
-  "name": "centricmem",
-  "version": "0.21.6",
-  "description": "Manager layer over agent-native memory: Markdown units on the librarian, SQLite FTS5, Skill for agents.",
-  "type": "module",
-  "bin": {
-    "centricmem": "./dist/cli.js",
-    "centricmem-mcp": "./dist/mcp-server.js",
-    "centricmem-host": "./dist/host-connector.js"
-  },
-  "files": [
-    "dist",
-    "src",
-    "skills",
-    "templates",
-    "scripts",
-    "tests",
-    "tsconfig.json",
-    "tsconfig.tests.json",
-    "LICENSE",
-    "ACADEMIC_DB_REPORT.md",
-    "README.md",
-    "CHANGELOG.md",
-    "PRODUCT.md",
-    "PRODUCT_HOST.md",
-    "BETA.md",
-    "SYNC.md",
-    "ARCHITECTURE.md",
-    "IMPORT_BUNDLE.md"
-  ],
-  "scripts": {
-    "build": "tsc && tsc -p tsconfig.tests.json",
-    "dev": "tsc --watch",
-    "test": "node --test --test-concurrency=1 dist/tests/integration.test.js dist/tests/host-api.test.js dist/tests/libraries.test.js dist/tests/guest.test.js dist/tests/sweep.test.js dist/tests/account.test.js dist/tests/r2.test.js",
-    "test:mcp": "node scripts/test-mcp.mjs",
-    "test:scenarios": "node scripts/run-scenarios.mjs",
-    "test:all": "npm test && npm run test:mcp && npm run test:scenarios"
-  },
-  "engines": {
-    "node": ">=20"
-  },
-  "keywords": [
-    "mcp",
-    "agent-memory",
-    "sqlite",
-    "fts5",
-    "cursor",
-    "claude-code"
-  ],
+  "name": "centricmem-skill",
+  "version": "0.21.8",
+  "private": true,
+  "description": "CentricMem agent skill for the hosted librarian. Install with npx skills add zeyu-j/centricmem-skill --skill centricmem-agent -g",
   "license": "PolyForm-Noncommercial-1.0.0",
   "author": "Dr. Z <zeyu@dr.com>",
   "repository": {
     "type": "git",
     "url": "https://github.com/zeyu-j/centricmem-skill.git"
   },
-  "homepage": "https://github.com/zeyu-j/centricmem-skill#readme",
+  "homepage": "https://centricmem.com",
   "bugs": {
     "url": "https://github.com/zeyu-j/centricmem-skill/issues"
   },
-  "dependencies": {
-    "@modelcontextprotocol/sdk": "^1.29.0",
-    "better-sqlite3": "^12.11.1",
-    "commander": "^15.0.0",
-    "zod": "^4.4.3"
-  },
-  "devDependencies": {
-    "@types/better-sqlite3": "^7.6.13",
-    "@types/node": "^26.1.0",
-    "typescript": "^6.0.3"
-  }
+  "keywords": [
+    "skill",
+    "centricmem",
+    "cursor",
+    "claude-code",
+    "codex",
+    "pi"
+  ]
 }

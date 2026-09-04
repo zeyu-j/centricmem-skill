@@ -16,4 +16,6 @@ body:
       options:
         - Cursor
         - Claude Code
+        - Codex
+        - Pi
         - Other

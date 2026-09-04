@@ -1,4 +1,4 @@
-name: CI
+name: Check
 
 on:
   push:
@@ -7,18 +7,27 @@ on:
     branches: [main]
 
 jobs:
-  test:
-    runs-on: ${{ matrix.os }}
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ubuntu-latest, windows-latest]
+  skill:
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: "22"
-          cache: npm
-      - run: npm ci
-      - run: npm run build
-      - run: npm run test:all
+      - name: Public repo is usage-only
+        run: |
+          test -f README.md
+          test -f LICENSE
+          test -f skills/centricmem-agent/SKILL.md
+          test -f skills/centricmem-agent/REFERENCE.md
+          grep -q '^name: centricmem-agent' skills/centricmem-agent/SKILL.md
+          grep -q 'npx skills add zeyu-j/centricmem-skill' README.md
+          if [ -d src ] || [ -d dist ] || [ -d tests ] || [ -d desktop ] || [ -d web ]; then
+            echo "client trees must not ship" >&2
+            exit 1
+          fi
+          if [ -f PRODUCT.md ] || [ -f ARCHITECTURE.md ] || [ -f BETA.md ]; then
+            echo "design/operator docs must not ship" >&2
+            exit 1
+          fi
+          if [ -d skills/academic-db-agent ] || [ -d skills/centricmem-agent/integrations ] || [ -f skills/centricmem-agent/ACADEMIC.md ]; then
+            echo "private skill extras must not ship" >&2
+            exit 1
+          fi
