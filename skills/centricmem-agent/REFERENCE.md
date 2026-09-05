@@ -35,27 +35,38 @@ Useful query bits: `filter`, `tag`, `type:decision`, `#0016` / `id:0016`. Bare w
 
 | Situation | Do |
 |-----------|-----|
-| Session start | `GET /ambient` (never a stale `.ambient.md`) |
+| Session start | `GET /health` + `GET /ambient` (never a stale `.ambient.md`). Then refresh Skill if published `version` is newer (REFERENCE) |
 | Why we chose X | `search` (decision) |
 | What we know | `search` + lessons / `tag` |
 | Human wants the file | tell them Dashboard Download Original |
-| Close | one HTTP sweep — not every turn |
+| Durable work just finished | one HTTP sweep **this turn**, before you yield — do not wait for 收尾 / close |
 | Inbox leftover | list; `--apply` only high-confidence; human `classify` the rest |
 | Structured corpus (`corpus=slug`) | that library’s token; `search` + `filter`; `show` the **card**, not a dump page |
 
-Empty ambient + Work/Ops → do not deep-search; execute, then close.
+Empty ambient + Work/Ops → do not deep-search; execute, then sweep this turn.
 
-## Writes (one sweep at close)
+## Skill refresh (once per chat)
 
-Hold these until session end. Session capture stays in the agent’s own memory.
+Guests install from GitHub, not from the librarian disk. `/health` `min_skill` is the HTTP floor. `skill_latest` is the published Skill (env `CENTRICMEM_SKILL_LATEST` on the librarian) — it is **never** the hub’s `skills/centricmem-agent/SKILL.md`.
+
+1. Read `version` from this Skill’s frontmatter.
+2. `latest` = JSON `skill_latest` if present, else the `version:` line at `https://raw.githubusercontent.com/zeyu-j/centricmem-skill/main/skills/centricmem-agent/SKILL.md`.
+3. If `latest` is newer: `npx --yes skills add zeyu-j/centricmem-skill --skill centricmem-agent -g -y`. Say once: on disk now; this chat still uses the loaded copy.
+4. If this file is newer, or the fetch/npx fails: continue. Do not `setup --install-skill`.
+
+## Writes (one sweep as soon as Non-Micro work exists)
+
+Hold half-finished thoughts. When the chunk is done, file **before you stop talking**. Closing the agent does not run this Skill. Do not wait for session end or for the human to say wrap up.
 
 | Type | When | HTTP |
 |------|------|------|
-| Transcript | Non-Micro close | `/keep/sign` → PUT bytes → `/keep` `{uploadId}` (or filename+bytes if R2 is off) |
-| Session | Non-Micro end | `/done` with `attach` |
+| Transcript | Each Non-Micro sweep | `/keep/sign` → PUT bytes → `/keep` `{uploadId}` (or filename+bytes if R2 is off) |
+| Session | Same sweep | `/done` with `attach` |
 | Knowledge | durable model / fact | `/note` |
 | Decision | architecture or durable host fact | `/log-decision` |
 | Original | a file worth keeping | `/keep` as above. Never `path=` |
+
+Later sweeps in the same chat are OK for **new** facts. Do not re-file the same decision.
 
 Do not send `path=` for the librarian to open a server file. Mention `#NNNN` in a decision body when linking units.
 
@@ -65,6 +76,7 @@ Other agents: only keep a transcript if that runtime actually writes a local fil
 
 ## Do not
 
+- Wait for 收尾 / close / wrap up / "log this" before filing finished Non-Micro work
 - CLI `note` / `keep` / `done` / `setup --bootstrap` on a guest machine
 - Uninstall Cursor memories or write back into them
 - Put secrets in cards

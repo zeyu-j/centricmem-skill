@@ -17,7 +17,7 @@ Hosted librarian: [centricmem.com](https://centricmem.com). Seats are invite-bas
 ## How you use it
 
 1. Keep talking where you already work. Cursor memories stay on.
-2. When work is real, the agent files a Markdown card in your library and keeps this chat’s transcript in object storage.
+2. When work is real, the agent files a Markdown card and keeps this chat’s transcript in object storage — you do not have to say wrap up. Closing the tab does not file; it files before it stops. If your Skill is behind this repo, the agent refreshes it with `npx skills add` (the current chat still uses the old copy).
 3. Later, ask the agent — or log in to search and download originals.
 
 You do not run a librarian on this machine. You do not `setup --bootstrap`.
@@ -27,7 +27,7 @@ You do not run a librarian on this machine. You do not `setup --bootstrap`.
 This repository is the **Skill**: how agents talk to the hosted librarian.
 
 - [`skills/centricmem-agent/SKILL.md`](./skills/centricmem-agent/SKILL.md) — session loop
-- [`skills/centricmem-agent/REFERENCE.md`](./skills/centricmem-agent/REFERENCE.md) — search, show, close
+- [`skills/centricmem-agent/REFERENCE.md`](./skills/centricmem-agent/REFERENCE.md) — search, show, sweep
 
 It is not the librarian, not the CLI source, and not a self-hosted kit.
 
