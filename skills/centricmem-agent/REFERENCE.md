@@ -1,11 +1,11 @@
 # CentricMem Agent — how to use
 
-The session loop lives in [SKILL.md](SKILL.md). Agents talk to the hosted librarian **only through host MCP**. Prefer the cloud URL `https://mem.centricmem.com/mcp` (Bearer pairing key). stdio `centricmem-host` is the sandbox fallback when `/health` has no `mcp` field. You do not curl librarian HTTP.
+The session loop lives in [SKILL.md](SKILL.md). Agents talk to the hosted librarian **only through host MCP**. Prefer the cloud URL `https://mem.centricmem.com/mcp` (Bearer: a library pairing key, or an owner-granted account key). stdio `centricmem-host` is the sandbox fallback when `/health` has no `mcp` field. You do not curl librarian HTTP.
 
 ## What you are filing
 
 ```text
-Library  (one pairing key)
+Library  (one pairing key, or an account key whose grants include this library)
   └── Unit  (.md or one ##)
         Identity / Details / Tags / Body
         Original (optional) — pointer in Details; bytes in object storage
@@ -27,7 +27,7 @@ Config (pairing key stays off git):
     "centricmem": {
       "url": "https://mem.centricmem.com/mcp",
       "headers": {
-        "Authorization": "Bearer <library pairing key>"
+        "Authorization": "Bearer <library pairing key or account key>"
       }
     }
   }
@@ -43,7 +43,7 @@ Sandbox fallback (only if `cm_health` has no `mcp` field, or the origin is not u
       "command": "centricmem-host",
       "env": {
         "CENTRICMEM_URL": "https://mem.centricmem.com",
-        "CENTRICMEM_TOKEN": "<library pairing key>"
+        "CENTRICMEM_TOKEN": "<library pairing key or account key>"
       }
     }
   }
@@ -66,7 +66,7 @@ Progressive disclosure:
 
 Never ask `cm_show` for originals. Never paste download URLs into the chat.
 
-Useful query bits (in `q` / `tags` / `type`): `filter`, `tag`, `type:decision`, `#0016` / `id:0016`. Bare word `decision` is full-text, not a type filter. `all` does not leak other libraries on a pairing key.
+Useful query bits (in `q` / `tags` / `type`): `filter`, `tag`, `type:decision`, `#0016` / `id:0016`. Bare word `decision` is full-text, not a type filter. `all` does not leak other libraries on a pairing key. An account key’s `all` is only the libraries on that key’s grants. Pass `library=` / `cwd=` when the Bearer can open more than one library. Friend keys stay one library. Isolation: **one key = its grants**.
 
 | Situation | Do |
 |-----------|-----|

@@ -1,20 +1,20 @@
 ---
 name: centricmem-agent
-version: 0.21.12
+version: 0.21.13
 compatible_cli: ">=0.21.0"
 changelog_url: https://github.com/zeyu-j/centricmem-skill/blob/main/CHANGELOG.md
 description: Manager layer over the agent's own memory. Host MCP to the librarian (`https://mem.centricmem.com/mcp`, or stdio centricmem-host). Ambient at start. After install, tell the human how they use it. If this Skill is behind GitHub (or health.skill_latest), npx skills add once — this chat still uses the loaded text. File a sweep as soon as Non-Micro work exists; closing the agent does not run this Skill. Never CLI-write a hub. Never curl librarian HTTP.
 ---
 
-# CentricMem Agent Skill v0.21.12
+# CentricMem Agent Skill v0.21.13
 
-CentricMem is the **manager layer** (organise / retrieve / cross-agent store) **and** the literature database. Session capture stays in the agent's own memory (Cursor memories and other plugins). Do not uninstall those. Do not write back into them. New literature: keep the original, read it, write Markdown cards. A unit is Identity / Details / Tags / Body ([REFERENCE.md](REFERENCE.md)). Isolation is **one library = its pairing keys**. Tags stay about. The librarian is the only writer.
+CentricMem is the **manager layer** (organise / retrieve / cross-agent store) **and** the literature database. Session capture stays in the agent's own memory (Cursor memories and other plugins). Do not uninstall those. Do not write back into them. New literature: keep the original, read it, write Markdown cards. A unit is Identity / Details / Tags / Body ([REFERENCE.md](REFERENCE.md)). Isolation is **one key = its grants** (one library or several). Friend-style pairing keys stay one library. An account key may open the libraries the owner listed; pass `library=` / `cwd=` so writes route. Tags stay about. The librarian is the only writer.
 
 ## 0. Reach the librarian
 
-1. **MCP only.** Same `cm_*` tools whether Cursor points at `https://mem.centricmem.com/mcp` (Bearer pairing key) or at stdio `centricmem-host`: `cm_health` `cm_ambient` `cm_doctor` `cm_search` `cm_show` `cm_note` `cm_log_decision` `cm_done` `cm_keep` `cm_inbox` `cm_import` `cm_classify` `cm_index`. Never curl librarian HTTP. Never CLI `note`/`keep`/`done`. Never `setup --bootstrap`. Never create a hub in the git checkout.
-2. If those tools are **missing**: say once — the human enables host MCP (REFERENCE: cloud `/mcp` URL + that library’s pairing key; stdio `centricmem-host` only if `cm_health` has no `mcp` field). Keep working in the agent’s own memory. Do not curl. Do not invent a hub.
-3. `cm_show` is the Markdown **card**. Never original=. Never paste `/download`. `cm_health` `r2=true` means originals sit in object storage. Pass `library=` / `cwd=` so writes route. Corpus = that library’s key. If `ACADEMIC.md` exists next to this file, follow it.
+1. **MCP only.** Same `cm_*` tools whether Cursor points at `https://mem.centricmem.com/mcp` (Bearer: library pairing key or owner-granted account key) or at stdio `centricmem-host`: `cm_health` `cm_ambient` `cm_doctor` `cm_search` `cm_show` `cm_note` `cm_log_decision` `cm_done` `cm_keep` `cm_inbox` `cm_import` `cm_classify` `cm_index`. Never curl librarian HTTP. Never CLI `note`/`keep`/`done`. Never `setup --bootstrap`. Never create a hub in the git checkout.
+2. If those tools are **missing**: say once — the human enables host MCP (REFERENCE: cloud `/mcp` URL + pairing key or account key; stdio `centricmem-host` only if `cm_health` has no `mcp` field). Keep working in the agent’s own memory. Do not curl. Do not invent a hub.
+3. `cm_show` is the Markdown **card**. Never original=. Never paste `/download`. `cm_health` `r2=true` means originals sit in object storage. Pass `library=` / `cwd=` so writes route (required on an account key that opens several libraries). Corpus = that library’s key or grant. If `ACADEMIC.md` exists next to this file, follow it.
 
 ## 1. Classify
 

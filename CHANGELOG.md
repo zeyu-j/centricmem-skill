@@ -2,6 +2,11 @@
 
 Skill-facing notes for [centricmem-skill](https://github.com/zeyu-j/centricmem-skill). This repo is how to use the hosted librarian.
 
+## 0.21.13
+
+- One MCP Bearer can be an **account key**: the owner grants which libraries it may open (`library=` / `cwd=`). Friend-style pairing keys stay one library. Isolation is one key = its grants.
+- Still no curl. Originals and key minting stay on the dashboard. Login session is not for agents.
+
 ## 0.21.12
 
 - Agents use the cloud MCP URL `https://mem.centricmem.com/mcp` (pairing key as Bearer). stdio `centricmem-host` is only the fallback while that URL is down.
