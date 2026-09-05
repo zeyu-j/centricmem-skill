@@ -16,7 +16,7 @@ Hosted librarian: [centricmem.com](https://centricmem.com). Seats are invite-bas
 
 ## How you use it
 
-1. Keep talking where you already work. Cursor memories stay on.
+1. Keep talking where you already work. agent memories stay on.
 2. When work is real, the agent files a Markdown card and keeps this chat’s transcript in object storage — you do not have to say wrap up. Closing the tab does not file; it files before it stops. If your Skill is behind this repo, the agent refreshes it with `npx skills add` (the current chat still uses the old copy).
 3. Later, ask the agent — or log in to search and download originals. The agent uses host MCP (`https://mem.centricmem.com/mcp`, Bearer: pairing key or account key); originals and account stay on the dashboard.
 
