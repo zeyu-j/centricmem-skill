@@ -1,20 +1,20 @@
 ---
 name: centricmem-agent
-version: 0.21.13
+version: 0.21.18
 compatible_cli: ">=0.21.0"
 changelog_url: https://github.com/zeyu-j/centricmem-skill/blob/main/CHANGELOG.md
-description: Manager layer over the agent's own memory. Host MCP to the librarian (`https://mem.centricmem.com/mcp`, or stdio centricmem-host). Ambient at start. After install, tell the human how they use it. If this Skill is behind GitHub (or health.skill_latest), npx skills add once — this chat still uses the loaded text. File a sweep as soon as Non-Micro work exists; closing the agent does not run this Skill. Never CLI-write a hub. Never curl librarian HTTP.
+description: Manager layer over the agent's own memory. Host MCP to the librarian (`https://mem.centricmem.com/mcp`, or stdio centricmem-host). Ambient at start. After install, tell the human how they use it. If this Skill is behind GitHub (or health.skill_latest), npx skills add once — this chat still uses the loaded text. File a sweep as soon as Non-Micro work exists; closing the agent does not run this Skill. Never CLI-write a hub. Never curl librarian HTTP. Never write Inbox.
 ---
 
-# CentricMem Agent Skill v0.21.13
+# CentricMem Agent Skill v0.21.18
 
-CentricMem is the **manager layer** (organise / retrieve / cross-agent store) **and** the literature database. Session capture stays in the agent's own memory (Cursor memories and other plugins). Do not uninstall those. Do not write back into them. New literature: keep the original, read it, write Markdown cards. A unit is Identity / Details / Tags / Body ([REFERENCE.md](REFERENCE.md)). Isolation is **one key = its grants** (one library or several). Friend-style pairing keys stay one library. An account key may open the libraries the owner listed; pass `library=` / `cwd=` so writes route. Tags stay about. The librarian is the only writer.
+CentricMem is the **manager layer** (organise / retrieve / cross-agent store) **and** the literature database. Session capture stays in the agent's own memory (Cursor memories and other plugins). Do not uninstall those. Do not write back into them. New literature: keep the original, read it, write Markdown cards. A unit is Identity / Details / Tags / Body ([REFERENCE.md](REFERENCE.md)). Isolation is **one key = its grants**. Default account key (`*` = every library): search, sweep, `cm_library`, drain Inbox. A pairing key opens only that library. Pass `library=` / `cwd=` so writes route. Tags stay about. The librarian is the only writer. Login still uniquely owns delete and minting pairing keys.
 
 ## 0. Reach the librarian
 
-1. **MCP only.** Same `cm_*` tools whether Cursor points at `https://mem.centricmem.com/mcp` (Bearer: library pairing key or owner-granted account key) or at stdio `centricmem-host`: `cm_health` `cm_ambient` `cm_doctor` `cm_search` `cm_show` `cm_note` `cm_log_decision` `cm_done` `cm_keep` `cm_inbox` `cm_import` `cm_classify` `cm_index`. Never curl librarian HTTP. Never CLI `note`/`keep`/`done`. Never `setup --bootstrap`. Never create a hub in the git checkout.
-2. If those tools are **missing**: say once — the human enables host MCP (REFERENCE: cloud `/mcp` URL + pairing key or account key; stdio `centricmem-host` only if `cm_health` has no `mcp` field). Keep working in the agent’s own memory. Do not curl. Do not invent a hub.
-3. `cm_show` is the Markdown **card**. Never original=. Never paste `/download`. `cm_health` `r2=true` means originals sit in object storage. Pass `library=` / `cwd=` so writes route (required on an account key that opens several libraries). Corpus = that library’s key or grant. If `ACADEMIC.md` exists next to this file, follow it.
+1. **MCP only.** Same `cm_*` tools whether the agent points at `https://mem.centricmem.com/mcp` (Bearer: library pairing key or owner-granted account key) or at stdio `centricmem-host`: `cm_health` `cm_ambient` `cm_doctor` `cm_search` `cm_show` `cm_note` `cm_log_decision` `cm_done` `cm_keep` `cm_library` `cm_inbox` `cm_import` `cm_classify` `cm_index`. Never curl librarian HTTP. Never CLI `note`/`keep`/`done`. Never `setup --bootstrap`. Never create a hub in the git checkout.
+2. If those tools are **missing**, or this chat is a pairing key and the owner needs every vault, or they need to add this librarian to the agent: **send the authenticate link**. If you can exec on this computer, start `centricmem connect --no-open` in the background (port 23182; ignore already running). Then tell the human, in their language, to open [Authenticate CentricMem](https://centricmem.com/connect), enter **the key they want** on that page (default = every library, or a pairing key = that library), and start a new chat. Never ask them to paste the key here. Never one-click install. Never copy JSON into chat. Keep working in the agent’s own memory. Do not curl. Do not invent a hub.
+3. `cm_show` is the Markdown **card**. Never original=. Never paste `/download`. `cm_health` `r2=true` means originals sit in object storage. `cm_health` `scope=grant` with `grants=["*"]` is the default key — manage every vault; `scope=pairing` is one library. Owner stuck on a pairing key: send the authenticate link (step 2); **this chat keeps the old Bearer**. Pass `library=` / `cwd=` so writes route. Corpus = that library’s key or grant. If `ACADEMIC.md` exists next to this file, follow it.
 
 ## 1. Classify
 
@@ -25,7 +25,7 @@ CentricMem is the **manager layer** (organise / retrieve / cross-agent store) **
 
 ## 2. Start
 
-`cm_health` then `cm_ambient`. Ignore a stale `.ambient.md`. Unreachable or `state=UNINITIALIZED`: **say once** — do not bootstrap. Writes follow cwd’s linked library, or Inbox if `cwd_project=(unlinked)`. `corpus=<slug>` → `library=` that slug. Never treat ambient **text** “Skill outdated” as truth (librarian hub copy). This file is `~/.cursor/skills/centricmem-agent/SKILL.md`.
+`cm_health` then `cm_ambient`. Ignore a stale `.ambient.md`. Unreachable or `state=UNINITIALIZED`: **say once** — do not bootstrap. Writes need a **named library** — never Inbox / `unclassified`, even when `cwd_project=(unlinked)`. `corpus=<slug>` → `library=` that slug. Never treat ambient **text** “Skill outdated” as truth (librarian hub copy). This file is `~/.cursor/skills/centricmem-agent/SKILL.md`.
 
 **Once this chat, after health/ambient:** compare this file’s `version` to `skill_latest` on `cm_health` / `cm_ambient`. If that field is null, GET `https://raw.githubusercontent.com/zeyu-j/centricmem-skill/main/skills/centricmem-agent/SKILL.md` and parse `version`. If published is newer: `npx --yes skills add zeyu-j/centricmem-skill --skill centricmem-agent -g -y`. Tell the human it is on disk; **this chat still uses the already-loaded Skill**; the next chat uses the new one. If this file is newer, or fetch/npx fails: continue. Never `setup --install-skill` for this refresh.
 
@@ -45,7 +45,15 @@ Do **not** wait for 收尾, close, wrap up, "log this", session end, or a later 
 
 Human says don't log → skip. MCP missing or librarian down: skip, say once.
 
+**Library first — never Inbox.** Ambient `libraries=` may still list `unclassified`; skip it. Pick:
+
+1. cwd linked, or `corpus=<slug>` → that library
+2. work belongs in an existing named library on that list → that id
+3. none fit → account key: `cm_library` `{id}` (slug like `my-project`) then file there. Pairing key, or `cm_library` missing: send the authenticate link (`https://centricmem.com/connect`) so they can enter a key on that page (default to mint/manage every vault, or that library’s pairing key); **hold the sweep in agent memory**. Do not write `unclassified`.
+
+Then, with `library=` that id:
+
 1. **Transcript → R2.** Cursor: `~/.cursor/projects/<workspace>/agent-transcripts/<uuid>/<uuid>.jsonl` for **this** chat. Shell-read the file; **never paste jsonl**. `cm_keep` with that filename + file bytes (never `path=`). Leave the local jsonl in place (do not delete Cursor chat state).
 2. Then `cm_note` `cm_log_decision` `cm_done` with `attach` = that keep pointer. **One sweep, one batch.** If they keep talking, another sweep is OK for **new** facts — do not re-file the same decision.
 
-`cm_inbox`; `apply=true` only high-confidence. Leftovers: human classify.
+Existing Inbox leftovers: `cm_inbox`; `apply=true` high-confidence; remaining `cm_classify` into an existing named library, or `cm_library` then classify. Do not leave leftovers for the human. If this key cannot see Inbox, say once.

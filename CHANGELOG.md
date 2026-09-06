@@ -2,6 +2,32 @@
 
 Skill-facing notes for [centricmem-skill](https://github.com/zeyu-j/centricmem-skill). This repo is how to use the hosted librarian.
 
+## 0.21.18
+
+- The authenticate link accepts **any** agent key: default (every library) or a pairing key (that library). Default is one choice, not the only one.
+- Not a one-click install. You enter the key on `https://centricmem.com/connect` — never in chat.
+
+## 0.21.17
+
+- When a key is needed, the agent sends the authenticate link `https://centricmem.com/connect`. You enter the key on that page — never in chat. Not a one-click install. The helper on this computer (`centricmem connect`) writes MCP for every agent.
+- The owner's agents use the **default account key** (all libraries). Friend pairing keys stay one vault.
+
+## 0.21.16
+
+- `/connect` is for **every** agent: copy the same host MCP snippet (never paste a token in chat). CLI `centricmem connect` writes MCP configs it finds on this computer. Optional Cursor one-click is not the product.
+- The owner's agents use the **default account key** (all libraries). Friend pairing keys stay one vault.
+
+## 0.21.15
+
+- Paste an agent key on **this computer** at `https://centricmem.com/connect` (Cursor opens an install prompt). Never paste a token in chat. CLI: `centricmem connect` writes `~/.cursor/mcp.json` from a local page.
+- Owner Cursor still uses the default account key (all libraries). Friend pairing keys stay one vault.
+
+## 0.21.14
+
+- Sweep never writes Inbox (`unclassified`). Pick a named library, or mint one (`cm_library`) when none fits. Drain leftovers with classify — do not leave them for the human. Pairing keys still cannot mint a library.
+- The owner's agent uses the **default account key** (all libraries). Friend pairing keys stay one vault.
+- Still no curl. Originals and key minting stay on the dashboard.
+
 ## 0.21.13
 
 - One MCP Bearer can be an **account key**: the owner grants which libraries it may open (`library=` / `cwd=`). Friend-style pairing keys stay one library. Isolation is one key = its grants.

@@ -15,9 +15,9 @@ Tags are about the work. `project:` / `type:` / `#id` in search are index shortc
 
 ## Reach
 
-MCP tools must be present: `cm_health` `cm_ambient` `cm_doctor` `cm_search` `cm_show` `cm_note` `cm_log_decision` `cm_done` `cm_keep` `cm_inbox` `cm_import` `cm_classify` `cm_index`.
+MCP tools must be present: `cm_health` `cm_ambient` `cm_doctor` `cm_search` `cm_show` `cm_note` `cm_log_decision` `cm_done` `cm_keep` `cm_library` `cm_inbox` `cm_import` `cm_classify` `cm_index`.
 
-If they are missing, say once and keep working in the agent’s own memory. Do not curl. Do not CLI-write. Do not bootstrap.
+If they are missing, send the authenticate link (`https://centricmem.com/connect`). If you can exec: `centricmem connect --no-open` first. They enter **any** agent key on that page (default = every library, pairing key = that library) — never in chat. Do not curl. Do not CLI-write. Do not bootstrap.
 
 Config (pairing key stays off git):
 
@@ -25,9 +25,10 @@ Config (pairing key stays off git):
 {
   "mcpServers": {
     "centricmem": {
+      "type": "http",
       "url": "https://mem.centricmem.com/mcp",
       "headers": {
-        "Authorization": "Bearer <library pairing key or account key>"
+        "Authorization": "Bearer <default account key or library pairing key>"
       }
     }
   }
@@ -50,7 +51,7 @@ Sandbox fallback (only if `cm_health` has no `mcp` field, or the origin is not u
 }
 ```
 
-`setup --install-skill` on a machine that already has the client can merge this into `~/.cursor/mcp.json` (cloud URL when `/health` advertises `mcp`, otherwise stdio). Token failure: say once; rotate it in Manager / dashboard.
+`setup --install-skill` on a machine that already has the client can merge this into each agent’s MCP config (cloud URL when `/health` advertises `mcp`, otherwise stdio). When a key is needed, the agent sends **https://centricmem.com/connect** (authenticate). The human enters **any** agent key on that page: default (`*` = all libraries) or a pairing key (one library). `centricmem connect` is the helper on this computer that writes MCP configs. Never ask them to paste a token in chat. Never one-click install. Token failure: say once; send the authenticate link again.
 
 Do **not** call `/download`, `/delete`, or account (`/register` `/login` `/account` keys billing). Humans download originals and manage keys on the dashboard.
 
@@ -66,7 +67,7 @@ Progressive disclosure:
 
 Never ask `cm_show` for originals. Never paste download URLs into the chat.
 
-Useful query bits (in `q` / `tags` / `type`): `filter`, `tag`, `type:decision`, `#0016` / `id:0016`. Bare word `decision` is full-text, not a type filter. `all` does not leak other libraries on a pairing key. An account key’s `all` is only the libraries on that key’s grants. Pass `library=` / `cwd=` when the Bearer can open more than one library. Friend keys stay one library. Isolation: **one key = its grants**.
+Useful query bits (in `q` / `tags` / `type`): `filter`, `tag`, `type:decision`, `#0016` / `id:0016`. Bare word `decision` is full-text, not a type filter. `all` does not leak other libraries on a pairing key. An account key’s `all` is only the libraries on that key’s grants. Pass `library=` / `cwd=` when the Bearer can open more than one library. Friend keys stay one library. Isolation: **one key = its grants**. The owner's agent Bearer is the **default account key** (`*` = all libraries). Friend keys stay one library.
 
 | Situation | Do |
 |-----------|-----|
@@ -74,8 +75,8 @@ Useful query bits (in `q` / `tags` / `type`): `filter`, `tag`, `type:decision`, 
 | Why we chose X | `cm_search` (decision) |
 | What we know | `cm_search` + lessons / `tags` |
 | Human wants the file | tell them Dashboard Download Original |
-| Durable work just finished | one MCP sweep **this turn**, before you yield — do not wait for 收尾 / close |
-| Inbox leftover | `cm_inbox`; `apply` only high-confidence; human `classify` the rest |
+| Durable work just finished | pick a **named** library (or `cm_library`), then one MCP sweep **this turn** — never Inbox |
+| Inbox leftover | `cm_inbox`; `apply` high-confidence; `cm_classify` / `cm_library` the rest — do not leave for the human |
 | Structured corpus (`corpus=slug`) | `library=` that slug; `cm_search` then `cm_show` the **card**, not a dump page |
 
 Empty ambient + Work/Ops → do not deep-search; execute, then sweep this turn.
@@ -99,9 +100,10 @@ Hold half-finished thoughts. When the chunk is done, file **before you stop talk
 | Session | Same sweep | `cm_done` with `attach` |
 | Knowledge | durable model / fact | `cm_note` |
 | Decision | architecture or durable host fact | `cm_log_decision` |
-| Original | a file worth keeping | `cm_keep` as above. Never `path=` |
-| Bundle | capture import | `cm_import` |
-| Inbox leftover | human or Inbox key | `cm_classify` |
+| Original | a file worth keeping | `cm_keep` as above. Never `path=`. Never Inbox |
+| Library | none of the named libraries fit | `cm_library` `{id}` (account key). Pairing key: send the authenticate link |
+| Bundle | capture import | `cm_import` with `library=` |
+| Inbox leftover | drain into a named library | `cm_classify` |
 | Index | after bulk import | `cm_index` |
 
 Later sweeps in the same chat are OK for **new** facts. Do not re-file the same decision.
@@ -121,3 +123,4 @@ Other agents: only keep a transcript if that runtime actually writes a local fil
 - Put secrets in cards
 - Load attach originals into the chat
 - Treat this git checkout as the memory disk
+- Write Inbox / `unclassified` — pick or create a named library
