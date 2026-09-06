@@ -1,23 +1,24 @@
 # CentricMem Agent — how to use
 
-The session loop lives in [SKILL.md](SKILL.md). Agents talk to the hosted librarian **only through host MCP**. Prefer the cloud URL `https://mem.centricmem.com/mcp` (Bearer: a library pairing key, or an owner-granted account key). stdio `centricmem-host` is the sandbox fallback when `/health` has no `mcp` field. You do not curl librarian HTTP.
+The session loop lives in [SKILL.md](SKILL.md). Agents talk to the hosted librarian **only through host MCP**. Prefer the cloud URL `https://mem.centricmem.com/mcp` (Bearer: a shelf pairing key, or an owner-granted account key). stdio `centricmem-host` is the sandbox fallback when `/health` has no `mcp` field. You do not curl librarian HTTP.
 
 ## What you are filing
 
 ```text
-Library  (one pairing key, or an account key whose grants include this library)
-  └── Unit  (.md or one ##)
-        Identity / Details / Tags / Body
-        Original (optional) — pointer in Details; bytes in object storage
+Library  (one per person — login, billing, delete)
+  └── Shelf  (pairing-key vault; still pass library=<shelf-id>)
+        └── Card  (.md or one ##)
+              Identity / Details / Tags / Body
+              Original (optional) — pointer in Details; bytes in object storage
 ```
 
-Tags are about the work. `project:` / `type:` / `#id` in search are index shortcuts, not extra types. Corpus YAML is that library’s Details.
+Inbox is a system shelf (`unclassified`), never a sweep target. Tags are about the work. `project:` / `type:` / `#id` in search are index shortcuts, not extra types. Corpus YAML is that shelf’s Details.
 
 ## Reach
 
 MCP tools must be present: `cm_health` `cm_ambient` `cm_doctor` `cm_search` `cm_show` `cm_note` `cm_log_decision` `cm_done` `cm_keep` `cm_library` `cm_inbox` `cm_import` `cm_classify` `cm_index`.
 
-If they are missing, send the authenticate link. Run `centricmem connect --device` and send **only** the printed `/connect?device=` URL — never the secret, never the key. They have ten minutes. They enter **any** agent key on that page (default = every library, pairing key = that library) — never in chat. Humans sign in at the website for the dashboard. Do not send a loopback `/connect`. Do not curl. Do not CLI-write. Do not bootstrap.
+If they are missing, send the authenticate link. Run `centricmem connect --device` and send **only** the printed `/connect?device=` URL — never the secret, never the key. They have ten minutes. They enter **any** agent key on that page (default = every shelf in this library, pairing key = that shelf) — never in chat. Humans sign in at the website for the dashboard. Do not send a loopback `/connect`. Do not curl. Do not CLI-write. Do not bootstrap.
 
 Config (pairing key stays off git):
 
@@ -28,7 +29,7 @@ Config (pairing key stays off git):
       "type": "http",
       "url": "https://mem.centricmem.com/mcp",
       "headers": {
-        "Authorization": "Bearer <default account key or library pairing key>"
+        "Authorization": "Bearer <default account key or shelf pairing key>"
       }
     }
   }
@@ -44,14 +45,14 @@ Sandbox fallback (only if `cm_health` has no `mcp` field, or the origin is not u
       "command": "centricmem-host",
       "env": {
         "CENTRICMEM_URL": "https://mem.centricmem.com",
-        "CENTRICMEM_TOKEN": "<library pairing key or account key>"
+        "CENTRICMEM_TOKEN": "<shelf pairing key or account key>"
       }
     }
   }
 }
 ```
 
-`setup --install-skill` on a machine that already has the client can merge this into each agent’s MCP config (cloud URL when `/health` advertises `mcp`, otherwise stdio). When a key is needed, the agent runs `centricmem connect --device` and sends **only** the printed `/connect?device=` URL (ten minutes; secret stays on the agent). The human enters **any** agent key on that page: default (`*` = all libraries) or a pairing key (one library). Never ask them to paste a token in chat. Never one-click install. Never a dashboard “connect this computer”. Token failure: say once; send a new device link.
+`setup --install-skill` on a machine that already has the client can merge this into each agent’s MCP config (cloud URL when `/health` advertises `mcp`, otherwise stdio). When a key is needed, the agent runs `centricmem connect --device` and sends **only** the printed `/connect?device=` URL (ten minutes; secret stays on the agent). The human enters **any** agent key on that page: default (`*` = every shelf in this library) or a pairing key (one shelf). Never ask them to paste a token in chat. Never one-click install. Never a dashboard “connect this computer”. Token failure: say once; send a new device link.
 
 Do **not** call `/download`, `/delete`, billing, or `/register` `/login`. Humans download originals and delete on the dashboard. Login uniquely owns delete and billing. The **default** account key (`*`) may mint, rename, grant, and revoke other keys (including bulk-revoke of pairing keys) — that stays HTTP/dashboard/CLI, not these `cm_*` tools, so a new token never lands in chat. Pairing keys cannot manage keys. Attachments are metered per plan (Lite 100MB, Education 200MB, Pro 1GB, Ultra 10GB; operator uncapped). Over quota, `cm_keep` fails — say so; do not drop bytes silently.
 
@@ -67,7 +68,7 @@ Progressive disclosure:
 
 Never ask `cm_show` for originals. Never paste download URLs into the chat.
 
-Useful query bits (in `q` / `tags` / `type`): `filter`, `tag`, `type:decision`, `#0016` / `id:0016`. Bare word `decision` is full-text, not a type filter. `all` does not leak other libraries on a pairing key. An account key’s `all` is only the libraries on that key’s grants. Pass `library=` / `cwd=` when the Bearer can open more than one library. Friend keys stay one library. Isolation: **one key = its grants**. The owner's agent Bearer is the **default account key** (`*` = all libraries). Friend keys stay one library.
+Useful query bits (in `q` / `tags` / `type`): `filter`, `tag`, `type:decision`, `#0016` / `id:0016`. Bare word `decision` is full-text, not a type filter. `all` does not leak other shelves on a pairing key. An account key’s `all` is only the shelves on that key’s grants. Pass `library=` / `cwd=` when the Bearer can open more than one shelf. Friend keys stay one shelf. Isolation: **one key = its grants**. The owner's agent Bearer is the **default account key** (`*` = every shelf in this library). Friend keys stay one shelf.
 
 | Situation | Do |
 |-----------|-----|
@@ -75,7 +76,7 @@ Useful query bits (in `q` / `tags` / `type`): `filter`, `tag`, `type:decision`, 
 | Why we chose X | `cm_search` (decision) |
 | What we know | `cm_search` + lessons / `tags` |
 | Human wants the file | tell them Dashboard Download Original |
-| Durable work just finished | pick a **named** library (or `cm_library`), then one MCP sweep **this turn** — never Inbox |
+| Durable work just finished | pick a **named** shelf (or `cm_library`), then one MCP sweep **this turn** — never Inbox |
 | Inbox leftover | `cm_inbox`; `apply` high-confidence; `cm_classify` / `cm_library` the rest — do not leave for the human |
 | Structured corpus (`corpus=slug`) | `library=` that slug; `cm_search` then `cm_show` the **card**, not a dump page |
 
@@ -101,9 +102,9 @@ Hold half-finished thoughts. When the chunk is done, file **before you stop talk
 | Knowledge | durable model / fact | `cm_note` |
 | Decision | architecture or durable host fact | `cm_log_decision` |
 | Original | a file worth keeping | `cm_keep` as above. Never `path=`. Never Inbox |
-| Library | none of the named libraries fit | `cm_library` `{id}` (account key). Pairing key: send the authenticate link |
+| Shelf | none of the named shelves fit | `cm_library` `{id}` (account key). Pairing key: send the authenticate link |
 | Bundle | capture import | `cm_import` with `library=` |
-| Inbox leftover | drain into a named library | `cm_classify` |
+| Inbox leftover | drain into a named shelf | `cm_classify` |
 | Index | after bulk import | `cm_index` |
 
 Later sweeps in the same chat are OK for **new** facts. Do not re-file the same decision.
@@ -123,4 +124,4 @@ Other agents: only keep a transcript if that runtime actually writes a local fil
 - Put secrets in cards
 - Load attach originals into the chat
 - Treat this git checkout as the memory disk
-- Write Inbox / `unclassified` — pick or create a named library
+- Write Inbox / `unclassified` — pick or create a named shelf

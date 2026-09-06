@@ -2,6 +2,11 @@
 
 Skill-facing notes for [centricmem-skill](https://github.com/zeyu-j/centricmem-skill). This repo is how to use the hosted librarian.
 
+## 0.21.23
+
+- Public names: **Library** (one per person) → **Shelf** (pairing-key vault) → **Card**. Agents still pass `library=<shelf-id>`. Default account key = every shelf in this library. Pairing key = that shelf. Inbox is a system shelf, never a sweep target.
+- Sign up is open. Install copy no longer says invite-only.
+
 ## 0.21.22
 
 - `SKILL.md` follows the Agent Skills specification: `name`, `description` (what + when), `license`, `compatibility`, and `metadata` (version / CLI floor / changelog).

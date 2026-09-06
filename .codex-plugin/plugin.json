@@ -1,6 +1,6 @@
 {
   "name": "centricmem-skill",
-  "version": "0.21.22",
+  "version": "0.21.23",
   "description": "Hosted CentricMem librarian: organise and retrieve Markdown memory via host MCP.",
   "author": {
     "name": "Dr. Z",
@@ -23,7 +23,7 @@
     "websiteURL": "https://centricmem.com",
     "defaultPrompt": [
       "File this session into CentricMem.",
-      "Search my CentricMem library for that decision.",
+      "Search my CentricMem shelves for that decision.",
       "Connect this agent to the CentricMem librarian."
     ]
   }
