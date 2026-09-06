@@ -4,16 +4,16 @@ description: "Organises and retrieves Markdown memory on the hosted CentricMem l
 license: PolyForm-Noncommercial-1.0.0
 compatibility: "Requires host MCP at https://mem.centricmem.com/mcp (or stdio centricmem-host). CLI >=0.21.14 for connect --device."
 metadata:
-  version: "0.21.27"
+  version: "0.21.28"
   compatible_cli: ">=0.21.14"
   changelog_url: https://github.com/zeyu-j/centricmem-skill/blob/main/CHANGELOG.md
 ---
 
-# CentricMem Agent Skill v0.21.27
+# CentricMem Agent Skill v0.21.28
 
 Glossary: **Library** (one per person) → **Shelf** (pass `shelf=<id>` or `library=<id>`) → **Card** (Markdown: Identity / Details / Tags / Body, [REFERENCE.md](REFERENCE.md)). Inbox is a system shelf, never a sweep target.
 
-CentricMem is the **manager layer** (organise / retrieve / cross-agent store) **and** the literature database. Session capture stays in the agent's own memory (Cursor memories and other plugins). Do not uninstall those. Do not write back into them. New literature: keep the original, read it, write Markdown cards. Isolation is **one key = its grants**. Default key (`*` = every shelf): search, sweep, `cm_library`, drain Inbox, mint/rename/grant/revoke extras. Extra keys open the shelves granted (one or more). Pass `shelf=` / `library=` / `cwd=` so writes route. Tags stay about. The librarian is the only writer. Login uniquely owns delete and billing. Attachments are metered per plan; Markdown is unlimited.
+CentricMem is the **manager layer** (organise / retrieve / cross-agent store) **and** the literature database. Session capture stays in the agent's own memory (Cursor memories and other plugins). Do not uninstall those. Do not write back into them. New literature: keep the original, read it, write Markdown cards. Isolation is **one key = its grants**. Default key (`*` = every shelf): search, sweep, `cm_library`, drain Inbox, mint/rename/grant/revoke extras. Extra keys open the shelves granted (one or more). Pass `shelf=` / `library=` / `cwd=` so writes route. Tags stay about. The librarian is the only writer. Login uniquely owns delete, billing, and rotating the default key. Attachments are metered per plan; Markdown is unlimited.
 
 ## 0. Reach the librarian
 
@@ -36,7 +36,7 @@ CentricMem is the **manager layer** (organise / retrieve / cross-agent store) **
 
 **Once this chat, after health/ambient:** compare this file’s `metadata.version` to `skill_latest` on `cm_health` / `cm_ambient`. If that field is null, GET `https://raw.githubusercontent.com/zeyu-j/centricmem-skill/main/skills/centricmem-agent/SKILL.md` and parse `metadata.version`. If published is newer: `npx --yes skills add zeyu-j/centricmem-skill --skill centricmem-agent -g -y`. Tell the human it is on disk; **this chat still uses the already-loaded Skill**; the next chat uses the new one. If this file is newer, or fetch/npx fails: continue. Never `setup --install-skill` for this refresh.
 
-**Once after Skill install / first ambient this chat:** tell the human how they use it (their language). They keep talking here. They do **not** have to say 收尾 / wrap up / log this. You file when the work is real, before you stop — closing the tab does not run this Skill. Cursor memories stay. They do not paste chats, tokens, or CLI. They search via you or log in to download originals. "Don't log" skips that sweep.
+**Once after Skill install / first ambient this chat:** tell the human how they use it (their language). They keep talking here. They do **not** have to say 收尾 / wrap up / log this. You file when the work is real, before you stop — closing the tab does not run this Skill. Cursor memories stay. They do not paste chats, tokens, or CLI. If they pasted a key into a chat, they sign in and **rotate** it on Keys — the old secret dies; they enter the new one on a `/connect?device=` page, never here. They search via you or log in to download originals. "Don't log" skips that sweep.
 
 ## 3. During the session
 

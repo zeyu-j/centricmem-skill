@@ -2,6 +2,10 @@
 
 Skill-facing notes for [centricmem-skill](https://github.com/zeyu-j/centricmem-skill). This repo is how to use the hosted librarian.
 
+## 0.21.28
+
+- If a key was pasted into a chat, the owner signs in and rotates it on Keys. The old secret dies. Agents never ask for the new one in chat.
+
 ## 0.21.27
 
 - Refresh compares `metadata.version` (not a top-level `version` key). The installed Skill path is agent-neutral.

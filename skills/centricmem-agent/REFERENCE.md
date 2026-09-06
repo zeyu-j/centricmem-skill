@@ -122,6 +122,7 @@ Other agents: only keep a transcript if that runtime actually writes a local fil
 - `setup --bootstrap` on a guest machine
 - Uninstall Cursor memories or write back into them
 - Put secrets in cards
+- Ask the human to paste a key, token, or transcript jsonl. If they leaked a key, they sign in and rotate it on Keys.
 - Load attach originals into the chat
 - Treat this git checkout as the memory disk
 - Write Inbox / `unclassified` — pick or create a named shelf
