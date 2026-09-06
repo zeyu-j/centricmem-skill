@@ -2,6 +2,10 @@
 
 Skill-facing notes for [centricmem-skill](https://github.com/zeyu-j/centricmem-skill). This repo is how to use the hosted librarian.
 
+## 0.21.27
+
+- Refresh compares `metadata.version` (not a top-level `version` key). The installed Skill path is agent-neutral.
+
 ## 0.21.26
 
 - Extra keys: authenticate so the owner enters the **default** key to mint a shelf. Connect does not create shelves. Inbox drain extras can `apply`.
