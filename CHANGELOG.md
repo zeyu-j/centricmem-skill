@@ -2,6 +2,16 @@
 
 Skill-facing notes for [centricmem-skill](https://github.com/zeyu-j/centricmem-skill). This repo is how to use the hosted librarian.
 
+## 0.21.20
+
+- Remote agents (VPS / Cloud Agent): the agent runs `centricmem connect --device` and sends only the printed `/connect?device=` URL. You have **ten minutes** to enter the key on that page. The secret never appears in chat. Then start a new chat there.
+- On the computer in front of you, the agent still sends `https://centricmem.com/connect` (loopback helper). Never paste a key into chat.
+
+## 0.21.19
+
+- Login uniquely owns delete and billing. The **default** account key (all libraries) may mint, rename, grant, and revoke other keys — including every pairing key on a library. Pairing keys cannot. New tokens stay off chat (dashboard / CLI, not MCP).
+- Attachments are metered per plan (Lite 100MB, Education 200MB, Pro 1GB, Ultra 10GB). Markdown is unlimited. Over quota, keep fails — the agent says so.
+
 ## 0.21.18
 
 - The authenticate link accepts **any** agent key: default (every library) or a pairing key (that library). Default is one choice, not the only one.

@@ -17,7 +17,7 @@ Tags are about the work. `project:` / `type:` / `#id` in search are index shortc
 
 MCP tools must be present: `cm_health` `cm_ambient` `cm_doctor` `cm_search` `cm_show` `cm_note` `cm_log_decision` `cm_done` `cm_keep` `cm_library` `cm_inbox` `cm_import` `cm_classify` `cm_index`.
 
-If they are missing, send the authenticate link (`https://centricmem.com/connect`). If you can exec: `centricmem connect --no-open` first. They enter **any** agent key on that page (default = every library, pairing key = that library) — never in chat. Do not curl. Do not CLI-write. Do not bootstrap.
+If they are missing, send the authenticate link. This computer (human’s browser): `centricmem connect --no-open`, then `https://centricmem.com/connect`. Remote (VPS / Cloud Agent): `centricmem connect --device` and send **only** the printed `/connect?device=` URL — never the secret, never the key. They have ten minutes. They enter **any** agent key on that page (default = every library, pairing key = that library) — never in chat. Do not curl. Do not CLI-write. Do not bootstrap.
 
 Config (pairing key stays off git):
 
@@ -51,9 +51,9 @@ Sandbox fallback (only if `cm_health` has no `mcp` field, or the origin is not u
 }
 ```
 
-`setup --install-skill` on a machine that already has the client can merge this into each agent’s MCP config (cloud URL when `/health` advertises `mcp`, otherwise stdio). When a key is needed, the agent sends **https://centricmem.com/connect** (authenticate). The human enters **any** agent key on that page: default (`*` = all libraries) or a pairing key (one library). `centricmem connect` is the helper on this computer that writes MCP configs. Never ask them to paste a token in chat. Never one-click install. Token failure: say once; send the authenticate link again.
+`setup --install-skill` on a machine that already has the client can merge this into each agent’s MCP config (cloud URL when `/health` advertises `mcp`, otherwise stdio). When a key is needed, the agent sends an authenticate link. On this computer: **https://centricmem.com/connect** plus `centricmem connect --no-open`. On a VPS / Cloud Agent: `centricmem connect --device` and the printed `/connect?device=` URL (ten minutes; secret stays on the agent). The human enters **any** agent key on that page: default (`*` = all libraries) or a pairing key (one library). Never ask them to paste a token in chat. Never one-click install. Token failure: say once; send the authenticate link again.
 
-Do **not** call `/download`, `/delete`, or account (`/register` `/login` `/account` keys billing). Humans download originals and manage keys on the dashboard.
+Do **not** call `/download`, `/delete`, billing, or `/register` `/login`. Humans download originals and delete on the dashboard. Login uniquely owns delete and billing. The **default** account key (`*`) may mint, rename, grant, and revoke other keys (including bulk-revoke of pairing keys) — that stays HTTP/dashboard/CLI, not these `cm_*` tools, so a new token never lands in chat. Pairing keys cannot manage keys. Attachments are metered per plan (Lite 100MB, Education 200MB, Pro 1GB, Ultra 10GB; operator uncapped). Over quota, `cm_keep` fails — say so; do not drop bytes silently.
 
 ## Search and show
 

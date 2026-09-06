@@ -18,7 +18,7 @@ Hosted librarian: [centricmem.com](https://centricmem.com). Seats are invite-bas
 
 1. Keep talking where you already work. agent memories stay on.
 2. When work is real, the agent files a Markdown card and keeps this chat’s transcript in object storage — you do not have to say wrap up. Closing the tab does not file; it files before it stops. If your Skill is behind this repo, the agent refreshes it with `npx skills add` (the current chat still uses the old copy).
-3. Later, ask the agent — or log in to search and download originals. The agent uses host MCP (`https://mem.centricmem.com/mcp`). When a key is needed, the agent sends [centricmem.com/connect](https://centricmem.com/connect) — enter that key on that page (default = all libraries, or a pairing key = that library), never in chat. Originals and account stay on the dashboard.
+3. Later, ask the agent — or log in to search and download originals. The agent uses host MCP (`https://mem.centricmem.com/mcp`). When a key is needed, the agent sends [centricmem.com/connect](https://centricmem.com/connect) on this computer, or a `/connect?device=` link from a remote agent (ten minutes). Enter that key on the page (default = all libraries, or a pairing key = that library), never in chat. Originals and account stay on the dashboard.
 
 You do not run a librarian on this machine. You do not `setup --bootstrap`.
 
