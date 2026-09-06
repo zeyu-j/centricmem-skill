@@ -2,6 +2,10 @@
 
 Skill-facing notes for [centricmem-skill](https://github.com/zeyu-j/centricmem-skill). This repo is how to use the hosted librarian.
 
+## 0.21.25
+
+- One agent-key type. Default (`*` = every shelf) is unique and renameable; it cannot be revoked. Extra keys grant one or more shelves and are uncapped. Login uniquely owns delete and billing. Website **Billing** shows the plan; after the first Stripe customer it opens the Customer Portal.
+
 ## 0.21.24
 
 - MCP/HTTP accept `shelf=<id>` as an alias of `library=<id>`. Account JSON still has `libraries` and also `shelves`.
