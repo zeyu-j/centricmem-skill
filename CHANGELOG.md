@@ -2,6 +2,10 @@
 
 Skill-facing notes for [centricmem-skill](https://github.com/zeyu-j/centricmem-skill). This repo is how to use the hosted librarian.
 
+## 0.21.21
+
+- Authenticate is always a `/connect?device=` link. The agent runs `centricmem connect --device` and sends only that URL. You have **ten minutes** to enter the key. Sign in at the website for the dashboard — there is no “connect this computer” button. Never paste a key into chat.
+
 ## 0.21.20
 
 - Remote agents (VPS / Cloud Agent): the agent runs `centricmem connect --device` and sends only the printed `/connect?device=` URL. You have **ten minutes** to enter the key on that page. The secret never appears in chat. Then start a new chat there.
