@@ -5,6 +5,7 @@ Skill-facing notes for [centricmem-skill](https://github.com/zeyu-j/centricmem-s
 ## 0.21.26
 
 - Extra keys: authenticate so the owner enters the **default** key to mint a shelf. Connect does not create shelves. Inbox drain extras can `apply`.
+- Packaging: Copilot CLI marketplace at `.github/plugin/marketplace.json`; Grok Build manifest at `.grok-plugin/plugin.json`; Codex `composerIcon` at `assets/icon.svg`. Swap that SVG (and the website favicon) when the logo changes.
 
 ## 0.21.25
 

@@ -21,6 +21,7 @@
     "category": "Productivity",
     "capabilities": ["Read", "Write"],
     "websiteURL": "https://centricmem.com",
+    "composerIcon": "./assets/icon.svg",
     "defaultPrompt": [
       "File this session into CentricMem.",
       "Search my CentricMem shelves for that decision.",

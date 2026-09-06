@@ -44,6 +44,13 @@ The same repo is an [Agent Plugins 1.0](https://agent-plugins.org) package for C
 
 Codex can also add this repo as a marketplace source (`.agents/plugins/marketplace.json`).
 
+GitHub Copilot CLI can add this repo as a marketplace:
+
+```bash
+copilot plugin marketplace add zeyu-j/centricmem-skill
+copilot plugin install centricmem-skill
+```
+
 ## License
 
 [PolyForm Noncommercial 1.0.0](./LICENSE) — attribution required; no commercial use.
