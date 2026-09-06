@@ -2,9 +2,13 @@
 
 Skill-facing notes for [centricmem-skill](https://github.com/zeyu-j/centricmem-skill). This repo is how to use the hosted librarian.
 
+## 0.21.24
+
+- MCP/HTTP accept `shelf=<id>` as an alias of `library=<id>`. Account JSON still has `libraries` and also `shelves`.
+
 ## 0.21.23
 
-- Public names: **Library** (one per person) → **Shelf** (pairing-key vault) → **Card**. Agents still pass `library=<shelf-id>`. Default account key = every shelf in this library. Pairing key = that shelf. Inbox is a system shelf, never a sweep target.
+- Public names: **Library** (one per person) → **Shelf** (pairing-key vault) → **Card**. Agents pass `shelf=<id>` or `library=<id>`. Default account key = every shelf in this library. Pairing key = that shelf. Inbox is a system shelf, never a sweep target.
 - Sign up is open. Install copy no longer says invite-only.
 
 ## 0.21.22

@@ -6,7 +6,7 @@ The session loop lives in [SKILL.md](SKILL.md). Agents talk to the hosted librar
 
 ```text
 Library  (one per person — login, billing, delete)
-  └── Shelf  (pairing-key vault; still pass library=<shelf-id>)
+  └── Shelf  (pairing-key vault; pass shelf=<id> or library=<id>)
         └── Card  (.md or one ##)
               Identity / Details / Tags / Body
               Original (optional) — pointer in Details; bytes in object storage
@@ -68,7 +68,7 @@ Progressive disclosure:
 
 Never ask `cm_show` for originals. Never paste download URLs into the chat.
 
-Useful query bits (in `q` / `tags` / `type`): `filter`, `tag`, `type:decision`, `#0016` / `id:0016`. Bare word `decision` is full-text, not a type filter. `all` does not leak other shelves on a pairing key. An account key’s `all` is only the shelves on that key’s grants. Pass `library=` / `cwd=` when the Bearer can open more than one shelf. Friend keys stay one shelf. Isolation: **one key = its grants**. The owner's agent Bearer is the **default account key** (`*` = every shelf in this library). Friend keys stay one shelf.
+Useful query bits (in `q` / `tags` / `type`): `filter`, `tag`, `type:decision`, `#0016` / `id:0016`. Bare word `decision` is full-text, not a type filter. `all` does not leak other shelves on a pairing key. An account key’s `all` is only the shelves on that key’s grants. Pass `shelf=` / `library=` / `cwd=` when the Bearer can open more than one shelf. Friend keys stay one shelf. Isolation: **one key = its grants**. The owner's agent Bearer is the **default account key** (`*` = every shelf in this library). Friend keys stay one shelf.
 
 | Situation | Do |
 |-----------|-----|
