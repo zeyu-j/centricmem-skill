@@ -1,12 +1,15 @@
 ---
 name: centricmem-agent
-version: 0.21.21
-compatible_cli: ">=0.21.14"
-changelog_url: https://github.com/zeyu-j/centricmem-skill/blob/main/CHANGELOG.md
-description: Manager layer over the agent's own memory. Host MCP to the librarian (`https://mem.centricmem.com/mcp`, or stdio centricmem-host). Ambient at start. After install, tell the human how they use it. If this Skill is behind GitHub (or health.skill_latest), npx skills add once — this chat still uses the loaded text. File a sweep as soon as Non-Micro work exists; closing the agent does not run this Skill. Never CLI-write a hub. Never curl librarian HTTP. Never write Inbox.
+description: "Organises and retrieves Markdown memory on the hosted CentricMem librarian via host MCP (search, notes, decisions, transcripts). Use when starting a session, filing Non-Micro work, searching project memory, connecting an agent key, or refreshing this Skill. Never write Inbox, never curl librarian HTTP, never paste keys in chat."
+license: PolyForm-Noncommercial-1.0.0
+compatibility: "Requires host MCP at https://mem.centricmem.com/mcp (or stdio centricmem-host). CLI >=0.21.14 for connect --device."
+metadata:
+  version: "0.21.22"
+  compatible_cli: ">=0.21.14"
+  changelog_url: https://github.com/zeyu-j/centricmem-skill/blob/main/CHANGELOG.md
 ---
 
-# CentricMem Agent Skill v0.21.21
+# CentricMem Agent Skill v0.21.22
 
 CentricMem is the **manager layer** (organise / retrieve / cross-agent store) **and** the literature database. Session capture stays in the agent's own memory (Cursor memories and other plugins). Do not uninstall those. Do not write back into them. New literature: keep the original, read it, write Markdown cards. A unit is Identity / Details / Tags / Body ([REFERENCE.md](REFERENCE.md)). Isolation is **one key = its grants**. Default account key (`*` = every library): search, sweep, `cm_library`, drain Inbox. A pairing key opens only that library. Pass `library=` / `cwd=` so writes route. Tags stay about. The librarian is the only writer. Login uniquely owns delete and billing. The default account key (`*`) may mint, rename, grant, and revoke other keys, including every pairing key on a library. Pairing keys cannot. Attachments are metered per plan; Markdown is unlimited.
 

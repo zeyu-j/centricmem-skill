@@ -13,12 +13,40 @@ jobs:
       - uses: actions/checkout@v4
       - name: Public repo is usage-only
         run: |
+          set -euo pipefail
           test -f README.md
           test -f LICENSE
+          test -f plugin.json
+          test -f mcp.json
+          test -f .codex-plugin/plugin.json
           test -f skills/centricmem-agent/SKILL.md
           test -f skills/centricmem-agent/REFERENCE.md
           grep -q '^name: centricmem-agent' skills/centricmem-agent/SKILL.md
+          grep -q '^description:' skills/centricmem-agent/SKILL.md
+          grep -q '^license:' skills/centricmem-agent/SKILL.md
+          grep -q '^compatibility:' skills/centricmem-agent/SKILL.md
+          grep -q '^metadata:' skills/centricmem-agent/SKILL.md
+          if grep -qE '^(version|compatible_cli|changelog_url):' skills/centricmem-agent/SKILL.md; then
+            echo "Agent Skills extra keys must live under metadata:" >&2
+            exit 1
+          fi
           grep -q 'npx skills add zeyu-j/centricmem-skill' README.md
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+
+          plugin = json.loads(Path("plugin.json").read_text(encoding="utf-8"))
+          mcp = json.loads(Path("mcp.json").read_text(encoding="utf-8"))
+          codex = json.loads(Path(".codex-plugin/plugin.json").read_text(encoding="utf-8"))
+          assert plugin["$schema"] == "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json"
+          assert plugin["name"] == "centricmem-skill"
+          assert mcp["$schema"] == "https://agent-plugins.org/schemas/1.0.0/mcp.schema.json"
+          assert mcp["mcpServers"]["centricmem"]["type"] == "streamable-http"
+          assert mcp["mcpServers"]["centricmem"]["url"] == "https://mem.centricmem.com/mcp"
+          assert "headers" not in mcp["mcpServers"]["centricmem"]
+          assert codex["skills"] == "./skills/"
+          assert codex["mcpServers"] == "./mcp.json"
+          PY
           if [ -d src ] || [ -d dist ] || [ -d tests ] || [ -d desktop ] || [ -d web ]; then
             echo "client trees must not ship" >&2
             exit 1

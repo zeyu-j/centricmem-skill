@@ -2,6 +2,12 @@
 
 Skill-facing notes for [centricmem-skill](https://github.com/zeyu-j/centricmem-skill). This repo is how to use the hosted librarian.
 
+## 0.21.22
+
+- `SKILL.md` follows the Agent Skills specification: `name`, `description` (what + when), `license`, `compatibility`, and `metadata` (version / CLI floor / changelog).
+- This repo is also an Agent Plugins 1.0 package (`plugin.json` + `skills/` + `mcp.json`) for Codex, Copilot, and Kiro. MCP is `https://mem.centricmem.com/mcp` with no token in git. Codex-native pack: `.codex-plugin/plugin.json`.
+- Still one public skill: `centricmem-agent`. Install remains `npx skills add zeyu-j/centricmem-skill --skill centricmem-agent -g`.
+
 ## 0.21.21
 
 - Authenticate is always a `/connect?device=` link. The agent runs `centricmem connect --device` and sends only that URL. You have **ten minutes** to enter the key. Sign in at the website for the dashboard — there is no “connect this computer” button. Never paste a key into chat.

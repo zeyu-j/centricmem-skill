@@ -85,8 +85,8 @@ Empty ambient + Work/Ops → do not deep-search; execute, then sweep this turn.
 
 Guests install from GitHub, not from the librarian disk. `cm_health` `min_skill` is the HTTP floor. `skill_latest` is the published Skill (env `CENTRICMEM_SKILL_LATEST` on the librarian) — it is **never** the hub’s `skills/centricmem-agent/SKILL.md`.
 
-1. Read `version` from this Skill’s frontmatter.
-2. `latest` = JSON `skill_latest` if present, else the `version:` line at `https://raw.githubusercontent.com/zeyu-j/centricmem-skill/main/skills/centricmem-agent/SKILL.md`.
+1. Read `version` from this Skill’s frontmatter (`metadata.version`).
+2. `latest` = JSON `skill_latest` if present, else `metadata.version` at `https://raw.githubusercontent.com/zeyu-j/centricmem-skill/main/skills/centricmem-agent/SKILL.md`.
 3. If `latest` is newer: `npx --yes skills add zeyu-j/centricmem-skill --skill centricmem-agent -g -y`. Say once: on disk now; this chat still uses the loaded copy.
 4. If this file is newer, or the fetch/npx fails: continue. Do not `setup --install-skill`.
 
