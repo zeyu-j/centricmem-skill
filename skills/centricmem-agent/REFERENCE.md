@@ -77,7 +77,7 @@ Useful query bits (in `q` / `tags` / `type`): `filter`, `tag`, `type:decision`, 
 | What we know | `cm_search` + lessons / `tags` |
 | Human wants the file | tell them Dashboard Download Original |
 | Durable work just finished | pick a **named** shelf (or `cm_library`), then one MCP sweep **this turn** — never Inbox |
-| Inbox leftover | `cm_inbox`; `apply` high-confidence; `cm_classify` / `cm_library` the rest — do not leave for the human |
+| Inbox leftover | `cm_inbox`; `apply` high-confidence; `cm_classify` the rest (default may `cm_library`) — do not leave for the human |
 | Structured corpus (`corpus=slug`) | `library=` that slug; `cm_search` then `cm_show` the **card**, not a dump page |
 
 Empty ambient + Work/Ops → do not deep-search; execute, then sweep this turn.
@@ -102,7 +102,7 @@ Hold half-finished thoughts. When the chunk is done, file **before you stop talk
 | Knowledge | durable model / fact | `cm_note` |
 | Decision | architecture or durable host fact | `cm_log_decision` |
 | Original | a file worth keeping | `cm_keep` as above. Never `path=`. Never Inbox |
-| Shelf | none of the named shelves fit | `cm_library` `{id}` (default key). Extra key: send the authenticate link |
+| Shelf | none of the named shelves fit | `cm_library` `{id}` (default key). Extra: authenticate so they enter the **default** key. Connect does not mint a shelf |
 | Bundle | capture import | `cm_import` with `library=` |
 | Inbox leftover | drain into a named shelf | `cm_classify` |
 | Index | after bulk import | `cm_index` |

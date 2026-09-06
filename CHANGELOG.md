@@ -2,6 +2,10 @@
 
 Skill-facing notes for [centricmem-skill](https://github.com/zeyu-j/centricmem-skill). This repo is how to use the hosted librarian.
 
+## 0.21.26
+
+- Extra keys: authenticate so the owner enters the **default** key to mint a shelf. Connect does not create shelves. Inbox drain extras can `apply`.
+
 ## 0.21.25
 
 - One agent-key type. Default (`*` = every shelf) is unique and renameable; it cannot be revoked. Extra keys grant one or more shelves and are uncapped. Login uniquely owns delete and billing. Website **Billing** shows the plan; after the first Stripe customer it opens the Customer Portal.

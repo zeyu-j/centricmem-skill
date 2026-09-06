@@ -4,12 +4,12 @@ description: "Organises and retrieves Markdown memory on the hosted CentricMem l
 license: PolyForm-Noncommercial-1.0.0
 compatibility: "Requires host MCP at https://mem.centricmem.com/mcp (or stdio centricmem-host). CLI >=0.21.14 for connect --device."
 metadata:
-  version: "0.21.25"
+  version: "0.21.26"
   compatible_cli: ">=0.21.14"
   changelog_url: https://github.com/zeyu-j/centricmem-skill/blob/main/CHANGELOG.md
 ---
 
-# CentricMem Agent Skill v0.21.25
+# CentricMem Agent Skill v0.21.26
 
 Glossary: **Library** (one per person) → **Shelf** (pass `shelf=<id>` or `library=<id>`) → **Card** (Markdown: Identity / Details / Tags / Body, [REFERENCE.md](REFERENCE.md)). Inbox is a system shelf, never a sweep target.
 
@@ -56,11 +56,11 @@ Human says don't log → skip. MCP missing or librarian down: skip, say once.
 
 1. cwd linked, or `corpus=<slug>` → that shelf
 2. work belongs in an existing named shelf on that list → that id
-3. none fit → default key: `cm_library` `{id}` (slug like `my-project`) then file there. Extra key, or `cm_library` missing: send the authenticate link (step 0.2 — `centricmem connect --device`, only the printed `/connect?device=` URL) so they can enter a key on that page (default to mint/manage every shelf, or an extra key for those shelves); **hold the sweep in agent memory**. Do not write `unclassified`.
+3. none fit → default key: `cm_library` `{id}` (slug like `my-project`) then file there. Extra key, or `cm_library` missing: send the authenticate link (step 0.2) so they enter the **default** key to mint a shelf (Connect does not create shelves); **hold the sweep in agent memory**. Do not write `unclassified`.
 
 Then, with `shelf=` / `library=` that id:
 
 1. **Transcript → R2.** Cursor: `~/.cursor/projects/<workspace>/agent-transcripts/<uuid>/<uuid>.jsonl` for **this** chat. Shell-read the file; **never paste jsonl**. `cm_keep` with that filename + file bytes (never `path=`). Leave the local jsonl in place (do not delete Cursor chat state).
 2. Then `cm_note` `cm_log_decision` `cm_done` with `attach` = that keep pointer. **One sweep, one batch.** If they keep talking, another sweep is OK for **new** facts — do not re-file the same decision.
 
-Existing Inbox leftovers: `cm_inbox`; `apply=true` high-confidence; remaining `cm_classify` into an existing named shelf, or `cm_library` then classify. Do not leave leftovers for the human. If this key cannot see Inbox, say once.
+Existing Inbox leftovers: `cm_inbox`; `apply=true` high-confidence; remaining `cm_classify` into an existing named shelf, or default `cm_library` then classify. Do not leave leftovers for the human. If this key cannot see Inbox, say once.
