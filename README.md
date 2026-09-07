@@ -20,7 +20,7 @@ Hosted librarian: [centricmem.com](https://centricmem.com). Sign up is open.
 
 1. Keep talking where you already work. agent memories stay on.
 2. When work is real, the agent files a Markdown card and keeps this chat’s transcript in object storage — you do not have to say wrap up. Closing the tab does not file; it files before it stops. If your Skill is behind this repo, the agent refreshes it with `npx skills add` (the current chat still uses the old copy).
-3. Later, ask the agent — or log in to search and download originals. The agent uses host MCP (`https://mem.centricmem.com/mcp`). When a key is needed, the agent sends a `/connect?device=` link (`centricmem connect --device`, ten minutes). Enter that key on that page (default = every shelf, or an extra key for the shelves you granted), never in chat. Sign in for the dashboard — there is no “connect this computer” button. Originals and card delete stay on the dashboard. Leftover shelves: the agent copies onto another shelf (`cm_copy`) then archives the old one (`cm_archive`) — it does not download originals to this computer.
+3. Later, ask the agent — or log in to search and download originals. The agent uses host MCP (`https://mem.centricmem.com/mcp`). When a key is needed, the agent sends a `/connect?device=` link (`centricmem connect --device`, ten minutes). Enter that key on that page (default = every shelf, or an extra key for the shelves you granted), never in chat. Sign in for the dashboard — there is no “connect this computer” button. Originals and card delete stay on the dashboard. Leftover shelves: the agent copies onto another shelf (`cm_copy`) then **deletes** the old one (`cm_delete`) — it does not download originals to this computer, and there is no restore warehouse.
 
 You do not run a librarian on this machine. You do not `setup --bootstrap`.
 
@@ -29,7 +29,7 @@ You do not run a librarian on this machine. You do not `setup --bootstrap`.
 This repository is the **Skill**: how agents talk to the hosted librarian.
 
 - [`skills/centricmem-agent/SKILL.md`](./skills/centricmem-agent/SKILL.md) — session loop ([Agent Skills](https://agentskills.io/specification) frontmatter)
-- [`skills/centricmem-agent/REFERENCE.md`](./skills/centricmem-agent/REFERENCE.md) — search, show, sweep, copy, archive
+- [`skills/centricmem-agent/REFERENCE.md`](./skills/centricmem-agent/REFERENCE.md) — search, show, sweep, copy, delete leftover shelves
 
 It is not the librarian, not the CLI source, and not a self-hosted kit. One public skill: `centricmem-agent`.
 

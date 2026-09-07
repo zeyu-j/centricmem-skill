@@ -16,7 +16,7 @@ Inbox is a system shelf (`unclassified`), never a sweep target. Tags are about t
 
 ## Reach
 
-MCP tools must be present: `cm_health` `cm_ambient` `cm_doctor` `cm_search` `cm_show` `cm_note` `cm_log_decision` `cm_done` `cm_keep` `cm_library` `cm_copy` `cm_archive` `cm_inbox` `cm_import` `cm_classify` `cm_index`.
+MCP tools must be present: `cm_health` `cm_ambient` `cm_doctor` `cm_search` `cm_show` `cm_note` `cm_log_decision` `cm_done` `cm_keep` `cm_library` `cm_copy` `cm_delete` `cm_inbox` `cm_import` `cm_classify` `cm_index`.
 
 If they are missing, send the authenticate link. Run `centricmem connect --device` and send **only** the printed `/connect?device=` URL — never the secret, never the key. They have ten minutes. They enter **any** agent key on that page (default = every shelf, extra key = granted shelves) — never in chat. Humans sign in at the website for the dashboard. Do not send a loopback `/connect`. Do not curl. Do not CLI-write. Do not bootstrap.
 
@@ -54,7 +54,7 @@ Sandbox fallback (only if `cm_health` has no `mcp` field, or the origin is not u
 
 `setup --install-skill` on a machine that already has the client can merge this into each agent’s MCP config (cloud URL when `/health` advertises `mcp`, otherwise stdio). When a key is needed, the agent runs `centricmem connect --device` and sends **only** the printed `/connect?device=` URL (ten minutes; secret stays on the agent). The human enters **any** agent key on that page: default (`*` = every shelf) or an extra key (granted shelves). Never ask them to paste a token in chat. Never one-click install. Never a dashboard “connect this computer”. Token failure: say once; send a new device link.
 
-Do **not** call `/download`, `/delete`, billing, or `/register` `/login`. Humans download originals and **delete cards** on the dashboard. Login uniquely owns **card** delete and billing. The **default** key (`*`) may mint, rename, grant, and revoke extras — that stays HTTP/dashboard/CLI, not these `cm_*` tools, so a new token never lands in chat. Default (and owner login) may `cm_copy` / `cm_archive` shelves. Extra keys cannot manage keys or archive a shelf; they may `cm_copy` if both grants. Attachments are metered per plan (Lite 100MB, Education 200MB, Pro 1GB, Ultra 10GB; operator uncapped). Over quota, `cm_keep` fails — say so; do not drop bytes silently.
+Do **not** call `/download`, HTTP `/delete` (cards), billing, or `/register` `/login`. Humans download originals and **delete cards** on the dashboard. Login uniquely owns **card** delete and billing. The **default** key (`*`) may mint, rename, grant, and revoke extras — that stays HTTP/dashboard/CLI, not these `cm_*` tools, so a new token never lands in chat. Default (and owner login) may `cm_copy` / `cm_delete` leftover shelves (`cm_delete` is delete, not archive — no restore). Extra keys cannot manage keys or delete a leftover shelf; they may `cm_copy` if both grants. Attachments are metered per plan (Lite 100MB, Education 200MB, Pro 1GB, Ultra 10GB; operator uncapped). Over quota, `cm_keep` fails — say so; do not drop bytes silently.
 
 ## Search and show
 
@@ -77,7 +77,7 @@ Useful query bits (in `q` / `tags` / `type`): `filter`, `tag`, `type:decision`, 
 | What we know | `cm_search` + lessons / `tags` |
 | Human wants the file | tell them Dashboard Download Original |
 | Durable work just finished | pick a **named** shelf (or `cm_library`), then one MCP sweep **this turn** — never Inbox |
-| Leftover named shelf | dest must exist; `cm_copy` `{from,to}` on the librarian, then `cm_archive` `{id}`. Never download originals here |
+| Leftover named shelf | dest must exist; `cm_copy` `{from,to}` on the librarian, then `cm_delete` `{id}`. Never download originals here |
 | Inbox leftover | `cm_inbox`; `apply` high-confidence; `cm_classify` the rest (default may `cm_library`) — do not leave for the human |
 | Structured corpus (`corpus=slug`) | `library=` that slug; `cm_search` then `cm_show` the **card**, not a dump page |
 
@@ -105,7 +105,7 @@ Hold half-finished thoughts. When the chunk is done, file **before you stop talk
 | Original | a file worth keeping | `cm_keep` as above. Never `path=`. Never Inbox |
 | Shelf | none of the named shelves fit | `cm_library` `{id}` (default key). Extra: authenticate so they enter the **default** key. Connect does not mint a shelf |
 | Copy shelf | leftover named shelf should live on another | `cm_copy` `{from,to}`. Dest must exist. Extra keys need both grants. Never download originals here |
-| Archive shelf | leftover is empty or already copied | `cm_archive` `{id}` (default key or login). Extra keys cannot. Never Inbox |
+| Delete leftover shelf | leftover is empty or already copied | `cm_delete` `{id}` (default key or login). Extra keys cannot. Never Inbox. This is delete, not archive |
 | Bundle | capture import | `cm_import` with `library=` |
 | Inbox leftover | drain into a named shelf | `cm_classify` |
 | Index | after bulk import | `cm_index` |
