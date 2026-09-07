@@ -4,16 +4,16 @@ description: "Organises and retrieves Markdown memory on the hosted CentricMem l
 license: PolyForm-Noncommercial-1.0.0
 compatibility: "Requires host MCP at https://mem.centricmem.com/mcp (or stdio centricmem-host). CLI >=0.21.25 so guest --install-skill does not rewrite MCP."
 metadata:
-  version: "0.21.33"
+  version: "0.21.34"
   compatible_cli: ">=0.21.25"
   changelog_url: https://github.com/zeyu-j/centricmem-skill/blob/main/CHANGELOG.md
 ---
 
-# CentricMem Agent Skill v0.21.33
+# CentricMem Agent Skill v0.21.34
 
 Glossary: **Library** (one per person) → **Shelf** (pass `shelf=<id>` or `library=<id>`) → **Card** (Markdown: Identity / Details / Tags / Body, [REFERENCE.md](REFERENCE.md)). There is no Inbox. Do not mint `unclassified`.
 
-CentricMem is the **manager layer** (organise / retrieve / cross-agent store) **and** the literature database. Session capture stays in the agent's own memory (Cursor memories and other plugins). Do not uninstall those. Do not write back into them. New literature: keep the original, read it, write Markdown cards. Isolation is **one key = its grants**. Default key (`*` = every shelf): search, sweep, `cm_library`, `cm_copy`, `cm_delete`, mint/rename/grant/revoke extras. Extra keys open the shelves granted (one or more) and may `cm_copy` if both grants. Pass `shelf=` / `library=` / `cwd=` so writes route. Tags stay about. The librarian is the only writer. Login uniquely owns **card** delete, billing, and rotating the default key. Humans rename a shelf **label** and browse every card on the Library desk (`/app`); the id stays. `cm_library` `{id, displayName}` on an existing shelf updates that label. Attachments are metered per plan; Markdown is unlimited.
+CentricMem is the **manager layer** (organise / retrieve / cross-agent store) **and** the literature database. Session capture stays in the agent's own memory (Cursor memories and other plugins). Do not uninstall those. Do not write back into them. New literature: keep the original, read it, write Markdown cards. Isolation is **one key = its grants**. Default key (`*` = every shelf): search, sweep, `cm_library`, `cm_copy`, `cm_delete`, mint/rename/grant/revoke extras. Extra keys open the shelves granted (one or more) and may `cm_copy` if both grants. Pass `shelf=` / `library=` / `cwd=` so writes route. Tags stay about. The librarian is the only writer. Login uniquely owns **card** delete, billing, and rotating the default key. A better shelf **label** (rebrand, leftover folder slug, they say “that’s X”) → default key `cm_library` `{id, displayName}` **this turn**; the id stays. Extra keys cannot. Humans also rename on `/app`. Attachments are metered per plan; Markdown is unlimited.
 
 ## 0. Reach the librarian
 
@@ -62,6 +62,8 @@ When `cm_health` succeeds this chat: file this chat's Non-Micro batch, then file
 1. cwd linked, or `corpus=<slug>` → that shelf
 2. work belongs in an existing named shelf on `libraries=` → that id
 3. none fit → default key: `cm_library` `{id}` (slug like `my-project`) then file there. Extra key, or `cm_library` missing: send the authenticate link (step 0.2) so they enter the **default** key to mint a shelf (Connect does not create shelves); **hold the sweep in agent memory**. Writes without a named shelf are 400 `LIBRARY_REQUIRED`.
+
+**Label.** If that id’s display name is a leftover slug and you know the product/human name, `cm_library` `{id, displayName}` this turn (REFERENCE). Do not mint a second shelf. Writes still `shelf=<id>`.
 
 Then, with `shelf=` / `library=` that id:
 

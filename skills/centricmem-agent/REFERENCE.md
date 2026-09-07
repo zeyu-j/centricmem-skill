@@ -104,7 +104,7 @@ Hold half-finished thoughts. When the chunk is done, file **before you stop talk
 | Decision | architecture or durable host fact | `cm_log_decision` |
 | Original | a file worth keeping | `cm_keep` as above. Never `path=` |
 | Shelf | none of the named shelves fit | `cm_library` `{id}` (default key). Extra: authenticate so they enter the **default** key. Connect does not mint a shelf |
-| Shelf label | human wants a different display name | they rename on the Library desk; or default key `cm_library` `{id, displayName}` (id stays) |
+| Shelf label | you learn a better **human** name than the current display name (rebrand, leftover folder slug, they say “that’s X”) | default key: `cm_library` `{id, displayName}` **this turn** — do not wait to be asked. Id / folder / grants stay. Writes still `shelf=<id>`. Use the name they use or the public product name; do not invent a prettier one. Skip if the label already matches. Extra key cannot: authenticate for the default key (step 0.2) and say the intended label once. Humans can also rename on the Library desk |
 | Copy shelf | leftover named shelf (or leftover Inbox) should live on another | `cm_copy` `{from,to}`. Dest must exist. Extra keys need both grants. Never download originals here. Never `to=unclassified` |
 | Delete leftover shelf | leftover is empty or already copied | `cm_delete` `{id}` (default key or login). Extra keys cannot. Leftover Inbox may be the source. This is delete, not archive |
 | Bundle | capture import | `cm_import` with `library=` a named shelf |

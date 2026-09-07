@@ -2,6 +2,10 @@
 
 Skill-facing notes for [centricmem-skill](https://github.com/zeyu-j/centricmem-skill). This repo is how to use the hosted librarian.
 
+## 0.21.34
+
+- A better shelf **label** (rebrand, leftover folder slug) is renamed this turn: default key `cm_library` `{id, displayName}`. The id stays. Extra keys cannot. Do not invent a prettier name. Humans can still rename on the Library desk.
+
 ## 0.21.33
 
 - Guest `setup --install-skill` copies Skill files only (CLI >=0.21.25). It must not rewrite Host MCP from leftover catalog. If tools 401 after an older CLI did that, authenticate with a new `/connect?device=` link, then a new chat.
