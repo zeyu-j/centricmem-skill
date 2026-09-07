@@ -12,11 +12,11 @@ Library  (one per person — login, billing, delete)
               Original (optional) — pointer in Details; bytes in object storage
 ```
 
-Inbox is a system shelf (`unclassified`), never a sweep target. Tags are about the work. `project:` / `type:` / `#id` in search are index shortcuts, not extra types. Corpus YAML is that shelf’s Details.
+Inbox is gone. Do not mint `unclassified`. Leftover Inbox on an old hub: `cm_copy` `{from:unclassified,to:<named>}` then `cm_delete` `{id:unclassified}`. Never copy **to** Inbox. Tags are about the work. `project:` / `type:` / `#id` in search are index shortcuts, not extra types. Corpus YAML is that shelf’s Details.
 
 ## Reach
 
-MCP tools must be present: `cm_health` `cm_ambient` `cm_doctor` `cm_search` `cm_show` `cm_note` `cm_log_decision` `cm_done` `cm_keep` `cm_library` `cm_copy` `cm_delete` `cm_inbox` `cm_import` `cm_classify` `cm_index`.
+MCP tools must be present: `cm_health` `cm_ambient` `cm_doctor` `cm_search` `cm_show` `cm_note` `cm_log_decision` `cm_done` `cm_keep` `cm_library` `cm_copy` `cm_delete` `cm_import` `cm_index`.
 
 If they are missing, send the authenticate link. Run `centricmem connect --device` and send **only** the printed `/connect?device=` URL — never the secret, never the key. They have ten minutes. They enter **any** agent key on that page (default = every shelf, extra key = granted shelves) — never in chat. Humans sign in at the website for the dashboard. Do not send a loopback `/connect`. Do not curl. Do not CLI-write. Do not bootstrap.
 
@@ -76,9 +76,8 @@ Useful query bits (in `q` / `tags` / `type`): `filter`, `tag`, `type:decision`, 
 | Why we chose X | `cm_search` (decision) |
 | What we know | `cm_search` + lessons / `tags` |
 | Human wants the file | tell them Dashboard Download Original |
-| Durable work just finished | pick a **named** shelf (or `cm_library`), then one MCP sweep **this turn** — never Inbox |
-| Leftover named shelf | dest must exist; `cm_copy` `{from,to}` on the librarian, then `cm_delete` `{id}`. Never download originals here |
-| Inbox leftover | `cm_inbox`; `apply` high-confidence; `cm_classify` the rest (default may `cm_library`) — do not leave for the human |
+| Durable work just finished | pick a **named** shelf (or `cm_library`), then one MCP sweep **this turn** |
+| Leftover named shelf or leftover Inbox | dest must exist; `cm_copy` `{from,to}` on the librarian, then `cm_delete` `{id}`. Never download originals here. Never `to=unclassified` |
 | Structured corpus (`corpus=slug`) | `library=` that slug; `cm_search` then `cm_show` the **card**, not a dump page |
 
 Empty ambient + Work/Ops → do not deep-search; execute, then sweep this turn.
@@ -102,12 +101,11 @@ Hold half-finished thoughts. When the chunk is done, file **before you stop talk
 | Session | Same sweep | `cm_done` with `attach` |
 | Knowledge | durable model / fact | `cm_note` |
 | Decision | architecture or durable host fact | `cm_log_decision` |
-| Original | a file worth keeping | `cm_keep` as above. Never `path=`. Never Inbox |
+| Original | a file worth keeping | `cm_keep` as above. Never `path=` |
 | Shelf | none of the named shelves fit | `cm_library` `{id}` (default key). Extra: authenticate so they enter the **default** key. Connect does not mint a shelf |
-| Copy shelf | leftover named shelf should live on another | `cm_copy` `{from,to}`. Dest must exist. Extra keys need both grants. Never download originals here |
-| Delete leftover shelf | leftover is empty or already copied | `cm_delete` `{id}` (default key or login). Extra keys cannot. Never Inbox. This is delete, not archive |
-| Bundle | capture import | `cm_import` with `library=` |
-| Inbox leftover | drain into a named shelf | `cm_classify` |
+| Copy shelf | leftover named shelf (or leftover Inbox) should live on another | `cm_copy` `{from,to}`. Dest must exist. Extra keys need both grants. Never download originals here. Never `to=unclassified` |
+| Delete leftover shelf | leftover is empty or already copied | `cm_delete` `{id}` (default key or login). Extra keys cannot. Leftover Inbox may be the source. This is delete, not archive |
+| Bundle | capture import | `cm_import` with `library=` a named shelf |
 | Index | after bulk import | `cm_index` |
 
 Later sweeps in the same chat are OK for **new** facts. Do not re-file the same decision.
@@ -128,4 +126,4 @@ Other agents: only keep a transcript if that runtime actually writes a local fil
 - Ask the human to paste a key, token, or transcript jsonl. If they leaked a key, they sign in and rotate it on Keys.
 - Load attach originals into the chat
 - Treat this git checkout as the memory disk
-- Write Inbox / `unclassified` — pick or create a named shelf
+- Write `unclassified` — pick or create a named shelf. Writes without one are 400 `LIBRARY_REQUIRED`.

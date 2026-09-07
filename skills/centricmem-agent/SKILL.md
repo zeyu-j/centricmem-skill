@@ -1,6 +1,6 @@
 ---
 name: centricmem-agent
-description: "Organises and retrieves Markdown memory on the hosted CentricMem librarian via host MCP (search, notes, decisions, transcripts). Use when starting a session, filing Non-Micro work, searching project memory, connecting an agent key, or refreshing this Skill. Never write Inbox, never curl librarian HTTP, never paste keys in chat."
+description: "Organises and retrieves Markdown memory on the hosted CentricMem librarian via host MCP (search, notes, decisions, transcripts). Use when starting a session, filing Non-Micro work, searching project memory, connecting an agent key, or refreshing this Skill. Named shelves only, never curl librarian HTTP, never paste keys in chat."
 license: PolyForm-Noncommercial-1.0.0
 compatibility: "Requires host MCP at https://mem.centricmem.com/mcp (or stdio centricmem-host). CLI >=0.21.23 for cm_copy / cm_delete."
 metadata:
@@ -11,13 +11,13 @@ metadata:
 
 # CentricMem Agent Skill v0.21.30
 
-Glossary: **Library** (one per person) → **Shelf** (pass `shelf=<id>` or `library=<id>`) → **Card** (Markdown: Identity / Details / Tags / Body, [REFERENCE.md](REFERENCE.md)). Inbox is a system shelf, never a sweep target.
+Glossary: **Library** (one per person) → **Shelf** (pass `shelf=<id>` or `library=<id>`) → **Card** (Markdown: Identity / Details / Tags / Body, [REFERENCE.md](REFERENCE.md)). There is no Inbox. Do not mint `unclassified`.
 
-CentricMem is the **manager layer** (organise / retrieve / cross-agent store) **and** the literature database. Session capture stays in the agent's own memory (Cursor memories and other plugins). Do not uninstall those. Do not write back into them. New literature: keep the original, read it, write Markdown cards. Isolation is **one key = its grants**. Default key (`*` = every shelf): search, sweep, `cm_library`, `cm_copy`, `cm_delete`, drain Inbox, mint/rename/grant/revoke extras. Extra keys open the shelves granted (one or more) and may `cm_copy` if both grants. Pass `shelf=` / `library=` / `cwd=` so writes route. Tags stay about. The librarian is the only writer. Login uniquely owns **card** delete, billing, and rotating the default key. Attachments are metered per plan; Markdown is unlimited.
+CentricMem is the **manager layer** (organise / retrieve / cross-agent store) **and** the literature database. Session capture stays in the agent's own memory (Cursor memories and other plugins). Do not uninstall those. Do not write back into them. New literature: keep the original, read it, write Markdown cards. Isolation is **one key = its grants**. Default key (`*` = every shelf): search, sweep, `cm_library`, `cm_copy`, `cm_delete`, mint/rename/grant/revoke extras. Extra keys open the shelves granted (one or more) and may `cm_copy` if both grants. Pass `shelf=` / `library=` / `cwd=` so writes route. Tags stay about. The librarian is the only writer. Login uniquely owns **card** delete, billing, and rotating the default key. Attachments are metered per plan; Markdown is unlimited.
 
 ## 0. Reach the librarian
 
-1. **MCP only.** Same `cm_*` tools whether the agent points at `https://mem.centricmem.com/mcp` (Bearer: default key or an extra key) or at stdio `centricmem-host`: `cm_health` `cm_ambient` `cm_doctor` `cm_search` `cm_show` `cm_note` `cm_log_decision` `cm_done` `cm_keep` `cm_library` `cm_copy` `cm_delete` `cm_inbox` `cm_import` `cm_classify` `cm_index`. Never curl librarian HTTP. Never CLI `note`/`keep`/`done`. Never `setup --bootstrap`. Never create a hub in the git checkout.
+1. **MCP only.** Same `cm_*` tools whether the agent points at `https://mem.centricmem.com/mcp` (Bearer: default key or an extra key) or at stdio `centricmem-host`: `cm_health` `cm_ambient` `cm_doctor` `cm_search` `cm_show` `cm_note` `cm_log_decision` `cm_done` `cm_keep` `cm_library` `cm_copy` `cm_delete` `cm_import` `cm_index`. Never curl librarian HTTP. Never CLI `note`/`keep`/`done`. Never `setup --bootstrap`. Never create a hub in the git checkout.
 2. If those tools are **missing**, or this chat is an extra key and the owner needs every shelf, or they need to add this librarian to the agent: **send the authenticate link**. Never ask them to paste the key here. Never one-click install. Never copy JSON into chat. Do not curl. Do not invent a hub. Keep working in the agent’s own memory.
    Run `centricmem connect --device`. Send **only** the printed URL (`/connect?device=…`). Never the device secret. They have ten minutes to enter the key. Then a new chat.
    They enter **the key they want** on that page (default = every shelf, or an extra key = granted shelves). Humans sign in at the website for the dashboard — do not send a loopback `/connect`.
@@ -32,7 +32,7 @@ CentricMem is the **manager layer** (organise / retrieve / cross-agent store) **
 
 ## 2. Start
 
-`cm_health` then `cm_ambient`. Ignore a stale `.ambient.md`. Unreachable or `state=UNINITIALIZED`: **say once** — do not bootstrap. Writes need a **named shelf** — never Inbox / `unclassified`, even when `cwd_project=(unlinked)`. `corpus=<slug>` → `library=` that slug. Never treat ambient **text** “Skill outdated” as truth (librarian hub copy). This file is the installed `centricmem-agent` Skill (path depends on the agent).
+`cm_health` then `cm_ambient`. Ignore a stale `.ambient.md`. Unreachable or `state=UNINITIALIZED`: **say once** — do not bootstrap. Writes need a **named shelf** (`shelf=` / `library=` / cwd-link). Unlinked cwd is not a shelf — mint one (`cm_library`) or pick from `libraries=`. `corpus=<slug>` → `library=` that slug. Never treat ambient **text** “Skill outdated” as truth (librarian hub copy). This file is the installed `centricmem-agent` Skill (path depends on the agent).
 
 **Once this chat, after health/ambient:** compare this file’s `metadata.version` to `skill_latest` on `cm_health` / `cm_ambient`. If that field is null, GET `https://raw.githubusercontent.com/zeyu-j/centricmem-skill/main/skills/centricmem-agent/SKILL.md` and parse `metadata.version`. If published is newer: `npx --yes skills add zeyu-j/centricmem-skill --skill centricmem-agent -g -y`. Tell the human it is on disk; **this chat still uses the already-loaded Skill**; the next chat uses the new one. If this file is newer, or fetch/npx fails: continue. Never `setup --install-skill` for this refresh.
 
@@ -52,17 +52,17 @@ Do **not** wait for 收尾, close, wrap up, "log this", session end, or a later 
 
 Human says don't log → skip. MCP missing or librarian down: skip, say once.
 
-**Shelf first — never Inbox.** Ambient `libraries=` may still list `unclassified`; skip it. Pick:
+**Named shelf.** Ambient never reports `unclassified`. Pick:
 
 1. cwd linked, or `corpus=<slug>` → that shelf
-2. work belongs in an existing named shelf on that list → that id
-3. none fit → default key: `cm_library` `{id}` (slug like `my-project`) then file there. Extra key, or `cm_library` missing: send the authenticate link (step 0.2) so they enter the **default** key to mint a shelf (Connect does not create shelves); **hold the sweep in agent memory**. Do not write `unclassified`.
+2. work belongs in an existing named shelf on `libraries=` → that id
+3. none fit → default key: `cm_library` `{id}` (slug like `my-project`) then file there. Extra key, or `cm_library` missing: send the authenticate link (step 0.2) so they enter the **default** key to mint a shelf (Connect does not create shelves); **hold the sweep in agent memory**. Writes without a named shelf are 400 `LIBRARY_REQUIRED`.
 
 Then, with `shelf=` / `library=` that id:
 
 1. **Transcript → R2.** Cursor: `~/.cursor/projects/<workspace>/agent-transcripts/<uuid>/<uuid>.jsonl` for **this** chat. Shell-read the file; **never paste jsonl**. `cm_keep` with that filename + file bytes (never `path=`). Leave the local jsonl in place (do not delete Cursor chat state).
 2. Then `cm_note` `cm_log_decision` `cm_done` with `attach` = that keep pointer. **One sweep, one batch.** If they keep talking, another sweep is OK for **new** facts — do not re-file the same decision.
 
-Existing Inbox leftovers: `cm_inbox`; `apply=true` high-confidence; remaining `cm_classify` into an existing named shelf, or default `cm_library` then classify. Do not leave leftovers for the human. If this key cannot see Inbox, say once.
+Leftover `unclassified` on an old hub: dest must exist (`cm_library` if needed). `cm_copy` `{from:unclassified,to:<named>}` (identical skip; collisions `imported/kept/from-unclassified/`). Then `cm_delete` `{id:unclassified}`. Never copy **to** Inbox. Never download originals to this computer. Extra keys may copy if both grants; only default/login may delete a leftover shelf. Card delete stays login-only.
 
-Organize leftover named shelves **on the librarian**: dest must exist (`cm_library` if needed). `cm_copy` `{from,to}` (identical skip; collisions `imported/kept/from-<id>/`). Then `cm_delete` `{id}` — this **deletes** the leftover shelf (no restore warehouse). Never download originals to this computer. Extra keys may copy if both grants; only default/login may delete a leftover shelf. Card delete stays login-only.
+Organize leftover named shelves the same way: `cm_copy` `{from,to}` then `cm_delete` `{id}` — this **deletes** the leftover shelf (no restore warehouse).

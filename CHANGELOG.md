@@ -4,6 +4,7 @@ Skill-facing notes for [centricmem-skill](https://github.com/zeyu-j/centricmem-s
 
 ## 0.21.30
 
+- There is no Inbox. Named shelves only. Writes without `shelf=` / `library=` / a cwd-link are 400 `LIBRARY_REQUIRED`. Leftover `unclassified` on an old hub: `cm_copy` `{from:unclassified,to:<named>}` then `cm_delete`. Never copy **to** Inbox. Dropped `cm_inbox` / `cm_classify`.
 - Leftover shelf removal is **delete**, not archive: `cm_copy` `{from,to}` then `cm_delete` `{id}`. There is no restore warehouse. The website Archive desk is the live card catalog. Extra keys may copy if both grants; only default/login may delete a leftover shelf. Card delete stays login-only.
 
 ## 0.21.29
