@@ -30,6 +30,7 @@ Same GitHub repo as a plugin marketplace:
 | Claude Code | `/plugin marketplace add zeyu-j/centricmem-skill` then `/plugin install centricmem-skill@centricmem` |
 | CodeBuddy / WorkBuddy | `codebuddy plugin marketplace add zeyu-j/centricmem-skill` then `/plugin install centricmem-skill@centricmem` |
 | Kimi Code | `/plugins install https://github.com/zeyu-j/centricmem-skill` (Custom). Catalog: `/plugins marketplace https://raw.githubusercontent.com/zeyu-j/centricmem-skill/main/.kimi-plugin/marketplace.json`. Set `CENTRICMEM_API_KEY` for host MCP. |
+| Dify | Marketplace listing pending review. Source: `zeyu-j/centricmem-dify`. Or attach MCP `https://mem.centricmem.com/mcp` with the same agent key. |
 | Codex | `codex plugin marketplace add https://github.com/zeyu-j/centricmem-skill.git` then install **centricmem-skill** in Plugins |
 | Copilot CLI | `copilot plugin marketplace add zeyu-j/centricmem-skill` then `copilot plugin install centricmem-skill` |
 | Kiro | Powers → Add Custom Power → GitHub `https://github.com/zeyu-j/centricmem-skill` |
@@ -61,6 +62,7 @@ This repository is the **Skill**: how agents talk to the hosted librarian.
 - [`.claude-plugin/marketplace.json`](./.claude-plugin/marketplace.json) — Claude Code marketplace
 - [`.codebuddy-plugin/marketplace.json`](./.codebuddy-plugin/marketplace.json) — CodeBuddy / WorkBuddy marketplace (`codebuddy plugin marketplace add zeyu-j/centricmem-skill`)
 - [`.kimi-plugin/plugin.json`](./.kimi-plugin/plugin.json) — Kimi Code Custom install from this GitHub URL
+- Dify is a separate tool plugin: [zeyu-j/centricmem-dify](https://github.com/zeyu-j/centricmem-dify) (not this Skill repo)
 - [`.agents/plugins/marketplace.json`](./.agents/plugins/marketplace.json) — Codex marketplace
 - [`.github/plugin/marketplace.json`](./.github/plugin/marketplace.json) — Copilot CLI marketplace
 - [`.kiro/plugins/marketplace.json`](./.kiro/plugins/marketplace.json) — Kiro pin-sync catalog
