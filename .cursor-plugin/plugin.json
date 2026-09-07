@@ -2,7 +2,7 @@
   "name": "centricmem-skill",
   "displayName": "CentricMem",
   "description": "Hosted CentricMem librarian: organise and retrieve Markdown memory via host MCP. Authenticate with a /connect?device= link; never paste keys in chat.",
-  "version": "0.21.34",
+  "version": "0.21.37",
   "author": {
     "name": "Dr. Z",
     "email": "zeyu@dr.com"

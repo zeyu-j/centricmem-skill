@@ -2,6 +2,16 @@
 
 Skill-facing notes for [centricmem-skill](https://github.com/zeyu-j/centricmem-skill). This repo is how to use the hosted librarian.
 
+## 0.21.37
+
+- If the shell is blocked or `centricmem` is missing, do not retry CLI. Send https://centricmem.com/login?signup=1; the human adds `https://mem.centricmem.com/mcp` in this agent’s MCP settings (key from Keys, never in chat). `connect --device` stays the path when CLI works.
+- Empty shelf: offer once to file existing durable memories as cards (capture stays; they may skip).
+- Website copy prompt is one line.
+
+## 0.21.35
+
+- After `/connect?device=` writes cloud MCP, retry librarian tools **in this chat**. A new chat only if they still 401.
+
 ## 0.21.34
 
 - A better shelf **label** (rebrand, leftover folder slug) is renamed this turn: default key `cm_library` `{id, displayName}`. The id stays. Extra keys cannot. Do not invent a prettier name. Humans can still rename on the Library desk.

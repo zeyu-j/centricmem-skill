@@ -18,7 +18,11 @@ Inbox is gone. Do not mint `unclassified`. Leftover Inbox on an old hub: `cm_cop
 
 MCP tools must be present: `cm_health` `cm_ambient` `cm_doctor` `cm_search` `cm_show` `cm_note` `cm_log_decision` `cm_done` `cm_keep` `cm_library` `cm_copy` `cm_delete` `cm_import` `cm_index`.
 
-If they are missing, send the authenticate link. Run `centricmem connect --device` and send **only** the printed `/connect?device=` URL — never the secret, never the key. They have ten minutes. They enter **any** agent key on that page (default = every shelf, extra key = granted shelves) — never in chat. Humans sign in at the website for the dashboard. Do not send a loopback `/connect`. Do not curl. Do not CLI-write. Do not bootstrap.
+If they are missing, connect them **this turn**. Never paste the key in chat. Never copy JSON into chat. Do not curl. Do not CLI-write. Do not bootstrap. Do not send a loopback `/connect`.
+
+**CLI blocked or `centricmem` missing:** do not retry the shell. Send **once** https://centricmem.com/login?signup=1 — they sign up, copy the key from the box at the **top** of Agent keys (once), then paste it **only** in this agent’s MCP / plugin settings (`https://mem.centricmem.com/mcp`, Bearer). Never here. “Do not call `/register` `/login`” means do not POST those HTTP APIs from this agent; you **do** send that signup URL when they have no account.
+
+**CLI works:** run `centricmem connect --device` and send **only** the printed `/connect?device=` URL — never the secret, never the key. They have ten minutes. They enter **any** agent key on that page (default = every shelf, extra key = granted shelves).
 
 Config (agent key stays off git):
 
@@ -52,7 +56,7 @@ Sandbox fallback (only if `cm_health` has no `mcp` field, or the origin is not u
 }
 ```
 
-`setup --install-skill` on a guest copies Skill files only (CLI >=0.21.25). It must not merge leftover catalog pairing tokens into Cursor `mcp.json`. Host MCP on a guest is `centricmem connect --device` (cloud `/mcp` Bearer). Local librarian hosts may still merge loopback MCP when `/health` advertises `mcp`. When a key is needed, the agent runs `centricmem connect --device` and sends **only** the printed `/connect?device=` URL (ten minutes; secret stays on the agent). The human enters **any** agent key on that page: default (`*` = every shelf) or an extra key (granted shelves). Never ask them to paste a token in chat. Never one-click install. Never a dashboard “connect this computer”. Token failure: say once; send a new device link; **hold the sweep** (this agent’s memory `CentricMem deferred sweep` + transcript path) until `cm_health` works. Only drop the hold if they said don't log or they stopped using this Skill.
+`setup --install-skill` on a guest copies Skill files only (CLI >=0.21.25). It must not merge leftover catalog pairing tokens into Cursor `mcp.json`. Host MCP on a guest is `centricmem connect --device` when the CLI works; if the shell is blocked, the human adds `https://mem.centricmem.com/mcp` in this agent’s settings (Bearer from Keys, never in chat). Local librarian hosts may still merge loopback MCP when `/health` advertises `mcp`. Never ask them to paste a token in chat. Never one-click install. Never a dashboard “connect this computer”. After they connect, retry `cm_health` in this chat; a new chat only if tools still 401. Token failure: say once; connect again (CLI or signup+settings); **hold the sweep** (this agent’s memory `CentricMem deferred sweep` + transcript path) until `cm_health` works. Only drop the hold if they said don't log or they stopped using this Skill.
 
 Do **not** call `/download`, HTTP `/delete` (cards), billing, or `/register` `/login`. Humans download originals and **delete cards** on the dashboard. Login uniquely owns **card** delete and billing. The **default** key (`*`) may mint, rename, grant, and revoke extras — that stays HTTP/dashboard/CLI, not these `cm_*` tools, so a new token never lands in chat. Default (and owner login) may `cm_copy` / `cm_delete` leftover shelves (`cm_delete` is delete, not archive — no restore). Extra keys cannot manage keys or delete a leftover shelf; they may `cm_copy` if both grants. Attachments are metered per plan (Lite 100MB, Education 200MB, Pro 1GB, Ultra 10GB; operator uncapped). Over quota, `cm_keep` fails — say so; do not drop bytes silently.
 
@@ -73,6 +77,7 @@ Useful query bits (in `q` / `tags` / `type`): `filter`, `tag`, `type:decision`, 
 | Situation | Do |
 |-----------|-----|
 | Session start | `cm_health` + `cm_ambient` (never a stale `.ambient.md`). Then refresh Skill if published `version` is newer |
+| Empty library after Skill install | **once**, offer existing durable memories as cards (this file). Capture stays. They may skip |
 | Why we chose X | `cm_search` (decision) |
 | What we know | `cm_search` + lessons / `tags` |
 | Human wants the file | tell them Dashboard Download Original |
@@ -83,14 +88,30 @@ Useful query bits (in `q` / `tags` / `type`): `filter`, `tag`, `type:decision`, 
 
 Empty ambient + Work/Ops → do not deep-search; execute, then sweep this turn.
 
+## Existing memory → cards (once)
+
+First ambient this chat when granted shelves look empty (`Curate: empty`, `library=(none)`, or `cm_search` with `shelf=` lists only AGENTS.md / active_context.md / empty lessons.md):
+
+Offer **once**, in their language. They keep talking. Skip / later / don't log = stop offering this chat.
+
+1. Capture stays (Cursor memories and other plugins). Do not uninstall. Do not dump every memory or every transcript folder.
+2. Ask what they already have that should be **cited later**: facts in agent memory they can name, Markdown/PDF they can open, an exporter JSON.
+3. Named shelf: pick from `libraries=` or `cm_library` `{id, displayName}`. Extra key cannot mint — authenticate so they enter the **default** key.
+4. Then:
+   - Files they open or point at → `cm_keep` (bytes, never `path=`) → you read the **card** or a human-opened file → `cm_note` / `cm_log_decision`. Not a dump of the whole capture store.
+   - ImportBundle JSON they provide → `cm_import` `{library}` then `cm_index`.
+5. Do not paste chats, keys, or secrets. Do not write back into the capture store.
+
+Skip this offer if the shelf already has real cards (decisions, lessons with body, sessions).
+
 ## Skill refresh (once per chat)
 
 Guests install from GitHub, not from the librarian disk. `cm_health` `min_skill` is the HTTP floor. `skill_latest` is the published Skill (env `CENTRICMEM_SKILL_LATEST` on the librarian) — it is **never** the hub’s `skills/centricmem-agent/SKILL.md`.
 
 1. Read `version` from this Skill’s frontmatter (`metadata.version`).
 2. `latest` = JSON `skill_latest` if present, else `metadata.version` at `https://raw.githubusercontent.com/zeyu-j/centricmem-skill/main/skills/centricmem-agent/SKILL.md`.
-3. If `latest` is newer: `npx --yes skills add zeyu-j/centricmem-skill --skill centricmem-agent -g -y` (portable SKILL.md for Cursor, Claude, Codex, Kiro, Kilo, Copilot, skills.sh, SkillKit). If this session is a **plugin** install, also update via that client (`/plugin`, Codex plugins UI, Copilot plugin, Kiro Powers re-import). Say once: on disk now; this chat still uses the loaded copy.
-4. If this file is newer, or the fetch/npx fails: continue. Do not `setup --install-skill`.
+3. If `latest` is newer and the shell works: `npx --yes skills add zeyu-j/centricmem-skill --skill centricmem-agent -y` (omit `-g` when this agent has no user-wide skills dir). If the shell is blocked, skip npx; tell them to update via this client’s plugin UI. If this session is a **plugin** install, also update via that client (`/plugin`, Codex plugins UI, Copilot plugin, Kiro Powers re-import). Say once: on disk now; this chat still uses the loaded copy.
+4. If this file is newer, or the fetch/npx fails or is blocked: continue. Do not `setup --install-skill`.
 
 ## Writes (one sweep as soon as Non-Micro work exists)
 

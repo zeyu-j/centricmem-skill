@@ -8,11 +8,19 @@ This repository is **one package**: [Agent Skills](https://agentskills.io) `SKIL
 
 ## Install
 
-Portable Skill (works wherever the agent reads `SKILL.md`):
+Paste this to the agent (one line):
+
+```
+Install CentricMem from zeyu-j/centricmem-skill. If CLI is blocked, send https://centricmem.com/login?signup=1 — never paste keys.
+```
+
+If the shell works, a terminal in the project can run:
 
 ```bash
-npx skills add zeyu-j/centricmem-skill --skill centricmem-agent -g
+npx --yes skills add zeyu-j/centricmem-skill --skill centricmem-agent -y
 ```
+
+(omit `-g` — some agents, including PromptScript, have no user-wide skills dir.)
 
 Same GitHub repo as a plugin marketplace:
 
@@ -23,18 +31,20 @@ Same GitHub repo as a plugin marketplace:
 | Codex | `codex plugin marketplace add https://github.com/zeyu-j/centricmem-skill.git` then install **centricmem-skill** in Plugins |
 | Copilot CLI | `copilot plugin marketplace add zeyu-j/centricmem-skill` then `copilot plugin install centricmem-skill` |
 | Kiro | Powers → Add Custom Power → GitHub `https://github.com/zeyu-j/centricmem-skill` |
+| Grok Bot | Paste the one-liner. If CLI is blocked, add `https://mem.centricmem.com/mcp` in that bot’s MCP settings (key from Keys, never in chat). |
 | SkillKit | `skillkit add https://centricmem.com` or `skillkit add zeyu-j/centricmem-skill` |
 | skills.sh / SkillMD | `npx skills add` above, or `skillmd add zeyu-j/centricmem-skill` |
 
-Then keep talking. After install, the agent tells you how you use it. You do not paste chats, tokens, or CLI.
+Then keep talking. After install, if `cm_*` tools are missing the agent sends signup or a `/connect?device=` link. You do not paste chats, tokens, or CLI.
 
-Hosted librarian: [centricmem.com](https://centricmem.com). Sign up is open. Host MCP: `https://mem.centricmem.com/mcp`. When a key is needed, the agent sends a `/connect?device=` link — enter the key on that page, never in chat.
+Hosted librarian: [centricmem.com](https://centricmem.com). Sign up is open. Host MCP: `https://mem.centricmem.com/mcp`. CLI agents send a `/connect?device=` link. Agents that cannot run a CLI send https://centricmem.com/login?signup=1 and the human adds MCP in that agent’s settings. Never paste keys in chat.
 
 ## How you use it
 
 1. Keep talking where you already work. The agent’s own memories stay on.
-2. When work is real, the agent files a Markdown card and keeps this chat’s transcript in object storage — you do not have to say wrap up. Closing the tab does not file; it files before it stops. If your Skill is behind this repo, the agent refreshes it with `npx skills add` (the current chat still uses the old copy). Plugin installs update via that client’s plugin UI.
-3. Later, ask the agent — or log in to search and download originals. There is no Inbox: file into a named shelf. Leftover shelves (including leftover `unclassified`): the agent copies onto another shelf (`cm_copy`) then **deletes** the old one (`cm_delete`) — it does not download originals to this computer, and there is no restore warehouse.
+2. If the library looks empty, the agent offers **once** to file notes you already have as cards. Capture stays. You may skip. It is not a dump of every chat.
+3. When work is real, the agent files a Markdown card and keeps this chat’s transcript in object storage — you do not have to say wrap up. Closing the tab does not file; it files before it stops. If your Skill is behind this repo, the agent refreshes it with `npx skills add` (the current chat still uses the old copy). Plugin installs update via that client’s plugin UI.
+4. Later, ask the agent — or log in to search and download originals. There is no Inbox: file into a named shelf. Leftover shelves (including leftover `unclassified`): the agent copies onto another shelf (`cm_copy`) then **deletes** the old one (`cm_delete`) — it does not download originals to this computer, and there is no restore warehouse.
 
 You do not run a librarian on this machine. You do not `setup --bootstrap`.
 
