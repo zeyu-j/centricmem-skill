@@ -2,22 +2,22 @@
 name: centricmem-agent
 description: "Organises and retrieves Markdown memory on the hosted CentricMem librarian via host MCP (search, notes, decisions, transcripts). Use when starting a session, filing Non-Micro work, searching project memory, connecting an agent key, or refreshing this Skill. Named shelves only, never curl librarian HTTP, never paste keys in chat."
 license: PolyForm-Noncommercial-1.0.0
-compatibility: "Requires host MCP at https://mem.centricmem.com/mcp (or stdio centricmem-host). CLI >=0.21.29: unmatched cwd is not a shelf; Curate: empty offers existing-memory cards."
+compatibility: "Requires host MCP at https://mem.centricmem.com/mcp (or stdio centricmem-host). CLI >=0.21.30: cm_move selected cards; unmatched cwd is not a shelf; Curate: empty offers existing-memory cards."
 metadata:
-  version: "0.21.39"
-  compatible_cli: ">=0.21.29"
+  version: "0.21.40"
+  compatible_cli: ">=0.21.30"
   changelog_url: https://github.com/zeyu-j/centricmem-skill/blob/main/CHANGELOG.md
 ---
 
-# CentricMem Agent Skill v0.21.39
+# CentricMem Agent Skill v0.21.40
 
 Glossary: **Library** (one per person) → **Shelf** (pass `shelf=<id>` or `library=<id>`) → **Card** (Markdown: Identity / Details / Tags / Body, [REFERENCE.md](REFERENCE.md)). There is no Inbox. Do not mint `unclassified`.
 
-CentricMem is the **manager layer** (organise / retrieve / cross-agent store) **and** the literature database. Session capture stays in the agent's own memory (Cursor memories and other plugins). Do not uninstall those. Do not write back into them. New literature: keep the original, read it, write Markdown cards. Isolation is **one key = its grants**. Default key (`*` = every shelf): search, sweep, `cm_library`, `cm_copy`, `cm_delete`, mint/rename/grant/revoke extras. Extra keys open the shelves granted (one or more) and may `cm_copy` if both grants. Pass `shelf=` / `library=` / `cwd=` so writes route. Tags stay about. The librarian is the only writer. Login uniquely owns **card** delete, billing, and rotating the default key. A better shelf **label** (rebrand, leftover folder slug, they say “that’s X”) → default key `cm_library` `{id, displayName}` **this turn**; the id stays. Extra keys cannot. Humans also rename on `/app`. Attachments are metered per plan; Markdown is unlimited.
+CentricMem is the **manager layer** (organise / retrieve / cross-agent store) **and** the literature database. Session capture stays in the agent's own memory (Cursor memories and other plugins). Do not uninstall those. Do not write back into them. New literature: keep the original, read it, write Markdown cards. Isolation is **one key = its grants**. Default key (`*` = every shelf): search, sweep, `cm_library`, `cm_copy`, `cm_move`, `cm_delete`, mint/rename/grant/revoke extras. Extra keys open the shelves granted (one or more) and may `cm_copy` if both grants; they cannot `cm_move`. Pass `shelf=` / `library=` / `cwd=` so writes route. Tags stay about. The librarian is the only writer. Login uniquely owns **card** delete, billing, and rotating the default key. A better shelf **label** (rebrand, leftover folder slug, they say “that’s X”) → default key `cm_library` `{id, displayName}` **this turn**; the id stays. Extra keys cannot. Humans also rename on `/app`. Attachments are metered per plan; Markdown is unlimited.
 
 ## 0. Reach the librarian
 
-1. **MCP only.** Same `cm_*` tools whether the agent points at `https://mem.centricmem.com/mcp` (Bearer: default key or an extra key) or at stdio `centricmem-host`: `cm_health` `cm_ambient` `cm_doctor` `cm_search` `cm_show` `cm_note` `cm_log_decision` `cm_done` `cm_keep` `cm_library` `cm_copy` `cm_delete` `cm_import` `cm_index`. Never curl librarian HTTP. Never CLI `note`/`keep`/`done`. Never `setup --bootstrap`. Never create a hub in the git checkout.
+1. **MCP only.** Same `cm_*` tools whether the agent points at `https://mem.centricmem.com/mcp` (Bearer: default key or an extra key) or at stdio `centricmem-host`: `cm_health` `cm_ambient` `cm_doctor` `cm_search` `cm_show` `cm_note` `cm_log_decision` `cm_done` `cm_keep` `cm_library` `cm_copy` `cm_move` `cm_delete` `cm_import` `cm_index`. Never curl librarian HTTP. Never CLI `note`/`keep`/`done`. Never `setup --bootstrap`. Never create a hub in the git checkout.
 2. If those tools are **missing**, or this chat is an extra key and the owner needs every shelf, or they need to add this librarian to the agent: **connect them this turn**. Never ask them to paste the key here. Never one-click install. Never copy JSON into chat. Do not curl. Do not invent a hub. Keep working in the agent’s own memory.
    **CLI blocked or `centricmem` missing** (Grok Bot, web bots, many plugin hosts): do not retry the shell. Send **once** https://centricmem.com/login?signup=1 — they sign up, copy the key from the box at the **top** of Agent keys (once), then paste it **only** in this agent’s MCP / plugin settings as Bearer for `https://mem.centricmem.com/mcp`. Never in this chat. Retry `cm_health` when `cm_*` appear.
    **CLI works:** run `centricmem connect --device`. Send **only** the printed URL (`/connect?device=…`). Never the device secret. They have ten minutes to enter the key. Then retry `cm_health` in this chat. A new chat only if tools still 401 (stdio leftover).
@@ -75,4 +75,4 @@ Then, with `shelf=` / `library=` that id:
 
 Leftover `unclassified` on an old hub: dest must exist (`cm_library` if needed). `cm_copy` `{from:unclassified,to:<named>}` (identical skip; collisions `imported/kept/from-unclassified/`). Then `cm_delete` `{id:unclassified}`. Never copy **to** Inbox. Never download originals to this computer. Extra keys may copy if both grants; only default/login may delete a leftover shelf. Card delete stays login-only.
 
-Organize leftover named shelves the same way: `cm_copy` `{from,to}` then `cm_delete` `{id}` — this **deletes** the leftover shelf (no restore warehouse).
+Organize leftover named shelves the same way: `cm_copy` `{from,to}` then `cm_delete` `{id}` — this **deletes** the leftover shelf (no restore warehouse). To curate a **subset** of cards onto another named shelf, `cm_search` / `cm_show` then `cm_move` `{from,to,files}`. Source cards are removed. Decision numbers stay if free on dest, otherwise a new seq. Attachments re-attach on dest. Default key or owner login. Extra keys cannot. Card delete stays login-only. Never download originals here.

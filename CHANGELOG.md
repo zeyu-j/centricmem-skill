@@ -2,6 +2,10 @@
 
 Skill-facing notes for [centricmem-skill](https://github.com/zeyu-j/centricmem-skill). This repo is how to use the hosted librarian.
 
+## 0.21.40
+
+- `cm_move` `{from,to,files}` relocates selected Markdown cards onto another named shelf. Source files are deleted. Decision numbers stay if free on dest, otherwise a new seq. Attachments re-attach on dest. Default key or owner login; extra keys cannot. Pick cards with `cm_search` / `cm_show`. Do not download originals to “move” them. `cm_copy` still copies a whole leftover shelf; card delete stays login-only.
+
 ## 0.21.39
 
 - Hosted ambient/doctor: unmatched cwd or omitted `shelf=` is `library=(none)` plus `libraries=` — not the hub `use` pin. Pick a named shelf this turn (or mint). Extra keys with exactly one grant still open that shelf. Guests do not `--link`.

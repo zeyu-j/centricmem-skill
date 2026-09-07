@@ -6,13 +6,13 @@
   },
   "metadata": {
     "description": "CentricMem hosted librarian for Copilot CLI",
-    "version": "0.21.39"
+    "version": "0.21.40"
   },
   "plugins": [
     {
       "name": "centricmem-skill",
       "description": "Hosted CentricMem librarian: organise and retrieve Markdown memory via host MCP.",
-      "version": "0.21.39",
+      "version": "0.21.40",
       "source": ".",
       "homepage": "https://centricmem.com",
       "repository": "https://github.com/zeyu-j/centricmem-skill",

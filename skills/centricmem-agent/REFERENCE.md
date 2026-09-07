@@ -16,7 +16,7 @@ Inbox is gone. Do not mint `unclassified`. Leftover Inbox on an old hub: `cm_cop
 
 ## Reach
 
-MCP tools must be present: `cm_health` `cm_ambient` `cm_doctor` `cm_search` `cm_show` `cm_note` `cm_log_decision` `cm_done` `cm_keep` `cm_library` `cm_copy` `cm_delete` `cm_import` `cm_index`.
+MCP tools must be present: `cm_health` `cm_ambient` `cm_doctor` `cm_search` `cm_show` `cm_note` `cm_log_decision` `cm_done` `cm_keep` `cm_library` `cm_copy` `cm_move` `cm_delete` `cm_import` `cm_index`.
 
 If they are missing, connect them **this turn**. Never paste the key in chat. Never copy JSON into chat. Do not curl. Do not CLI-write. Do not bootstrap. Do not send a loopback `/connect`.
 
@@ -58,7 +58,7 @@ Sandbox fallback (only if `cm_health` has no `mcp` field, or the origin is not u
 
 `setup --install-skill` on a guest copies Skill files only (CLI >=0.21.25). It must not merge leftover catalog pairing tokens into Cursor `mcp.json`. Host MCP on a guest is `centricmem connect --device` when the CLI works; if the shell is blocked, the human adds `https://mem.centricmem.com/mcp` in this agent’s settings (Bearer from Keys, never in chat). Local librarian hosts may still merge loopback MCP when `/health` advertises `mcp`. Never ask them to paste a token in chat. Never one-click install. Never a dashboard “connect this computer”. After they connect, retry `cm_health` in this chat; a new chat only if tools still 401. Token failure: say once; connect again (CLI or signup+settings); **hold the sweep** (this agent’s memory `CentricMem deferred sweep` + transcript path) until `cm_health` works. Only drop the hold if they said don't log or they stopped using this Skill.
 
-Do **not** call `/download`, HTTP `/delete` (cards), billing, or `/register` `/login`. Humans download originals and **delete cards** on the dashboard. Login uniquely owns **card** delete and billing. The **default** key (`*`) may mint, rename, grant, and revoke extras — that stays HTTP/dashboard/CLI, not these `cm_*` tools, so a new token never lands in chat. Default (and owner login) may `cm_copy` / `cm_delete` leftover shelves (`cm_delete` is delete, not archive — no restore). Extra keys cannot manage keys or delete a leftover shelf; they may `cm_copy` if both grants. Attachments are metered per plan (Lite 100MB, Education 200MB, Pro 1GB, Ultra 10GB; operator uncapped). Over quota, `cm_keep` fails — say so; do not drop bytes silently.
+Do **not** call `/download`, HTTP `/delete` (cards), billing, or `/register` `/login`. Humans download originals and **delete cards** on the dashboard. Login uniquely owns **card** delete and billing. The **default** key (`*`) may mint, rename, grant, and revoke extras — that stays HTTP/dashboard/CLI, not these `cm_*` tools, so a new token never lands in chat. Default (and owner login) may `cm_copy` / `cm_delete` leftover shelves (`cm_delete` is delete, not archive — no restore) and `cm_move` selected cards. Extra keys cannot manage keys, move cards, or delete a leftover shelf; they may `cm_copy` if both grants. Attachments are metered per plan (Lite 100MB, Education 200MB, Pro 1GB, Ultra 10GB; operator uncapped). Over quota, `cm_keep` fails — say so; do not drop bytes silently.
 
 ## Search and show
 
@@ -82,7 +82,7 @@ Useful query bits (in `q` / `tags` / `type`): `filter`, `tag`, `type:decision`, 
 |-----------|-----|
 | Session start | `cm_health` + `cm_ambient` (never a stale `.ambient.md`). Then refresh Skill if published `version` is newer. **Once**, say which key: `*` = default, else list grant ids. If `library=(none)` / unmatched cwd, pick from `libraries=` or mint — do not use the hub `use` pin |
 | This chat is default (`grants=["*"]`) | **once**: every shelf. Another agent/person/machine should only see some shelves → they mint an extra on **Keys**, tick those, connect **that** extra there. Do not nag otherwise |
-| This chat is an extra (listed shelf ids) | **once**: those shelves. More/fewer → they tick grants on Keys (login, or connect default first). Need every shelf / mint a shelf / rename label / delete leftover → authenticate **default** |
+| This chat is an extra (listed shelf ids) | **once**: those shelves. More/fewer → they tick grants on Keys (login, or connect default first). Need every shelf / mint a shelf / rename label / move cards / delete leftover → authenticate **default** |
 | 403 `LIBRARY_MISMATCH` / cannot open a shelf | this key’s grants omit it. Keys: tick that shelf, or connect default. Never paste a key |
 | They ask which key this chat is | `cm_health` `grants` only. Never list tokens |
 | Empty library after Skill install | **once**, offer existing durable memories as cards (this file). Capture stays. They may skip |
@@ -92,6 +92,7 @@ Useful query bits (in `q` / `tags` / `type`): `filter`, `tag`, `type:decision`, 
 | Durable work just finished | pick a **named** shelf (or `cm_library`), then one MCP sweep **this turn** |
 | Librarian down / token failed | compose the sweep anyway; this agent’s memory `CentricMem deferred sweep`; connect link once; file the hold when health succeeds |
 | Leftover named shelf or leftover Inbox | dest must exist; `cm_copy` `{from,to}` on the librarian, then `cm_delete` `{id}`. Never download originals here. Never `to=unclassified` |
+| Selected cards on the wrong named shelf | `cm_search` / `cm_show` then `cm_move` `{from,to,files}` (default key or login). Extra keys cannot. Source cards are removed. Never download originals here. Never `to=unclassified` |
 | Structured corpus (`corpus=slug`) | `library=` that slug; `cm_search` then `cm_show` the **card**, not a dump page |
 
 Empty ambient + Work/Ops → do not deep-search; execute, then sweep this turn.
@@ -135,6 +136,7 @@ Hold half-finished thoughts. When the chunk is done, file **before you stop talk
 | Shelf | none of the named shelves fit | `cm_library` `{id}` (default key). Extra: authenticate so they enter the **default** key. Connect does not mint a shelf |
 | Shelf label | you learn a better **human** name than the current display name (rebrand, leftover folder slug, they say “that’s X”) | default key: `cm_library` `{id, displayName}` **this turn** — do not wait to be asked. Id / folder / grants stay. Writes still `shelf=<id>`. Use the name they use or the public product name; do not invent a prettier one. Skip if the label already matches. Extra key cannot: authenticate for the default key (step 0.2) and say the intended label once. Humans can also rename on the Library desk |
 | Copy shelf | leftover named shelf (or leftover Inbox) should live on another | `cm_copy` `{from,to}`. Dest must exist. Extra keys need both grants. Never download originals here. Never `to=unclassified` |
+| Move cards | a subset of Markdown cards should live on another named shelf | `cm_move` `{from,to,files}` (default key or login). Extra keys cannot. Source files are deleted. Decision numbers stay if free on dest. Never download originals here. Never `to=unclassified` |
 | Delete leftover shelf | leftover is empty or already copied | `cm_delete` `{id}` (default key or login). Extra keys cannot. Leftover Inbox may be the source. This is delete, not archive |
 | Bundle | capture import | `cm_import` with `library=` a named shelf |
 | Index | after bulk import | `cm_index` |
