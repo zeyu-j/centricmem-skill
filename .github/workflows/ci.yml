@@ -26,6 +26,7 @@ jobs:
           test -f .codebuddy-plugin/marketplace.json
           test -f .codebuddy-plugin/plugin.json
           test -f .workbuddy-plugin/marketplace.json
+          test -f .workbuddy-plugin/plugin.json
           test -f .kimi-plugin/plugin.json
           test -f .kimi-plugin/marketplace.json
           test -f .kiro/plugins/marketplace.json
