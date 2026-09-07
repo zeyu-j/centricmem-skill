@@ -4,12 +4,12 @@ description: "Organises and retrieves Markdown memory on the hosted CentricMem l
 license: PolyForm-Noncommercial-1.0.0
 compatibility: "Requires host MCP at https://mem.centricmem.com/mcp (or stdio centricmem-host). CLI >=0.21.23 for cm_copy / cm_delete."
 metadata:
-  version: "0.21.30"
+  version: "0.21.31"
   compatible_cli: ">=0.21.23"
   changelog_url: https://github.com/zeyu-j/centricmem-skill/blob/main/CHANGELOG.md
 ---
 
-# CentricMem Agent Skill v0.21.30
+# CentricMem Agent Skill v0.21.31
 
 Glossary: **Library** (one per person) → **Shelf** (pass `shelf=<id>` or `library=<id>`) → **Card** (Markdown: Identity / Details / Tags / Body, [REFERENCE.md](REFERENCE.md)). There is no Inbox. Do not mint `unclassified`.
 
@@ -50,7 +50,11 @@ New literature: **`cm_keep`** (MCP signs + PUT when `r2`) → read from the card
 
 Do **not** wait for 收尾, close, wrap up, "log this", session end, or a later message. Runtime hooks (`sessionEnd`) are a backup and often never fire. Closing the agent does not run this file.
 
-Human says don't log → skip. MCP missing or librarian down: skip, say once.
+Human says don't log, or they said they are **done with this Skill / CentricMem** → skip, do not accumulate.
+
+MCP missing, librarian down, or token failed: **do not drop the record.** Compose the sweep this turn (named shelf id, note / decision / done bodies, this chat's transcript path). Persist it as a Cursor memory titled `CentricMem deferred sweep` (no secrets, no keys). Send the authenticate link once (step 0.2). Keep working. Do not bootstrap, curl, or CLI-write. Closing the tab still does not file — the hold is so a later connected chat can.
+
+When `cm_health` succeeds this chat: file this chat's Non-Micro batch, then file every **CentricMem deferred sweep** still in Cursor memories (`cm_keep` those jsonl paths from disk, then cards with `attach`). Same named-shelf rules. Do not ingest every transcript in the folder — only this chat and held sweeps.
 
 **Named shelf.** Ambient never reports `unclassified`. Pick:
 

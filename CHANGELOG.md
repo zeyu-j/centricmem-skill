@@ -2,6 +2,10 @@
 
 Skill-facing notes for [centricmem-skill](https://github.com/zeyu-j/centricmem-skill). This repo is how to use the hosted librarian.
 
+## 0.21.31
+
+- Librarian down or token failed: still compose the sweep and hold it (`CentricMem deferred sweep` + transcript path). File the hold when `cm_health` succeeds. Only skip if the human said don't log or they stopped using this Skill.
+
 ## 0.21.30
 
 - There is no Inbox. Named shelves only. Writes without `shelf=` / `library=` / a cwd-link are 400 `LIBRARY_REQUIRED`. Leftover `unclassified` on an old hub: `cm_copy` `{from:unclassified,to:<named>}` then `cm_delete`. Never copy **to** Inbox. Dropped `cm_inbox` / `cm_classify`.
