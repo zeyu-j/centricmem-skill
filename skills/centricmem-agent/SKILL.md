@@ -2,14 +2,14 @@
 name: centricmem-agent
 description: "Organises and retrieves Markdown memory on the hosted CentricMem librarian via host MCP (search, notes, decisions, transcripts). Use when starting a session, filing Non-Micro work, searching project memory, connecting an agent key, or refreshing this Skill. Named shelves only, never curl librarian HTTP, never paste keys in chat."
 license: PolyForm-Noncommercial-1.0.0
-compatibility: "Requires host MCP at https://mem.centricmem.com/mcp (or stdio centricmem-host). CLI >=0.21.28: retry this chat after connect; Curate: empty offers existing-memory cards."
+compatibility: "Requires host MCP at https://mem.centricmem.com/mcp (or stdio centricmem-host). CLI >=0.21.29: unmatched cwd is not a shelf; Curate: empty offers existing-memory cards."
 metadata:
-  version: "0.21.38"
-  compatible_cli: ">=0.21.28"
+  version: "0.21.39"
+  compatible_cli: ">=0.21.29"
   changelog_url: https://github.com/zeyu-j/centricmem-skill/blob/main/CHANGELOG.md
 ---
 
-# CentricMem Agent Skill v0.21.38
+# CentricMem Agent Skill v0.21.39
 
 Glossary: **Library** (one per person) → **Shelf** (pass `shelf=<id>` or `library=<id>`) → **Card** (Markdown: Identity / Details / Tags / Body, [REFERENCE.md](REFERENCE.md)). There is no Inbox. Do not mint `unclassified`.
 
@@ -34,11 +34,11 @@ CentricMem is the **manager layer** (organise / retrieve / cross-agent store) **
 
 ## 2. Start
 
-`cm_health` then `cm_ambient`. Ignore a stale `.ambient.md`. Unreachable or `state=UNINITIALIZED`: **say once** — do not bootstrap. Writes need a **named shelf** (`shelf=` / `library=` / cwd-link). Unlinked cwd is not a shelf — mint one (`cm_library`) or pick from `libraries=`. `corpus=<slug>` → `library=` that slug. Never treat ambient **text** “Skill outdated” as truth (librarian hub copy). This file is the installed `centricmem-agent` Skill. The folder name is the same on every agent (`~/.cursor/skills/centricmem-agent`, `~/.claude/skills/`, `~/.codex/skills/`, `~/.kiro/skills/`, `~/.kilo/skills/`, Copilot `.github/skills/`, CodeBuddy/WorkBuddy, Kimi Code, and the rest). Plugin clients may also load the same GitHub repo as an [Agent Plugins](https://agent-plugins.org) package (`plugin.json` + `skills/` + `mcp.json`). CodeBuddy/WorkBuddy: `.codebuddy-plugin/marketplace.json`. Kimi Code: `.kimi-plugin/plugin.json` or `/plugins install https://github.com/zeyu-j/centricmem-skill`.
+`cm_health` then `cm_ambient`. Ignore a stale `.ambient.md`. Unreachable or `state=UNINITIALIZED`: **say once** — do not bootstrap. Writes need a **named shelf** (`shelf=` / `library=` / cwd-link). Unmatched cwd is not a shelf. If ambient is `library=(none)`, pick from `libraries=` this turn or mint (`cm_library`). Guests do not `--link`. Do not use the hub `use` pin. `corpus=<slug>` → `library=` that slug. Never treat ambient **text** “Skill outdated” as truth (librarian hub copy). This file is the installed `centricmem-agent` Skill. The folder name is the same on every agent (`~/.cursor/skills/centricmem-agent`, `~/.claude/skills/`, `~/.codex/skills/`, `~/.kiro/skills/`, `~/.kilo/skills/`, Copilot `.github/skills/`, CodeBuddy/WorkBuddy, Kimi Code, and the rest). Plugin clients may also load the same GitHub repo as an [Agent Plugins](https://agent-plugins.org) package (`plugin.json` + `skills/` + `mcp.json`). CodeBuddy/WorkBuddy: `.codebuddy-plugin/marketplace.json`. Kimi Code: `.kimi-plugin/plugin.json` or `/plugins install https://github.com/zeyu-j/centricmem-skill`.
 
 **Once this chat, after health/ambient:** compare this file’s `metadata.version` to `skill_latest` on `cm_health` / `cm_ambient`. If that field is null, GET `https://raw.githubusercontent.com/zeyu-j/centricmem-skill/main/skills/centricmem-agent/SKILL.md` and parse `metadata.version`. If published is newer: refresh **SKILL.md** with `npx --yes skills add zeyu-j/centricmem-skill --skill centricmem-agent -y` when the shell works (omit `-g` if this agent has no user-wide skills dir). If the shell is **blocked**, skip npx; tell them to update via this client’s plugin UI or a machine that can run npx. If this session loaded the **plugin** bundle instead, also tell them to update via that client (`/plugin`, Codex plugins UI, Copilot plugin, Kiro Powers re-import from `https://github.com/zeyu-j/centricmem-skill`). Tell the human it is on disk; **this chat still uses the already-loaded Skill**; the next chat uses the new one. If this file is newer, or fetch/npx fails or is blocked: continue. Never `setup --install-skill` for this refresh. Never paste marketplace JSON into chat.
 
-**Once after Skill install / first ambient this chat:** if `cm_*` are still missing, connect them **now** (step 0.2) — do not wait. Then tell the human how they use it (their language). They keep talking here. They do **not** have to say 收尾 / wrap up / log this. You file when the work is real, before you stop — closing the tab does not run this Skill. The agent’s own memories stay (do not uninstall them). They do not paste chats, tokens, or CLI. If they pasted a key into a chat, they sign in and **rotate** it on Keys — the old secret dies; a copy box appears at the **top** of Agent keys with the new secret (once). They enter that on a `/connect?device=` page or in this agent’s MCP settings, never here. They search via you or log in to download originals. "Don't log" skips that sweep.
+**Once after Skill install / first ambient this chat:** if `cm_*` are still missing, connect them **now** (step 0.2) — do not wait. Then tell the human how they use it (their language). **Which key (once)** after first `cm_health`: `grants=["*"]` = **default** (every shelf); else name those ids — **extra**. All chats here share that Bearer until they connect another. More/fewer shelves on this extra → they tick grants on **Keys** (login, or connect default first). Need every shelf → authenticate **default**. Another agent/person should only see some shelves → mint an extra on Keys, tick those, connect **that** key there. Never paste a key. Never change grants via `cm_*`. 403 `LIBRARY_MISMATCH` = this extra cannot open that shelf (same recipe). Do not nag default users to mint extras unless they mention another agent, person, or machine. They keep talking here. They do **not** have to say 收尾 / wrap up / log this. You file when the work is real, before you stop — closing the tab does not run this Skill. The agent’s own memories stay (do not uninstall them). They do not paste chats, tokens, or CLI. If they pasted a key into a chat, they sign in and **rotate** it on Keys — the old secret dies; a copy box appears at the **top** of Agent keys with the new secret (once). They enter that on a `/connect?device=` page or in this agent’s MCP settings, never here. They search via you or log in to download originals. "Don't log" skips that sweep.
 
 **Empty shelf.** Ambient `Curate: empty` / `library=(none)`, or `cm_search` with `shelf=` lists only templates: **once**, offer to file existing durable memories as cards (REFERENCE). Capture stays. Skip / later / don't log = stop offering this chat.
 
@@ -62,9 +62,9 @@ When `cm_health` succeeds this chat: file this chat's Non-Micro batch, then file
 
 **Named shelf.** Ambient never reports `unclassified`. Pick:
 
-1. cwd linked, or `corpus=<slug>` → that shelf
+1. cwd **linked** (sourceDir match), or `corpus=<slug>` → that shelf
 2. work belongs in an existing named shelf on `libraries=` → that id
-3. none fit → default key: `cm_library` `{id}` (slug like `my-project`) then file there. Extra key, or `cm_library` missing: send the authenticate link (step 0.2) so they enter the **default** key to mint a shelf (Connect does not create shelves); **hold the sweep in agent memory**. Writes without a named shelf are 400 `LIBRARY_REQUIRED`.
+3. none fit → default key: `cm_library` `{id}` (slug like `my-project`) then file there. Extra key, or `cm_library` missing: send the authenticate link (step 0.2) so they enter the **default** key to mint a shelf (Connect does not create shelves); **hold the sweep in agent memory**. Writes without a named shelf are 400 `LIBRARY_REQUIRED`. Do not treat `workspace.current` or an unmatched guest cwd as the shelf.
 
 **Label.** If that id’s display name is a leftover slug and you know the product/human name, `cm_library` `{id, displayName}` this turn (REFERENCE). Do not mint a second shelf. Writes still `shelf=<id>`.
 

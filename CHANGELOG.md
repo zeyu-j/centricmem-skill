@@ -2,6 +2,12 @@
 
 Skill-facing notes for [centricmem-skill](https://github.com/zeyu-j/centricmem-skill). This repo is how to use the hosted librarian.
 
+## 0.21.39
+
+- Hosted ambient/doctor: unmatched cwd or omitted `shelf=` is `library=(none)` plus `libraries=` — not the hub `use` pin. Pick a named shelf this turn (or mint). Extra keys with exactly one grant still open that shelf. Guests do not `--link`.
+- After first `cm_health` this chat, say **once** which key (`*` = default / every shelf, else list extra grants). Suggest Keys grant ticks or minting an extra for another agent; authenticate default if this extra is too narrow. Never paste keys; never change grants via MCP.
+- Unmatched cwd is not a shelf. If ambient is `library=(none)`, pick from `libraries=` or mint. Do not use the hub `use` pin.
+
 ## 0.21.38
 
 - CodeBuddy / WorkBuddy: `.codebuddy-plugin/marketplace.json` (and `.workbuddy-plugin/` alias). Add with `codebuddy plugin marketplace add zeyu-j/centricmem-skill`.

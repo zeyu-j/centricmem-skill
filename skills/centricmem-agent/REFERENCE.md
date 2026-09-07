@@ -74,9 +74,17 @@ Never ask `cm_show` for originals. Never paste download URLs into the chat.
 
 Useful query bits (in `q` / `tags` / `type`): `filter`, `tag`, `type:decision`, `#0016` / `id:0016`. Bare word `decision` is full-text, not a type filter. `all` does not leak other shelves. An extra key’s `all` is only the shelves on that key’s grants. Pass `shelf=` / `library=` / `cwd=` when the Bearer can open more than one shelf. Isolation: **one key = its grants**. The owner's agent Bearer is the **default** key (`*` = every shelf).
 
+## Which key / grants
+
+`cm_health` returns `grants`. Say that **once** this chat (SKILL.md). Do not dump other keys or secrets. This agent has one `centricmem` MCP slot — connecting another key **overwrites** the Bearer; every chat in this agent shares it. Do not invent a second MCP server name for per-tab switching. Grant changes stay on the dashboard **Keys** page (or HTTP/CLI with the default key) — never `cm_*`, so a new secret never lands in chat. Default cannot change its own grants (`*` is always every shelf).
+
 | Situation | Do |
 |-----------|-----|
-| Session start | `cm_health` + `cm_ambient` (never a stale `.ambient.md`). Then refresh Skill if published `version` is newer |
+| Session start | `cm_health` + `cm_ambient` (never a stale `.ambient.md`). Then refresh Skill if published `version` is newer. **Once**, say which key: `*` = default, else list grant ids. If `library=(none)` / unmatched cwd, pick from `libraries=` or mint — do not use the hub `use` pin |
+| This chat is default (`grants=["*"]`) | **once**: every shelf. Another agent/person/machine should only see some shelves → they mint an extra on **Keys**, tick those, connect **that** extra there. Do not nag otherwise |
+| This chat is an extra (listed shelf ids) | **once**: those shelves. More/fewer → they tick grants on Keys (login, or connect default first). Need every shelf / mint a shelf / rename label / delete leftover → authenticate **default** |
+| 403 `LIBRARY_MISMATCH` / cannot open a shelf | this key’s grants omit it. Keys: tick that shelf, or connect default. Never paste a key |
+| They ask which key this chat is | `cm_health` `grants` only. Never list tokens |
 | Empty library after Skill install | **once**, offer existing durable memories as cards (this file). Capture stays. They may skip |
 | Why we chose X | `cm_search` (decision) |
 | What we know | `cm_search` + lessons / `tags` |
