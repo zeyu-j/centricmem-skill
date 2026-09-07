@@ -2,6 +2,11 @@
 
 Skill-facing notes for [centricmem-skill](https://github.com/zeyu-j/centricmem-skill). This repo is how to use the hosted librarian.
 
+## 0.21.33
+
+- Guest `setup --install-skill` copies Skill files only (CLI >=0.21.25). It must not rewrite Host MCP from leftover catalog. If tools 401 after an older CLI did that, authenticate with a new `/connect?device=` link, then a new chat.
+- One GitHub repo is the install surface for every Agent Skills / Agent Plugins client: Cursor (`.cursor-plugin/marketplace.json`), Claude Code (`.claude-plugin/marketplace.json`), Codex (`.agents/plugins/marketplace.json`), Copilot CLI, Kiro Powers (`.kiro/plugins/marketplace.json`), plus `npx skills add` for SKILL.md. Sweep, refresh, and deferred hold are agent-neutral.
+
 ## 0.21.32
 
 - Humans rename a shelf **label** and browse every card on the Library desk. The shelf id stays (`shelf=` / folder / grants). Default key: `cm_library` `{id, displayName}` on an existing shelf updates that label. `cm_search` without `q` and with `shelf=` lists cards (one per file).

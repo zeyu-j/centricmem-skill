@@ -1,14 +1,18 @@
 {
-  "name": "centricmem",
+  "name": "centricmem-skill",
+  "displayName": "CentricMem",
   "description": "Hosted CentricMem librarian: organise and retrieve Markdown memory via host MCP. Authenticate with a /connect?device= link; never paste keys in chat.",
   "version": "0.21.33",
   "author": {
     "name": "Dr. Z",
-    "email": "zeyu@dr.com",
-    "url": "https://github.com/zeyu-j"
+    "email": "zeyu@dr.com"
   },
   "homepage": "https://centricmem.com",
   "repository": "https://github.com/zeyu-j/centricmem-skill",
   "license": "PolyForm-Noncommercial-1.0.0",
-  "keywords": ["centricmem", "mcp", "memory", "skill", "agent-plugins", "agent-skills"]
+  "logo": "./assets/icon.svg",
+  "keywords": ["centricmem", "mcp", "memory", "skill", "agent-plugins", "agent-skills"],
+  "category": "productivity",
+  "skills": "./skills/",
+  "mcpServers": "./mcp.json"
 }

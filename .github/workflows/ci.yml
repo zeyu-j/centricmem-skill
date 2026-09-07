@@ -19,6 +19,13 @@ jobs:
           test -f plugin.json
           test -f mcp.json
           test -f .codex-plugin/plugin.json
+          test -f .claude-plugin/marketplace.json
+          test -f .claude-plugin/plugin.json
+          test -f .cursor-plugin/marketplace.json
+          test -f .cursor-plugin/plugin.json
+          test -f .kiro/plugins/marketplace.json
+          test -f .agents/plugins/marketplace.json
+          test -f .github/plugin/marketplace.json
           test -f .github/workflows/hol-plugin-scanner.yml
           test -f .codexignore
           test -f skills/centricmem-agent/SKILL.md
@@ -33,6 +40,7 @@ jobs:
             exit 1
           fi
           grep -q 'npx skills add zeyu-j/centricmem-skill' README.md
+          grep -q '/plugin marketplace add zeyu-j/centricmem-skill' README.md
           python3 - <<'PY'
           import json
           from pathlib import Path
@@ -48,6 +56,16 @@ jobs:
           assert "headers" not in mcp["mcpServers"]["centricmem"]
           assert codex["skills"] == "./skills/"
           assert codex["mcpServers"] == "./mcp.json"
+          claude_mp = json.loads(Path(".claude-plugin/marketplace.json").read_text(encoding="utf-8"))
+          cursor_mp = json.loads(Path(".cursor-plugin/marketplace.json").read_text(encoding="utf-8"))
+          cursor_pl = json.loads(Path(".cursor-plugin/plugin.json").read_text(encoding="utf-8"))
+          kiro_mp = json.loads(Path(".kiro/plugins/marketplace.json").read_text(encoding="utf-8"))
+          assert claude_mp["name"] == "centricmem"
+          assert claude_mp["plugins"][0]["source"] == "./"
+          assert cursor_mp["plugins"][0]["source"] == "./"
+          assert cursor_pl["skills"] == "./skills/"
+          assert cursor_pl["mcpServers"] == "./mcp.json"
+          assert kiro_mp["plugins"][0]["source"]["path"] == "./"
           PY
           if [ -d src ] || [ -d dist ] || [ -d tests ] || [ -d desktop ] || [ -d web ]; then
             echo "client trees must not ship" >&2

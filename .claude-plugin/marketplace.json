@@ -1,0 +1,21 @@
+{
+  "name": "centricmem",
+  "owner": {
+    "name": "Dr. Z",
+    "email": "zeyu@dr.com"
+  },
+  "metadata": {
+    "description": "CentricMem hosted librarian — Agent Plugins 1.0 + SKILL.md",
+    "version": "0.21.33"
+  },
+  "plugins": [
+    {
+      "name": "centricmem-skill",
+      "description": "Hosted CentricMem librarian: organise and retrieve Markdown memory via host MCP.",
+      "version": "0.21.33",
+      "source": "./",
+      "category": "productivity",
+      "keywords": ["centricmem", "mcp", "memory", "skill", "agent-plugins"]
+    }
+  ]
+}
