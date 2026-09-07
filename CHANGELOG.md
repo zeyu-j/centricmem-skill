@@ -2,6 +2,11 @@
 
 Skill-facing notes for [centricmem-skill](https://github.com/zeyu-j/centricmem-skill). This repo is how to use the hosted librarian.
 
+## 0.21.38
+
+- CodeBuddy / WorkBuddy: `.codebuddy-plugin/marketplace.json` (and `.workbuddy-plugin/` alias). Add with `codebuddy plugin marketplace add zeyu-j/centricmem-skill`.
+- Kimi Code: `.kimi-plugin/plugin.json` plus a Custom catalog. Install with `/plugins install https://github.com/zeyu-j/centricmem-skill`. Host MCP Bearer is `CENTRICMEM_API_KEY` (never in chat). Official/Curated listing is a Moonshot PR — not a self-serve form.
+
 ## 0.21.37
 
 - If the shell is blocked or `centricmem` is missing, do not retry CLI. Send https://centricmem.com/login?signup=1; the human adds `https://mem.centricmem.com/mcp` in this agent’s MCP settings (key from Keys, never in chat). `connect --device` stays the path when CLI works.

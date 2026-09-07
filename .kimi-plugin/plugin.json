@@ -1,0 +1,23 @@
+{
+  "name": "centricmem-skill",
+  "version": "0.21.38",
+  "description": "Hosted CentricMem librarian: organise and retrieve Markdown memory via host MCP. Authenticate with a /connect?device= link; never paste keys in chat.",
+  "keywords": ["centricmem", "mcp", "memory", "skill", "librarian"],
+  "author": "Dr. Z",
+  "homepage": "https://centricmem.com",
+  "license": "PolyForm-Noncommercial-1.0.0",
+  "skills": "./skills/",
+  "mcpServers": {
+    "centricmem": {
+      "url": "https://mem.centricmem.com/mcp",
+      "bearerTokenEnvVar": "CENTRICMEM_API_KEY"
+    }
+  },
+  "interface": {
+    "displayName": "CentricMem",
+    "shortDescription": "Hosted librarian for agent memory via host MCP.",
+    "longDescription": "Organise and retrieve Markdown cards on the hosted CentricMem librarian. Skills plus host MCP at https://mem.centricmem.com/mcp. Set CENTRICMEM_API_KEY to the default key or an extra key (never paste keys in chat). If the CLI is blocked, send https://centricmem.com/login?signup=1.",
+    "developerName": "Dr. Z",
+    "websiteURL": "https://github.com/zeyu-j/centricmem-skill"
+  }
+}

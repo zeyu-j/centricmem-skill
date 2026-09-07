@@ -23,6 +23,11 @@ jobs:
           test -f .claude-plugin/plugin.json
           test -f .cursor-plugin/marketplace.json
           test -f .cursor-plugin/plugin.json
+          test -f .codebuddy-plugin/marketplace.json
+          test -f .codebuddy-plugin/plugin.json
+          test -f .workbuddy-plugin/marketplace.json
+          test -f .kimi-plugin/plugin.json
+          test -f .kimi-plugin/marketplace.json
           test -f .kiro/plugins/marketplace.json
           test -f .agents/plugins/marketplace.json
           test -f .github/plugin/marketplace.json
@@ -66,6 +71,18 @@ jobs:
           assert cursor_pl["skills"] == "./skills/"
           assert cursor_pl["mcpServers"] == "./mcp.json"
           assert kiro_mp["plugins"][0]["source"]["path"] == "./"
+          codebuddy_mp = json.loads(Path(".codebuddy-plugin/marketplace.json").read_text(encoding="utf-8"))
+          codebuddy_pl = json.loads(Path(".codebuddy-plugin/plugin.json").read_text(encoding="utf-8"))
+          kimi_pl = json.loads(Path(".kimi-plugin/plugin.json").read_text(encoding="utf-8"))
+          kimi_mp = json.loads(Path(".kimi-plugin/marketplace.json").read_text(encoding="utf-8"))
+          assert codebuddy_mp["name"] == "centricmem"
+          assert codebuddy_mp["plugins"][0]["source"] == "./"
+          assert codebuddy_pl["skills"] == "./skills/"
+          assert codebuddy_pl["mcpServers"] == "./mcp.json"
+          assert kimi_pl["skills"] == "./skills/"
+          assert kimi_pl["mcpServers"]["centricmem"]["url"] == "https://mem.centricmem.com/mcp"
+          assert "headers" not in kimi_pl["mcpServers"]["centricmem"]
+          assert kimi_mp["plugins"][0]["source"] == "https://github.com/zeyu-j/centricmem-skill"
           PY
           if [ -d src ] || [ -d dist ] || [ -d tests ] || [ -d desktop ] || [ -d web ]; then
             echo "client trees must not ship" >&2
