@@ -10,7 +10,7 @@ jobs:
   skill:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
       - name: Public repo is usage-only
         run: |
           set -euo pipefail
@@ -19,6 +19,8 @@ jobs:
           test -f plugin.json
           test -f mcp.json
           test -f .codex-plugin/plugin.json
+          test -f .github/workflows/hol-plugin-scanner.yml
+          test -f .codexignore
           test -f skills/centricmem-agent/SKILL.md
           test -f skills/centricmem-agent/REFERENCE.md
           grep -q '^name: centricmem-agent' skills/centricmem-agent/SKILL.md

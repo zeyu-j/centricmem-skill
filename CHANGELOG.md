@@ -2,6 +2,11 @@
 
 Skill-facing notes for [centricmem-skill](https://github.com/zeyu-j/centricmem-skill). This repo is how to use the hosted librarian.
 
+## 0.21.32
+
+- Humans rename a shelf **label** and browse every card on the Library desk. The shelf id stays (`shelf=` / folder / grants). Default key: `cm_library` `{id, displayName}` on an existing shelf updates that label. `cm_search` without `q` and with `shelf=` lists cards (one per file).
+- Marketplace packaging: SkillKit well-known at `https://centricmem.com/.well-known/skills/`; HOL Plugin Scanner CI on this repo; Agent Plugins keywords include `agent-plugins` / `agent-skills`. The Agent Plugins directory already lists `centricmem-skill`.
+
 ## 0.21.31
 
 - Librarian down or token failed: still compose the sweep and hold it (`CentricMem deferred sweep` + transcript path). File the hold when `cm_health` succeeds. Only skip if the human said don't log or they stopped using this Skill.

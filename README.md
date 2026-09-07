@@ -10,7 +10,7 @@ A hosted librarian for AI agents. Capture stays in the agent you already use. Ce
 npx skills add zeyu-j/centricmem-skill --skill centricmem-agent -g
 ```
 
-Same layout for [skills.sh](https://skills.sh), the Skills CLI, and SkillMD (`skillmd add zeyu-j/centricmem-skill`): one folder per skill, `skills/centricmem-agent/SKILL.md`.
+Same layout for [skills.sh](https://skills.sh), the Skills CLI, SkillKit (`skillkit add https://centricmem.com` or `skillkit add zeyu-j/centricmem-skill`), and SkillMD (`skillmd add zeyu-j/centricmem-skill`): one folder per skill, `skills/centricmem-agent/SKILL.md`.
 
 Then keep talking. After install, the agent tells you how you use it. You do not paste chats, tokens, or CLI.
 
@@ -43,6 +43,12 @@ The same repo is an [Agent Plugins 1.0](https://agent-plugins.org) package for C
 - [`.codex-plugin/plugin.json`](./.codex-plugin/plugin.json) — Codex-native pointer at `./skills/` and `./mcp.json`
 
 Codex can also add this repo as a marketplace source (`.agents/plugins/marketplace.json`).
+
+SkillKit discovers the same Skill from the website well-known index:
+
+```bash
+skillkit add https://centricmem.com
+```
 
 GitHub Copilot CLI can add this repo as a marketplace:
 

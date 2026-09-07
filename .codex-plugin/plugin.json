@@ -1,6 +1,6 @@
 {
   "name": "centricmem-skill",
-  "version": "0.21.31",
+  "version": "0.21.32",
   "description": "Hosted CentricMem librarian: organise and retrieve Markdown memory via host MCP.",
   "author": {
     "name": "Dr. Z",
@@ -10,7 +10,7 @@
   "homepage": "https://centricmem.com",
   "repository": "https://github.com/zeyu-j/centricmem-skill",
   "license": "PolyForm-Noncommercial-1.0.0",
-  "keywords": ["centricmem", "mcp", "memory", "skill"],
+  "keywords": ["centricmem", "mcp", "memory", "skill", "agent-plugins", "agent-skills"],
   "skills": "./skills/",
   "mcpServers": "./mcp.json",
   "interface": {
