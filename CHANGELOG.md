@@ -2,6 +2,11 @@
 
 Skill-facing notes for [centricmem-skill](https://github.com/zeyu-j/centricmem-skill). This repo is how to use the hosted librarian.
 
+## 0.21.48
+
+- Login uniquely owns card delete, billing, rotating the default key, and deleting the account (Billing). Never call account delete from MCP.
+- CLI **>=0.21.36**.
+
 ## 0.21.47
 
 - Lifetime 1 sits between Pro and Ultra (2GB / 20 named shelves). Lifetime 2 is above Ultra (20GB / 100). Not Pro/Ultra pay-once. List is about five years of yearly.
