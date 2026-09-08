@@ -118,20 +118,20 @@ Skip this offer if the shelf already has real cards (decisions, lessons with bod
 
 Stage on this computer (workspace or temp — **not** git, **not** a hub, **not** `unclassified`). The librarian commit is the ingest. Caps (`cm_health` `package`, same numbers): **50 cards**, **50 attachments**, **32MB zip**, **80MB uncompressed**, **25MB per file**, plus remaining attach quota. Over the cap → split into another commit. 400 `PACKAGE_LIMIT`.
 
-**Agent path (keep-sign, then one import).** Do not upload a zip through MCP. Do not paste file bytes into chat.
+**Agent path (you file).** One or a few originals: `cm_keep` (default stub) then `cm_note` / `cm_log_decision`. A folder: keep-sign, then one import. Do not upload a zip through MCP. Do not paste file bytes into chat.
 
 1. For each original this commit (≤50): `cm_keep` `{filename, content, shelf, card:false}`. MCP signs and PUTs. `card:false` stores bytes only (no keep stub). Hold the returned `attach` pointer.
 2. Write the Markdown cards locally (Identity / Details / Tags / Body). Prefer Details `- **Shelf**: <id>`. A Tags token that **equals the shelf id** (or its unique display name) also routes — still store about-tags. Mixed shelves in one commit are fine if this key can open each.
 3. One `cm_import` `{ items: [{ title, body, tags, shelf, attach, external_id }] }` (or `{ package: { items } }`). `attach` is the `imported/attach/…` pointer from step 1. `dryRun: true` previews.
 4. If more files remain, another commit. Tell the human the count left.
 
-**Human path (zip).** Tell them Archive → **Upload zip**. Layout: `cards/*.md` + `attach/*` (optional `manifest.json` with `items[].card` / `attach` / `shelf`). Each card names its shelf (`- **Shelf**: id` or a Tags token that is the shelf id). They do not have to pick the shelf in the form — the card already knows. Mixed shelves in one zip are fine. Invited shelves use the listed `share:` id, not the owner’s slug. You do not fetch the zip.
+**Human path (zip, optional).** Only if they already packed a zip or you cannot read the files. You still file one-or-few with keep+note, and a folder with `{card:false}` then import. When they use the zip: Archive → **Upload zip**. Layout: `cards/*.md` + `attach/*` (optional `manifest.json` with `items[].card` / `attach` / `shelf`). Each card names its shelf (`- **Shelf**: id` or a Tags token that is the shelf id). They do not have to pick the shelf in the form — the card already knows. Mixed shelves in one zip are fine. Invited shelves use the listed `share:` id, not the owner’s slug. You do not fetch the zip.
 
 Text-only exporter JSON still uses ImportBundle (`cm_import` `{bundle}`) — not this package.
 
 ## Skill refresh (once per chat)
 
-Guests install from GitHub, not from the librarian disk. `cm_health` `min_skill` is the HTTP floor. `skill_latest` is the published Skill (env `CENTRICMEM_SKILL_LATEST` on the librarian) — it is **never** the hub’s `skills/centricmem-agent/SKILL.md`.
+Guests install from GitHub, not from the librarian disk. `cm_health` `min_skill` is the HTTP floor. `skill_latest` is the published Skill (env `CENTRICMEM_SKILL_LATEST` on the librarian) — it is **never** the hub’s `skills/centricmem-agent/SKILL.md`. Host `cm_doctor` `skill_status` is the same hub copy; ignore outdated/missing there.
 
 1. Read `version` from this Skill’s frontmatter (`metadata.version`).
 2. `latest` = JSON `skill_latest` if present, else `metadata.version` at `https://raw.githubusercontent.com/zeyu-j/centricmem-skill/main/skills/centricmem-agent/SKILL.md`.
@@ -149,7 +149,7 @@ Hold half-finished thoughts. When the chunk is done, file **before you stop talk
 | Knowledge | durable model / fact | `cm_note` |
 | Decision | architecture or durable host fact | `cm_log_decision` |
 | Original | a file worth keeping | `cm_keep` as above. Never `path=` |
-| Bulk originals | many files to card | `cm_keep` `{card:false}` then one `cm_import` `{items}` (≤50). Humans: Archive zip. Never zip via MCP |
+| Bulk originals | many files to card | `cm_keep` `{card:false}` then one `cm_import` `{items}` (≤50). Archive zip only if they already packed one. Never zip via MCP |
 | Shelf | none of the named shelves fit | `cm_library` `{id}` (default key). Extra: authenticate so they enter the **default** key. Connect does not mint a shelf |
 | Shelf label | you learn a better **human** name than the current display name (rebrand, leftover folder slug, they say “that’s X”) | default key: `cm_library` `{id, displayName}` **this turn** — do not wait to be asked. Id / folder / grants stay. Writes still `shelf=<id>`. Use the name they use or the public product name; do not invent a prettier one. Skip if the label already matches. Extra key cannot: authenticate for the default key (step 0.2) and say the intended label once. Humans can also rename on the Library desk |
 | Copy shelf | leftover named shelf (or leftover Inbox) should live on another | `cm_copy` `{from,to}`. Dest must exist. Extra keys need both grants. Never download originals here. Never `to=unclassified` |

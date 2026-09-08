@@ -2,14 +2,14 @@
 name: centricmem-agent
 description: "Organises and retrieves Markdown memory on the hosted CentricMem librarian via host MCP (search, notes, decisions, transcripts). Use when starting a session, filing Non-Micro work, searching project memory, connecting an agent key, or refreshing this Skill. Named shelves only, never curl librarian HTTP, never paste keys in chat."
 license: PolyForm-Noncommercial-1.0.0
-compatibility: "Requires host MCP at https://mem.centricmem.com/mcp (or stdio centricmem-host). CLI >=0.21.36: package ingest (50 cards / 50 attaches per commit; zip on Archive or cm_keep card:false then cm_import items); share: shelf ids; cm_move selected cards."
+compatibility: "Requires host MCP at https://mem.centricmem.com/mcp (or stdio centricmem-host). CLI >=0.21.36: the agent files (keep then note; a folder is cm_keep card:false then cm_import items). Archive zip is optional. share: shelf ids; cm_move selected cards."
 metadata:
-  version: "0.21.42"
+  version: "0.21.43"
   compatible_cli: ">=0.21.36"
   changelog_url: https://github.com/zeyu-j/centricmem-skill/blob/main/CHANGELOG.md
 ---
 
-# CentricMem Agent Skill v0.21.42
+# CentricMem Agent Skill v0.21.43
 
 Glossary: **Library** (one per person) → **Shelf** (pass `shelf=<id>` or `library=<id>`) → **Card** (Markdown: Identity / Details / Tags / Body, [REFERENCE.md](REFERENCE.md)). There is no Inbox. Do not mint `unclassified`.
 
@@ -34,7 +34,7 @@ CentricMem is the **manager layer** (organise / retrieve / cross-agent store) **
 
 ## 2. Start
 
-`cm_health` then `cm_ambient`. Ignore a stale `.ambient.md`. Unreachable or `state=UNINITIALIZED`: **say once** — do not bootstrap. Writes need a **named shelf** (`shelf=` / `library=` / cwd-link). Unmatched cwd is not a shelf. If ambient is `library=(none)`, pick from `libraries=` this turn or mint (`cm_library`). Guests do not `--link`. Do not use the hub `use` pin. `corpus=<slug>` → `library=` that slug. Never treat ambient **text** “Skill outdated” as truth (librarian hub copy). This file is the installed `centricmem-agent` Skill. The folder name is the same on every agent (`~/.cursor/skills/centricmem-agent`, `~/.claude/skills/`, `~/.codex/skills/`, `~/.kiro/skills/`, `~/.kilo/skills/`, Copilot `.github/skills/`, CodeBuddy/WorkBuddy, Kimi Code, and the rest). Plugin clients may also load the same GitHub repo as an [Agent Plugins](https://agent-plugins.org) package (`plugin.json` + `skills/` + `mcp.json`). CodeBuddy/WorkBuddy: `.codebuddy-plugin/marketplace.json`. Kimi Code: `.kimi-plugin/plugin.json` or `/plugins install https://github.com/zeyu-j/centricmem-skill`.
+`cm_health` then `cm_ambient`. Ignore a stale `.ambient.md`. Unreachable or `state=UNINITIALIZED`: **say once** — do not bootstrap. Writes need a **named shelf** (`shelf=` / `library=` / cwd-link). Unmatched cwd is not a shelf. If ambient is `library=(none)`, pick from `libraries=` this turn or mint (`cm_library`). Guests do not `--link`. Do not use the hub `use` pin. `corpus=<slug>` → `library=` that slug. Never treat ambient **text** “Skill outdated” or host `cm_doctor` `skill_status=outdated` as truth (librarian hub copy — guests install from GitHub). This file is the installed `centricmem-agent` Skill. The folder name is the same on every agent (`~/.cursor/skills/centricmem-agent`, `~/.claude/skills/`, `~/.codex/skills/`, `~/.kiro/skills/`, `~/.kilo/skills/`, Copilot `.github/skills/`, CodeBuddy/WorkBuddy, Kimi Code, and the rest). Plugin clients may also load the same GitHub repo as an [Agent Plugins](https://agent-plugins.org) package (`plugin.json` + `skills/` + `mcp.json`). CodeBuddy/WorkBuddy: `.codebuddy-plugin/marketplace.json`. Kimi Code: `.kimi-plugin/plugin.json` or `/plugins install https://github.com/zeyu-j/centricmem-skill`.
 
 **Once this chat, after health/ambient:** compare this file’s `metadata.version` to `skill_latest` on `cm_health` / `cm_ambient`. If that field is null, GET `https://raw.githubusercontent.com/zeyu-j/centricmem-skill/main/skills/centricmem-agent/SKILL.md` and parse `metadata.version`. If published is newer: refresh **SKILL.md** with `npx --yes skills add zeyu-j/centricmem-skill --skill centricmem-agent -y` when the shell works (omit `-g` if this agent has no user-wide skills dir). If the shell is **blocked**, skip npx; tell them to update via this client’s plugin UI or a machine that can run npx. If this session loaded the **plugin** bundle instead, also tell them to update via that client (`/plugin`, Codex plugins UI, Copilot plugin, Kiro Powers re-import from `https://github.com/zeyu-j/centricmem-skill`). Tell the human it is on disk; **this chat still uses the already-loaded Skill**; the next chat uses the new one. If this file is newer, or fetch/npx fails or is blocked: continue. Never `setup --install-skill` for this refresh. Never paste marketplace JSON into chat.
 
@@ -48,7 +48,7 @@ CentricMem is the **manager layer** (organise / retrieve / cross-agent store) **
 
 Corpus: `cm_search` (`q`, `tags`, `type` — REFERENCE). Omit `q` and pass `shelf=` to list cards on that shelf. L0 snippet → L1 `cm_show` the card. Attach files are not in FTS. If the human asks to **see the original**, tell them Dashboard Download Original — **do not** load the file into this chat. Never store secrets.
 
-New literature: **`cm_keep`** (MCP signs + PUT when `r2`) → read from the card / a human-opened file → write Markdown cards. The agent’s own memories are not the literature store. **Bulk:** stage locally, then **one librarian commit**. Caps (`cm_health` `package`): **50 cards**, **50 attachments**, **32MB zip**, **80MB uncompressed**, **25MB per file**, plus remaining attach quota. Over the cap → split. Agent: `cm_keep` `{card:false}` then one `cm_import` `{items}` with `attach` pointers. Do not send a zip through MCP. Humans: Archive **Upload zip**; each card names its shelf (`Shelf:` or a Tags token that is the shelf id) so they do not pick a shelf in the form. Mixed shelves in one zip are fine.
+New literature: **you file**. One or a few originals: **`cm_keep`** (MCP signs + PUT when `r2`; default keep stub) → read from the card / a human-opened file → **`cm_note` / `cm_log_decision`**. The agent’s own memories are not the literature store. A **folder** of originals: stage locally, then **one librarian commit** — `cm_keep` `{card:false}` then one `cm_import` `{items}` with `attach` pointers. Do not send a zip through MCP. Archive **Upload zip** only if they already packed a zip or you cannot read the files; each of those cards names its shelf (`Shelf:` or a Tags token that is the shelf id). Mixed shelves are fine. Caps (`cm_health` `package`): **50 cards**, **50 attachments**, **32MB zip**, **80MB uncompressed**, **25MB per file**, plus remaining attach quota. Over the cap → split.
 
 ## 4. Sweep (Non-Micro) = one batch, as soon as the work exists
 

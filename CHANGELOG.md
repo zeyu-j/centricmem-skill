@@ -2,6 +2,12 @@
 
 Skill-facing notes for [centricmem-skill](https://github.com/zeyu-j/centricmem-skill). This repo is how to use the hosted librarian.
 
+## 0.21.43
+
+- The agent files. One or a few originals: `cm_keep` then `cm_note`. A folder: `cm_keep` `{card:false}` then one `cm_import` `{items}`. Do not send a zip through MCP. Archive **Upload zip** only if you already packed a zip or the agent cannot read the files.
+- Ignore host `cm_doctor` saying the Skill is outdated — that is the librarian disk. Compare this file to `skill_latest` / GitHub.
+- CLI **>=0.21.36**.
+
 ## 0.21.42
 
 - Bulk ingest: stage cards and originals locally, then **one librarian commit**. Caps: 50 cards, 50 attachments, 32MB zip, 80MB uncompressed, 25MB per file (`cm_health` `package`). Agent: `cm_keep` `{card:false}` then one `cm_import` `{items}` with `attach` pointers. Do not send a zip through MCP. Humans upload the zip on Archive; each card names its shelf (`Shelf:` or a Tags token that is the shelf id).
