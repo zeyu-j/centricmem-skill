@@ -5,14 +5,14 @@
     "email": "zeyu@dr.com"
   },
   "metadata": {
-    "description": "CentricMem hosted librarian — Agent Plugins 1.0 + SKILL.md",
-    "version": "0.21.43"
+    "description": "CentricMem hosted librarian â€” Agent Plugins 1.0 + SKILL.md",
+    "version": "0.21.45"
   },
   "plugins": [
     {
       "name": "centricmem-skill",
       "description": "Hosted CentricMem librarian: organise and retrieve Markdown memory via host MCP.",
-      "version": "0.21.43",
+      "version": "0.21.45",
       "source": "./",
       "category": "productivity",
       "homepage": "https://centricmem.com",

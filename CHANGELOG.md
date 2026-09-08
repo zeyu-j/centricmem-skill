@@ -2,6 +2,16 @@
 
 Skill-facing notes for [centricmem-skill](https://github.com/zeyu-j/centricmem-skill). This repo is how to use the hosted librarian.
 
+## 0.21.45
+
+- Every card needs a **summary** (`title`, and `cm_done` `summary=`) and **key points** in the body. Title-only / keep stub / empty headings is not a card.
+- CLI **>=0.21.36**.
+
+## 0.21.44
+
+- A titled keep stub is not filing. Keep the original, then `cm_note` whose **body is the key points** later agents `cm_show` (writing style, SOP, literature). Attachments are not searchable; do not load them.
+- CLI **>=0.21.36**.
+
 ## 0.21.43
 
 - The agent files. One or a few originals: `cm_keep` then `cm_note`. A folder: `cm_keep` `{card:false}` then one `cm_import` `{items}`. Do not send a zip through MCP. Archive **Upload zip** only if you already packed a zip or the agent cannot read the files.

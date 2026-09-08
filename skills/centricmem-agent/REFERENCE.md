@@ -8,11 +8,15 @@ The session loop lives in [SKILL.md](SKILL.md). Agents talk to the hosted librar
 Library  (one per person — login, billing, delete)
   └── Shelf  (pass shelf=<id> or library=<id>)
         └── Card  (.md or one ##)
-              Identity / Details / Tags / Body
+              **Summary** (`title`; `cm_done` `summary=`)
+              **Key points** (body — what later agents cm_show)
+              Identity / Details / Tags
               Original (optional) — pointer in Details; bytes in object storage
 ```
 
 Inbox is gone. Do not mint `unclassified`. Leftover Inbox on an old hub: `cm_copy` `{from:unclassified,to:<named>}` then `cm_delete` `{id:unclassified}`. Never copy **to** Inbox. Tags are about the work. `project:` / `type:` / `#id` in search are index shortcuts, not extra types. Corpus YAML is that shelf’s Details.
+
+**Card contract.** Every write is a card later agents `cm_show`. Required: (1) **summary** — `title`, and `cm_done` `summary=`; one line later search can hit; (2) **key points** — `cm_note` `body`, `cm_log_decision` `decision` / `context` / `consequences`, import `items[].body`; rules, facts, quotes, do/don't they can follow without the original. Not a card: title-only keep stub, empty headings, OCR slice, dump of the whole file.
 
 ## Reach
 
@@ -67,7 +71,7 @@ Progressive disclosure:
 | Layer | Call | What you get |
 |-------|------|----------------|
 | L0 | `cm_search` | snippet from the Markdown **card** |
-| L1 | `cm_show` | the card — agent context |
+| L1 | `cm_show` | the card **body** — agent context (style rules, SOP, literature key points) |
 | Original | human Dashboard **Download Original** | attach bytes. Not FTS. Not agent context |
 
 Never ask `cm_show` for originals. Never paste download URLs into the chat.
@@ -107,7 +111,7 @@ Offer **once**, in their language. They keep talking. Skip / later / don't log =
 2. Ask what they already have that should be **cited later**: facts in agent memory they can name, Markdown/PDF they can open, an exporter JSON.
 3. Named shelf: pick from `libraries=` or `cm_library` `{id, displayName}`. If the id is `share:…`, pass it as `shelf=` — do not mint that string. Extra key cannot mint and cannot see invited shelves — authenticate so they enter the **default** key.
 4. Then:
-   - Files they open or point at → `cm_keep` (bytes, never `path=`) → you read the **card** or a human-opened file → `cm_note` / `cm_log_decision`. Not a dump of the whole capture store.
+   - Files they open or point at → `cm_keep` (bytes, never `path=`) → **this turn**, while you can still read that file, a card with **summary** + **key points** (`cm_note` `title`/`body`, or `cm_log_decision`). Do not stop at the keep stub (title + Attach). Later chats `cm_show` that note, not the attach.
    - ImportBundle JSON they provide → `cm_import` `{library}` then `cm_index`.
    - A **folder of originals** → bulk package below. Do not loop 200 `cm_note`s in one chat.
 5. Do not paste chats, keys, or secrets. Do not write back into the capture store.
@@ -118,7 +122,7 @@ Skip this offer if the shelf already has real cards (decisions, lessons with bod
 
 Stage on this computer (workspace or temp — **not** git, **not** a hub, **not** `unclassified`). The librarian commit is the ingest. Caps (`cm_health` `package`, same numbers): **50 cards**, **50 attachments**, **32MB zip**, **80MB uncompressed**, **25MB per file**, plus remaining attach quota. Over the cap → split into another commit. 400 `PACKAGE_LIMIT`.
 
-**Agent path (you file).** One or a few originals: `cm_keep` (default stub) then `cm_note` / `cm_log_decision`. A folder: keep-sign, then one import. Do not upload a zip through MCP. Do not paste file bytes into chat.
+**Agent path (you file).** One or a few originals: `cm_keep` then a card with **summary** + **key points**. A titled keep stub is not a card. A folder: keep-sign, then one import whose items each have title (summary) and body (key points). Do not upload a zip through MCP. Do not paste file bytes into chat.
 
 1. For each original this commit (≤50): `cm_keep` `{filename, content, shelf, card:false}`. MCP signs and PUTs. `card:false` stores bytes only (no keep stub). Hold the returned `attach` pointer.
 2. Write the Markdown cards locally (Identity / Details / Tags / Body). Prefer Details `- **Shelf**: <id>`. A Tags token that **equals the shelf id** (or its unique display name) also routes — still store about-tags. Mixed shelves in one commit are fine if this key can open each.
@@ -145,10 +149,10 @@ Hold half-finished thoughts. When the chunk is done, file **before you stop talk
 | Type | When | MCP |
 |------|------|------|
 | Transcript | Each Non-Micro sweep | Shell-read jsonl → `cm_keep` filename + bytes (MCP does sign+PUT) |
-| Session | Same sweep | `cm_done` with `attach` |
-| Knowledge | durable model / fact | `cm_note` |
-| Decision | architecture or durable host fact | `cm_log_decision` |
-| Original | a file worth keeping | `cm_keep` as above. Never `path=` |
+| Session | Same sweep | `cm_done` with `attach`; `summary=` is the key points of this unit |
+| Knowledge | durable model / fact | `cm_note` — `title` = summary, `body` = key points |
+| Decision | architecture or durable host fact | `cm_log_decision` — `title` = summary; `decision` / `context` / `consequences` = key points |
+| Original | a file worth keeping | `cm_keep` as above, then a note/decision whose body is the key points. Never `path=`. Never stop at the stub |
 | Bulk originals | many files to card | `cm_keep` `{card:false}` then one `cm_import` `{items}` (≤50). Archive zip only if they already packed one. Never zip via MCP |
 | Shelf | none of the named shelves fit | `cm_library` `{id}` (default key). Extra: authenticate so they enter the **default** key. Connect does not mint a shelf |
 | Shelf label | you learn a better **human** name than the current display name (rebrand, leftover folder slug, they say “that’s X”) | default key: `cm_library` `{id, displayName}` **this turn** — do not wait to be asked. Id / folder / grants stay. Writes still `shelf=<id>`. Use the name they use or the public product name; do not invent a prettier one. Skip if the label already matches. Extra key cannot: authenticate for the default key (step 0.2) and say the intended label once. Humans can also rename on the Library desk |
@@ -175,5 +179,6 @@ Claude Code, Codex, Kiro, Kilo, Copilot, and other Agent Skills clients: only ke
 - Put secrets in cards
 - Ask the human to paste a key, token, or transcript jsonl. If they leaked a key, they sign in and rotate it on Keys.
 - Load attach originals into the chat
+- Stop after a titled keep stub or a title-only card — every card needs a summary and key points in the body
 - Treat this git checkout as the memory disk
 - Write `unclassified` — pick or create a named shelf. Writes without one are 400 `LIBRARY_REQUIRED`.

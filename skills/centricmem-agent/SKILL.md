@@ -1,19 +1,19 @@
 ---
 name: centricmem-agent
-description: "Organises and retrieves Markdown memory on the hosted CentricMem librarian via host MCP (search, notes, decisions, transcripts). Use when starting a session, filing Non-Micro work, searching project memory, connecting an agent key, or refreshing this Skill. Named shelves only, never curl librarian HTTP, never paste keys in chat."
+description: "Organises and retrieves Markdown memory on the hosted CentricMem librarian via host MCP (search, notes, decisions, transcripts). Use when starting a session, filing Non-Micro work, searching project memory, connecting an agent key, or refreshing this Skill. Every card needs a summary and key points in the body. Named shelves only, never curl librarian HTTP, never paste keys in chat."
 license: PolyForm-Noncommercial-1.0.0
-compatibility: "Requires host MCP at https://mem.centricmem.com/mcp (or stdio centricmem-host). CLI >=0.21.36: the agent files (keep then note; a folder is cm_keep card:false then cm_import items). Archive zip is optional. share: shelf ids; cm_move selected cards."
+compatibility: "Requires host MCP at https://mem.centricmem.com/mcp (or stdio centricmem-host). CLI >=0.21.36: every card is summary + key points (a keep stub is not a card); a folder is cm_keep card:false then cm_import items. Archive zip is optional. share: shelf ids; cm_move selected cards."
 metadata:
-  version: "0.21.43"
+  version: "0.21.45"
   compatible_cli: ">=0.21.36"
   changelog_url: https://github.com/zeyu-j/centricmem-skill/blob/main/CHANGELOG.md
 ---
 
-# CentricMem Agent Skill v0.21.43
+# CentricMem Agent Skill v0.21.45
 
-Glossary: **Library** (one per person) → **Shelf** (pass `shelf=<id>` or `library=<id>`) → **Card** (Markdown: Identity / Details / Tags / Body, [REFERENCE.md](REFERENCE.md)). There is no Inbox. Do not mint `unclassified`.
+Glossary: **Library** (one per person) → **Shelf** (pass `shelf=<id>` or `library=<id>`) → **Card** (Markdown: **summary** + **key points** body, Identity / Details / Tags, [REFERENCE.md](REFERENCE.md)). There is no Inbox. Do not mint `unclassified`.
 
-CentricMem is the **manager layer** (organise / retrieve / cross-agent store) **and** the literature database. Session capture stays in the agent's own memory (Cursor memories and other plugins). Do not uninstall those. Do not write back into them. New literature: keep the original, read it, write Markdown cards. Isolation is **one key = its grants**. Default key (`*` = every shelf on this library, plus shelves shared with this email): search, sweep, `cm_library`, `cm_copy`, `cm_move`, `cm_delete`, mint/rename/grant/revoke extras. Extra keys open the shelves granted (one or more) and may `cm_copy` if both grants; they cannot `cm_move` and they do not see invited `share:` shelves. Pass `shelf=` / `library=` / `cwd=` so writes route. Tags stay about. The librarian is the only writer. Login uniquely owns **card** delete, billing, and rotating the default key. A better shelf **label** (rebrand, leftover folder slug, they say “that’s X”) → default key `cm_library` `{id, displayName}` **this turn**; the id stays. Extra keys cannot. Humans also rename on `/app`. Attachments are metered per plan; Markdown is unlimited.
+CentricMem is the **manager layer** (organise / retrieve / cross-agent store) **and** the literature database. Session capture stays in the agent's own memory (Cursor memories and other plugins). Do not uninstall those. Do not write back into them. Every card: **summary** + **key points** in the body. New literature: keep the original, read it, write those cards. Isolation is **one key = its grants**. Default key (`*` = every shelf on this library, plus shelves shared with this email): search, sweep, `cm_library`, `cm_copy`, `cm_move`, `cm_delete`, mint/rename/grant/revoke extras. Extra keys open the shelves granted (one or more) and may `cm_copy` if both grants; they cannot `cm_move` and they do not see invited `share:` shelves. Pass `shelf=` / `library=` / `cwd=` so writes route. Tags stay about. The librarian is the only writer. Login uniquely owns **card** delete, billing, and rotating the default key. A better shelf **label** (rebrand, leftover folder slug, they say “that’s X”) → default key `cm_library` `{id, displayName}` **this turn**; the id stays. Extra keys cannot. Humans also rename on `/app`. Attachments are metered per plan; Markdown is unlimited.
 
 ## 0. Reach the librarian
 
@@ -46,9 +46,9 @@ CentricMem is the **manager layer** (organise / retrieve / cross-agent store) **
 
 `cm_search` / `cm_show` / `cm_ambient` while working. Hold half-finished thoughts. **When this reply finishes Non-Micro work, sweep before you yield** — you may not get another turn.
 
-Corpus: `cm_search` (`q`, `tags`, `type` — REFERENCE). Omit `q` and pass `shelf=` to list cards on that shelf. L0 snippet → L1 `cm_show` the card. Attach files are not in FTS. If the human asks to **see the original**, tell them Dashboard Download Original — **do not** load the file into this chat. Never store secrets.
+**Every card** needs a **summary** (`title`, and `cm_done` `summary=`) **and** **key points** in the body. Later chats `cm_show` that body. Title-only / keep stub / empty headings is not a card. Attachments are not in FTS; do not load them. If they ask to **see the original**, Dashboard Download Original. Never store secrets.
 
-New literature: **you file**. One or a few originals: **`cm_keep`** (MCP signs + PUT when `r2`; default keep stub) → read from the card / a human-opened file → **`cm_note` / `cm_log_decision`**. The agent’s own memories are not the literature store. A **folder** of originals: stage locally, then **one librarian commit** — `cm_keep` `{card:false}` then one `cm_import` `{items}` with `attach` pointers. Do not send a zip through MCP. Archive **Upload zip** only if they already packed a zip or you cannot read the files; each of those cards names its shelf (`Shelf:` or a Tags token that is the shelf id). Mixed shelves are fine. Caps (`cm_health` `package`): **50 cards**, **50 attachments**, **32MB zip**, **80MB uncompressed**, **25MB per file**, plus remaining attach quota. Over the cap → split.
+A file they want remembered: **this turn**, while you can still read the file they opened — **`cm_keep`** the original, then a card with summary + key points (`cm_note` / import `body`). You file. A **folder**: `cm_keep` `{card:false}` then one `cm_import` `{items}` with those bodies. Do not zip via MCP. Archive **Upload zip** only if they already packed a zip or you cannot read the files; each card names its shelf (`Shelf:` or a Tags token that is the shelf id). Caps (`cm_health` `package`): **50 cards**, **50 attachments**, **32MB zip**, **80MB uncompressed**, **25MB per file**, plus remaining attach quota. Over the cap → split.
 
 ## 4. Sweep (Non-Micro) = one batch, as soon as the work exists
 
@@ -71,7 +71,7 @@ When `cm_health` succeeds this chat: file this chat's Non-Micro batch, then file
 Then, with `shelf=` / `library=` that id:
 
 1. **Transcript → R2.** If this runtime wrote a local transcript for **this** chat, Shell-read it; **never paste** it. `cm_keep` with that filename + file bytes (never `path=`). Leave the local file in place (do not delete chat state). Cursor: `~/.cursor/projects/<workspace>/agent-transcripts/<uuid>/<uuid>.jsonl`. Claude Code, Codex, Kiro, Kilo, Copilot, and the rest: only if that agent actually wrote a file. No file → skip transcript keep; still file note / decision / done.
-2. Then `cm_note` `cm_log_decision` `cm_done` with `attach` = that keep pointer. **One sweep, one batch.** If they keep talking, another sweep is OK for **new** facts — do not re-file the same decision.
+2. Then `cm_note` `cm_log_decision` `cm_done` with `attach` = that keep pointer. Each needs a **summary** and **key points** in the body (`cm_done` uses `summary=`). **One sweep, one batch.** If they keep talking, another sweep is OK for **new** facts — do not re-file the same decision.
 
 Leftover `unclassified` on an old hub: dest must exist (`cm_library` if needed). `cm_copy` `{from:unclassified,to:<named>}` (identical skip; collisions `imported/kept/from-unclassified/`). Then `cm_delete` `{id:unclassified}`. Never copy **to** Inbox. Never download originals to this computer. Extra keys may copy if both grants; only default/login may delete a leftover shelf. Card delete stays login-only.
 
