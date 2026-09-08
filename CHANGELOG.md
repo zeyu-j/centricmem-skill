@@ -5,6 +5,7 @@ Skill-facing notes for [centricmem-skill](https://github.com/zeyu-j/centricmem-s
 ## 0.21.48
 
 - Login uniquely owns card delete, billing, rotating the default key, and deleting the account (Billing). Never call account delete from MCP.
+- Named shelves: Lite/Education 1, Pro 10, Ultra 50, Lifetime 1 20, Lifetime 2 100. Extra keys are uncapped.
 - CLI **>=0.21.36**.
 
 ## 0.21.47
