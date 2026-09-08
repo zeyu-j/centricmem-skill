@@ -2,6 +2,16 @@
 
 Skill-facing notes for [centricmem-skill](https://github.com/zeyu-j/centricmem-skill). This repo is how to use the hosted librarian.
 
+## 0.21.42
+
+- Bulk ingest: stage cards and originals locally, then **one librarian commit**. Caps: 50 cards, 50 attachments, 32MB zip, 80MB uncompressed, 25MB per file (`cm_health` `package`). Agent: `cm_keep` `{card:false}` then one `cm_import` `{items}` with `attach` pointers. Do not send a zip through MCP. Humans upload the zip on Archive; each card names its shelf (`Shelf:` or a Tags token that is the shelf id).
+- CLI **>=0.21.36**.
+
+## 0.21.41
+
+- `libraries=` may list `share:<accountId>:<slug>` when someone shared a named shelf with this email. Pass that id as `shelf=` exactly. Do not mint `share:`. Login and the default key (`*`) see invited shelves; extra keys do not. Copy onto a shelf you own; do not delete or move a shared shelf.
+- Attachments and named shelves: Lifetime 1 is 2GB / 20 shelves; Lifetime 2 is 50GB / 1000. Monthly extra-shelf caps are unchanged. Extra keys stay uncapped.
+
 ## 0.21.40
 
 - `cm_move` `{from,to,files}` relocates selected Markdown cards onto another named shelf. Source files are deleted. Decision numbers stay if free on dest, otherwise a new seq. Attachments re-attach on dest. Default key or owner login; extra keys cannot. Pick cards with `cm_search` / `cm_show`. Do not download originals to “move” them. `cm_copy` still copies a whole leftover shelf; card delete stays login-only.
