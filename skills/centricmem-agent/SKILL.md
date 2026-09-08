@@ -4,12 +4,12 @@ description: "Organises and retrieves Markdown memory on the hosted CentricMem l
 license: PolyForm-Noncommercial-1.0.0
 compatibility: "Requires host MCP at https://mem.centricmem.com/mcp (or stdio centricmem-host). CLI >=0.21.36: every card is summary + key points (a keep stub is not a card); a folder is cm_keep card:false then cm_import items. Archive zip is optional. share: shelf ids; cm_move selected cards."
 metadata:
-  version: "0.21.45"
+  version: "0.21.46"
   compatible_cli: ">=0.21.36"
   changelog_url: https://github.com/zeyu-j/centricmem-skill/blob/main/CHANGELOG.md
 ---
 
-# CentricMem Agent Skill v0.21.45
+# CentricMem Agent Skill v0.21.46
 
 Glossary: **Library** (one per person) → **Shelf** (pass `shelf=<id>` or `library=<id>`) → **Card** (Markdown: **summary** + **key points** body, Identity / Details / Tags, [REFERENCE.md](REFERENCE.md)). There is no Inbox. Do not mint `unclassified`.
 

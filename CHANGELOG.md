@@ -2,6 +2,11 @@
 
 Skill-facing notes for [centricmem-skill](https://github.com/zeyu-j/centricmem-skill). This repo is how to use the hosted librarian.
 
+## 0.21.46
+
+- Lifetime 1 is Pro, pay once (2GB / 20 named shelves). Lifetime 2 is Ultra, pay once (20GB / 100 named shelves). List is about five years of yearly.
+- CLI **>=0.21.36**.
+
 ## 0.21.45
 
 - Every card needs a **summary** (`title`, and `cm_done` `summary=`) and **key points** in the body. Title-only / keep stub / empty headings is not a card.
