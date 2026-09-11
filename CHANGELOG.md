@@ -2,6 +2,16 @@
 
 Skill-facing notes for [centricmem-skill](https://github.com/zeyu-j/centricmem-skill). This repo is how to use the hosted librarian.
 
+## 0.21.50
+
+- After Skill install, the same reply must send https://centricmem.com/login?signup=1 **and** a `/connect?device=` URL. Agents with a shell (Hermes) POST `https://mem.centricmem.com/connect/device` to mint that session; keep the secret off chat; claim and write Bearer to this agent’s MCP (`~/.hermes/config.yaml`). Signup-only stays for blocked shells (Grok). `connect --device` stays when `centricmem` is on PATH.
+- CLI **>=0.21.36**.
+
+## 0.21.49
+
+- After Skill install, the same reply must send https://centricmem.com/login?signup=1 unless `cm_health` already works. A working terminal is not the CentricMem CLI — `connect --device` only when `centricmem` is on PATH. Hermes: `~/.hermes/skills/` and Bearer in `~/.hermes/config.yaml`.
+- CLI **>=0.21.36**.
+
 ## 0.21.48
 
 - Login uniquely owns card delete, billing, rotating the default key, and deleting the account (Billing). Never call account delete from MCP.
