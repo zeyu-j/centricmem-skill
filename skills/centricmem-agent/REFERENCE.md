@@ -24,13 +24,13 @@ MCP tools must be present: `cm_health` `cm_ambient` `cm_doctor` `cm_search` `cm_
 
 If they are missing, connect them **this turn**. Never paste the key in chat. Never copy JSON into chat. Do not curl card/search APIs. Do not CLI-write. Do not bootstrap. Do not send a loopback `/connect` or a bare `/connect` with no `device=`.
 
-**This same reply** sends https://centricmem.com/login?signup=1 **and** a `/connect?device=` URL.
+**This same reply** sends https://centricmem.com/login?signup=1 **and** a `/connect?device=` URL, **and** tells them to save a backup of the key — Keys shows it only once; never paste it here.
 
-**Shell blocked** (Grok Bot, web bots): cannot mint `device=`. Send signup only. They paste Bearer **only** in this agent’s MCP / plugin settings (`https://mem.centricmem.com/mcp`). Never here.
+**Shell blocked** (Grok Bot, web bots): cannot mint `device=`. Send signup only. Tell them to save a backup (shown once). They paste Bearer **only** in this agent’s MCP / plugin settings (`https://mem.centricmem.com/mcp`). Never here.
 
-**Shell works, `centricmem` missing** (Hermes): do not npm-install the CLI. Fetch **POST** `https://mem.centricmem.com/connect/device` with `{hostname}` once — authenticate bootstrap, not a card write. Send JSON `url` (`https://centricmem.com/connect?device=…`). Keep `secret` off chat (agent memory / a local file outside the git repo). They sign up, copy the key from the box at the **top** of Agent keys (once), enter it on that page (ten minutes). Poll GET `https://mem.centricmem.com/connect/device/<id>` until `status=ready`, then POST `…/claim` `{secret}`. Write the claimed Bearer into this agent’s MCP file. Never print the token. Retry `cm_health`. “Do not call `/register` `/login`” means do not POST those HTTP APIs; you **do** send the signup URL and you **do** POST `/connect/device`.
+**Shell works, `centricmem` missing** (Hermes): do not npm-install the CLI. Fetch **POST** `https://mem.centricmem.com/connect/device` with `{hostname}` once — authenticate bootstrap, not a card write. Send JSON `url` (`https://centricmem.com/connect?device=…`). Keep `secret` off chat (agent memory / a local file outside the git repo). They sign up, copy the key from the box at the **top** of Agent keys (once — tell them to save a backup), enter it on that page (ten minutes). Poll GET `https://mem.centricmem.com/connect/device/<id>` until `status=ready`, then POST `…/claim` `{secret}`. Write the claimed Bearer into this agent’s MCP file. Never print the token. Retry `cm_health`. “Do not call `/register` `/login`” means do not POST those HTTP APIs; you **do** send the signup URL and you **do** POST `/connect/device`.
 
-**`centricmem` on PATH:** run `centricmem connect --device` and send **only** the printed `/connect?device=` URL — never the secret, never the key. They have ten minutes. They enter **any** agent key on that page (default = every shelf, extra key = granted shelves).
+**`centricmem` on PATH:** run `centricmem connect --device` and send **only** the printed `/connect?device=` URL — never the secret, never the key. They have ten minutes. Tell them to save a backup — the secret appears only once. They enter **any** agent key on that page (default = every shelf, extra key = granted shelves).
 
 Config (agent key stays off git). Hermes `~/.hermes/config.yaml`:
 
