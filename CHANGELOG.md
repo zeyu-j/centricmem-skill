@@ -2,6 +2,12 @@
 
 Skill-facing notes for [centricmem-skill](https://github.com/zeyu-j/centricmem-skill). This repo is how to use the hosted librarian.
 
+## 0.21.52
+
+- If this client can complete MCP OAuth, add `https://mem.centricmem.com/mcp` **with no Bearer** and finish the browser prompt. Do not curl `/oauth/authorize`, `/oauth/token`, or `/oauth/register`. Hermes, Grok, and the CLI still use `/connect?device=` or paste-Bearer.
+- After Skill install, the same reply must still send https://centricmem.com/login?signup=1 and tell them to save a backup of the key — Keys shows it only once; never paste it in chat.
+- CLI **>=0.21.36**.
+
 ## 0.21.51
 
 - After Skill install, the same reply must send https://centricmem.com/login?signup=1 **and** a `/connect?device=` URL, **and** tell them to save a backup of the key — Keys shows it only once; never paste it in chat.
