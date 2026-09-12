@@ -2,6 +2,19 @@
 
 Skill-facing notes for [centricmem-skill](https://github.com/zeyu-j/centricmem-skill). This repo is how to use the hosted librarian.
 
+## 0.21.54
+
+- Codex first path is `codex mcp add centricmem --url https://mem.centricmem.com/mcp` then `codex mcp login centricmem` (or the plugin `mcp.json`, same URL). Do not put a Bearer in `~/.codex/config.toml` when OAuth works.
+- Do not download or hand an agent a settings file that contains a key. A URL-only `mcp.json` or Codex toml may be copied or opened.
+- Cursor may still use Add to Cursor on https://centricmem.com (URL only). Paste-key and `/connect?device=` stay for hosts that cannot complete OAuth.
+- CLI **>=0.21.36**.
+
+## 0.21.53
+
+- Cursor may use **Add to Cursor** on https://centricmem.com (URL only, no Bearer in the deeplink) then finish the browser prompt. Prefer `mcp.json` with `https://mem.centricmem.com/mcp` and no `Authorization`. Paste-key and `/connect?device=` stay for hosts that cannot complete OAuth.
+- Do not curl `/oauth/authorize`, `/oauth/token`, or `/oauth/register`.
+- CLI **>=0.21.36**.
+
 ## 0.21.52
 
 - If this client can complete MCP OAuth, add `https://mem.centricmem.com/mcp` **with no Bearer** and finish the browser prompt. Do not curl `/oauth/authorize`, `/oauth/token`, or `/oauth/register`. Hermes, Grok, and the CLI still use `/connect?device=` or paste-Bearer.

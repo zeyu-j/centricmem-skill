@@ -26,7 +26,7 @@ If they are missing, connect them **this turn**. Never paste the key in chat. Ne
 
 **This same reply** sends https://centricmem.com/login?signup=1 **and** tells them to save a backup of the key — Keys shows it only once; never paste it here.
 
-**MCP OAuth (this client):** if this runtime can add a remote MCP URL and complete a browser login/consent prompt, tell them to add `https://mem.centricmem.com/mcp` **with no Bearer**. The client opens https://centricmem.com/oauth/authorize. Do **not** curl `/oauth/authorize`, `/oauth/token`, `/oauth/register`, or `/mcp`. After they finish the prompt, retry `cm_health`.
+**MCP OAuth (this client):** if this runtime can add a remote MCP URL and complete a browser login/consent prompt, tell them to add `https://mem.centricmem.com/mcp` **with no Bearer**. The client opens https://centricmem.com/oauth/authorize. Cursor may use Add to Cursor on https://centricmem.com (URL only, then the same prompt). Codex: `codex mcp add centricmem --url https://mem.centricmem.com/mcp` then `codex mcp login centricmem` (or the plugin `mcp.json`, same URL). Do **not** curl `/oauth/authorize`, `/oauth/token`, `/oauth/register`, or `/mcp`. Do not download or open a settings file that contains a key, and do not ask them to send you that path. A URL-only `mcp.json` or Codex `config.toml` (url, no `Authorization`) may be copied or opened. After they finish the prompt, retry `cm_health`.
 
 **Otherwise** send a `/connect?device=` URL.
 
@@ -36,7 +36,31 @@ If they are missing, connect them **this turn**. Never paste the key in chat. Ne
 
 **`centricmem` on PATH:** run `centricmem connect --device` and send **only** the printed `/connect?device=` URL — never the secret, never the key. They have ten minutes. Tell them to save a backup — the secret appears only once. They enter **any** agent key on that page (default = every shelf, extra key = granted shelves).
 
-Config (agent key stays off git). Hermes `~/.hermes/config.yaml`:
+Config (agent key stays off git). Prefer OAuth — URL only, no Bearer:
+
+```json
+{
+  "mcpServers": {
+    "centricmem": {
+      "type": "http",
+      "url": "https://mem.centricmem.com/mcp"
+    }
+  }
+}
+```
+
+Cursor desktop may set `"auth": { "CLIENT_ID": "centricmem-cursor" }` on that entry (Add to Cursor on https://centricmem.com does this). Claude custom connectors add the same URL; the host uses DCR or CIMD. Do not put a Bearer in git or in a deeplink.
+
+Codex (`~/.codex/config.toml`) when OAuth works — URL only, then `codex mcp login centricmem`:
+
+```toml
+[mcp_servers.centricmem]
+url = "https://mem.centricmem.com/mcp"
+```
+
+Do not put `http_headers` Authorization in that file when OAuth works. Device-connect may still write a Bearer there as fallback.
+
+Hermes `~/.hermes/config.yaml` when OAuth is unavailable:
 
 ```yaml
 mcp_servers:
@@ -46,7 +70,7 @@ mcp_servers:
       Authorization: "Bearer <default key or extra key>"
 ```
 
-Other agents (`mcp.json`):
+Other agents (`mcp.json`) paste-key fallback:
 
 ```json
 {
