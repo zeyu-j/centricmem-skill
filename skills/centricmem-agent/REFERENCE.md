@@ -1,6 +1,6 @@
 # CentricMem Agent — how to use
 
-The session loop lives in [SKILL.md](SKILL.md). Agents talk to the hosted librarian **only through host MCP**. Prefer the cloud URL `https://mem.centricmem.com/mcp` (Bearer: the default key, or an extra key with shelf grants; OAuth-capable clients may add that URL with no Bearer and finish the browser prompt). stdio `centricmem-host` is the sandbox fallback when `/health` has no `mcp` field. You do not curl librarian HTTP.
+The session loop lives in [SKILL.md](SKILL.md). Agents talk to the hosted librarian **only through host MCP** at `https://mem.centricmem.com/mcp` (Bearer: the default key, or an extra key with shelf grants; OAuth-capable clients may add that URL with no Bearer and finish the browser prompt). You do not curl librarian HTTP.
 
 ## What you are filing
 
@@ -80,22 +80,6 @@ Other agents (`mcp.json`) paste-key fallback:
       "url": "https://mem.centricmem.com/mcp",
       "headers": {
         "Authorization": "Bearer <default key or extra key>"
-      }
-    }
-  }
-}
-```
-
-Sandbox fallback (only if `cm_health` has no `mcp` field, or the origin is not upgraded yet):
-
-```json
-{
-  "mcpServers": {
-    "centricmem": {
-      "command": "centricmem-host",
-      "env": {
-        "CENTRICMEM_URL": "https://mem.centricmem.com",
-        "CENTRICMEM_TOKEN": "<default key or extra key>"
       }
     }
   }

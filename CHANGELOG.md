@@ -2,6 +2,11 @@
 
 Skill-facing notes for [centricmem-skill](https://github.com/zeyu-j/centricmem-skill). This repo is how to use the hosted librarian.
 
+## 0.21.55
+
+- Host MCP is `https://mem.centricmem.com/mcp` only. Do not install or document a local connector.
+- CLI **>=0.21.36**.
+
 ## 0.21.54
 
 - Codex first path is `codex mcp add centricmem --url https://mem.centricmem.com/mcp` then `codex mcp login centricmem` (or the plugin `mcp.json`, same URL). Do not put a Bearer in `~/.codex/config.toml` when OAuth works.
@@ -209,7 +214,7 @@ Skill-facing notes for [centricmem-skill](https://github.com/zeyu-j/centricmem-s
 
 ## 0.21.12
 
-- Agents use the cloud MCP URL `https://mem.centricmem.com/mcp` (pairing key as Bearer). stdio `centricmem-host` is only the fallback while that URL is down.
+- Agents use the hosted MCP URL `https://mem.centricmem.com/mcp` with the appropriate agent credential.
 - Same `cm_*` tools. Still no curl. Originals stay on the dashboard.
 
 ## 0.21.11
@@ -219,7 +224,7 @@ Skill-facing notes for [centricmem-skill](https://github.com/zeyu-j/centricmem-s
 
 ## 0.21.10
 
-- Sandbox MCP (`centricmem-host`) is the same librarian verbs as this Skill, including import / classify / index. Originals, delete, and account stay on the dashboard.
+- The hosted MCP exposes the same librarian verbs as this Skill, including import, classify, and index. Originals, delete, and account stay on the dashboard.
 
 ## 0.21.9
 
