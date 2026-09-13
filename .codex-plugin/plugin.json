@@ -25,7 +25,7 @@
     "composerIcon": "./assets/icon.svg",
     "privacyPolicyURL": "https://centricmem.com/privacy",
     "termsOfServiceURL": "https://centricmem.com/terms",
-    "screenshots": ["https://centricmem.com/favicon.svg"],
+    "screenshots": ["./assets/icon.svg"],
     "defaultPrompt": [
       "File this session into CentricMem.",
       "Search my CentricMem shelves for that decision.",

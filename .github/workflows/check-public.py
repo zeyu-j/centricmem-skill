@@ -13,6 +13,10 @@ if re.search(r"^(version|compatible_cli|changelog_url):", skill, re.M):
     raise SystemExit("Agent Skills extra keys must live under metadata:")
 assert "npx --yes skills add zeyu-j/centricmem-skill" in readme
 assert "/plugin marketplace add zeyu-j/centricmem-skill" in readme
+for line in skill.splitlines():
+    m = re.search(r"curl\s+", line, re.I)
+    if m and re.search(r"https?://", line[m.start():]):
+        raise SystemExit("HOL RISKY_SKILL_INSTRUCTION: curl before https URL on the same SKILL.md line")
 
 plugin = json.loads(Path("plugin.json").read_text(encoding="utf-8"))
 mcp = json.loads(Path("mcp.json").read_text(encoding="utf-8"))

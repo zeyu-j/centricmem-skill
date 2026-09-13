@@ -6,7 +6,7 @@ Skill-facing notes for [centricmem-skill](https://github.com/zeyu-j/centricmem-s
 
 - After plugin install, if `cm_*` are missing the same reply must send https://centricmem.com/login?signup=1 **and** a `/connect?device=` URL. Plugin `mcp.json` is URL-only — it is not a completed connect.
 - WorkBuddy/CodeBuddy mint that connect URL this turn. Codex: `codex mcp add` then `codex mcp login` is additive; still send the connect URL unless tools already work.
-- Do not curl OAuth or librarian HTTP.
+- Never call librarian HTTP from the shell. Do not put `curl ` before an `https://` URL on the same SKILL.md line.
 - CLI **>=0.21.36**.
 
 ## 0.21.55
