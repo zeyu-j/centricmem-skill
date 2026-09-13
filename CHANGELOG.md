@@ -2,6 +2,12 @@
 
 Skill-facing notes for [centricmem-skill](https://github.com/zeyu-j/centricmem-skill). This repo is how to use the hosted librarian.
 
+## 0.21.57
+
+- Agents delete a single card with `cm_delete` `{file, shelf}` (library= also works). Always pass the shelf. Default key or login. Extra keys cannot. Shared shelves cannot. Leftover shelf delete stays `{id}`.
+- After plugin install, if `cm_*` are missing the same reply must still send https://centricmem.com/login?signup=1 **and** a `/connect?device=` URL. Plugin `mcp.json` is not a completed connect. OAuth is additive.
+- CLI **>=0.21.36**.
+
 ## 0.21.56
 
 - After plugin install, if `cm_*` are missing the same reply must send https://centricmem.com/login?signup=1 **and** a `/connect?device=` URL. Plugin `mcp.json` is URL-only — it is not a completed connect.
