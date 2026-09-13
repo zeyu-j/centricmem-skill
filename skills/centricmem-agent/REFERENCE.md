@@ -1,6 +1,23 @@
 # CentricMem Agent — how to use
 
-The session loop lives in [SKILL.md](SKILL.md). Agents talk to the hosted librarian **only through host MCP** at `https://mem.centricmem.com/mcp` (Bearer: the default key, or an extra key with shelf grants; OAuth-capable clients may add that URL with no Bearer and finish the browser prompt). You do not curl librarian HTTP.
+The session loop lives in [SKILL.md](SKILL.md) (When to Use, classify, sweep, Typical Workflows). This file is the branches. Host MCP tool schemas are the live contract — if a tool exists on the server but not in SKILL’s list, the schema wins. Agents talk to the hosted librarian **only through host MCP** at `https://mem.centricmem.com/mcp` (Bearer: the default key, or an extra key with shelf grants; OAuth-capable clients may add that URL with no Bearer and finish the browser prompt). You do not curl librarian HTTP.
+
+## Typical Workflows
+
+Replay these. Do not invent a hub, curl, or CLI-write.
+
+**First connect** (`cm_*` missing this chat):
+
+1. This same reply sends https://centricmem.com/login?signup=1 **and** a `/connect?device=` URL **and** tells them to save a backup of the key (Keys shows it only once). Plugin `mcp.json` is not a completed connect.
+2. If this runtime can complete MCP OAuth, **also** add `https://mem.centricmem.com/mcp` with no Bearer and finish the browser prompt (Cursor: Add to Cursor on https://centricmem.com; Codex: `codex mcp add` then `codex mcp login`). Still send the connect URL unless tools already work.
+3. Mint the device URL: `centricmem connect --device` when the CLI is on PATH; otherwise POST `/connect/device` `{hostname}` once and send JSON `url`. Keep `secret` off chat. They enter the key on that page (ten minutes). Claim off-chat; never print the token.
+4. Retry `cm_health` here. New chat only if still 401.
+
+**Daily cite and file:** `cm_health` then `cm_ambient` (ignore a stale `.ambient.md`). `cm_search` / `cm_show` while working. When this reply finishes Non-Micro work: pick a named shelf, `cm_keep` this chat’s transcript if a file exists, then `cm_note` / `cm_log_decision` / `cm_done` with summary + key points. Do not wait for wrap up.
+
+**Empty shelf → cards:** offer once (Existing memory below). Capture stays. They may skip. You file.
+
+**1Password / vault MCP** is not a fourth recipe — see Reach. MCP aggregators (Composio and similar), HashiCorp Vault, and AWS Secrets Manager are the same class: a customer who already has them may inject an extra key in **their** worker. They do not replace OAuth or `/connect?device=`.
 
 ## What you are filing
 
@@ -85,6 +102,23 @@ Other agents (`mcp.json`) paste-key fallback:
 ```
 
 `setup --install-skill` on a guest copies Skill files only (CLI >=0.21.25). It must not merge leftover catalog pairing tokens into Cursor `mcp.json`. Host MCP on a guest is MCP OAuth when this client can complete a browser prompt (add `https://mem.centricmem.com/mcp` with no Bearer); otherwise `centricmem connect --device` when the CLI works; if the shell works but `centricmem` is missing, fetch POST `/connect/device` and send the JSON `url`; if the shell is blocked, the human adds `https://mem.centricmem.com/mcp` in this agent’s settings (Bearer from Keys, never in chat). Local librarian hosts may still merge loopback MCP when `/health` advertises `mcp`. Never ask them to paste a token in chat. Never one-click install. Never a dashboard “connect this computer”. After they connect, retry `cm_health` in this chat; a new chat only if tools still 401. Token failure: say once; connect again (CLI or signup+settings); **hold the sweep** (this agent’s memory `CentricMem deferred sweep` + transcript path) until `cm_health` works. Only drop the hold if they said don't log or they stopped using this Skill.
+
+### 1Password (optional vault, not a connect path)
+
+Official 1Password Environments MCP lists variable **names** and mounts `.env` / wraps **stdio** MCP with `op run --environment`. It **never returns secret values** to the agent. It cannot mint `/connect?device=`, cannot complete our hosted HTTP MCP OAuth, and must not replace step 0.2.
+
+Do:
+
+- After Keys shows the agent key once, the human may store that backup in 1Password (or any vault). The agent never reads it back into chat.
+- If some **other** local stdio MCP needs a token in `env`, they may wrap that command with `op run` so the value never sits in `mcp.json`. Hosted CentricMem stays `https://mem.centricmem.com/mcp` — prefer OAuth (no Bearer) or device-connect (the librarian writes the Bearer off-chat).
+- A customer who already runs an MCP aggregator, HashiCorp Vault, or AWS Secrets Manager may keep an extra key there for **their** long-running worker. That is their ops, not a CentricMem connect recipe.
+
+Do not:
+
+- Ask 1Password MCP, or any vault MCP, to reveal the CentricMem key into this chat (`reveal: true`, `item_get` of the password, paste into headers).
+- Treat the 1Password Cursor plugin as a completed CentricMem connect. Plugin `mcp.json` for CentricMem is still URL-only.
+- Document STDIO / `centricmem-host` as an install path in order to wrap us with `op run`.
+- Rely on the official 1Password Cursor plugin on Windows — that plugin is Mac/Linux. Device-connect and OAuth work here.
 
 Do **not** call `/download`, HTTP `/delete` (use `cm_delete`), HTTP `/rename` (use `cm_rename`), billing, account delete, or `/register` `/login`. Humans download originals on the dashboard. Login uniquely owns billing, rotating the default key, and deleting the account (Billing). Never call account delete from MCP. Default key or login may `cm_delete` `{file, shelf}` a card, or `cm_rename` `{file, shelf, title}` (always pass the shelf). Extra keys cannot. The **default** key (`*`) may mint, rename, grant, and revoke extras — that stays HTTP/dashboard/CLI, not these `cm_*` tools, so a new token never lands in chat. Default (and owner login) may `cm_copy` / `cm_delete` leftover shelves (`cm_delete` `{id}` is delete, not archive — no restore), `cm_move` selected cards, and `cm_rename` a card title. Extra keys cannot manage keys, move cards, delete a leftover shelf or card, or rename a card; they may `cm_copy` if both grants. Attachments are metered per plan (Lite 100MB, Education 200MB, Pro 1GB, Lifetime 1 2GB, Ultra 10GB, Lifetime 2 20GB; operator uncapped). Named shelves: Lite/Education 1, Pro 10, Ultra 50, Lifetime 1 20, Lifetime 2 100; operator uncapped. Over attachment quota, `cm_keep` fails — say so; do not drop bytes silently. Over the named-shelf cap, `cm_library` mint is 403 `SHELF_LIMIT`; rename an existing id still works. File on an existing named shelf or they upgrade.
 

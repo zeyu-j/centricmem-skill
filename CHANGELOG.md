@@ -2,6 +2,13 @@
 
 Skill-facing notes for [centricmem-skill](https://github.com/zeyu-j/centricmem-skill). This repo is how to use the hosted librarian.
 
+## 0.21.59
+
+- SKILL.md is the handover: When to Use plus three Typical Workflows (first connect, daily cite-and-file, empty shelf). REFERENCE holds client connect branches.
+- Official 1Password Environments MCP never returns secret values. It cannot replace `/connect?device=` or OAuth, and must not reveal the agent key into chat. The human may store the Keys backup in a vault; the agent never reads it back.
+- MCP aggregators, HashiCorp Vault, and AWS Secrets Manager are the same class: a customer who already has them may inject an extra key in their worker. They do not replace OAuth or `/connect?device=`.
+- CLI **>=0.21.36**.
+
 ## 0.21.58
 
 - Agents rename a card title with `cm_rename` `{file, shelf, title}` (optional `heading=` when the file has several `##` sections). File path stays. Decision numbers stay. Default key or login. Extra keys cannot. Shared shelves cannot. Humans can also rename on the Library desk.
