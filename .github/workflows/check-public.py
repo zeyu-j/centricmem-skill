@@ -48,6 +48,7 @@ if re.search(r"^(version|compatible_cli|changelog_url):", skill, re.M):
 assert "npx --yes skills add zeyu-j/centricmem-skill" in readme
 assert "/plugin marketplace add zeyu-j/centricmem-skill" in readme
 assert "cm_delete" in skill and "{file" in skill and "shelf" in skill
+assert "cm_rename" in skill
 for line in skill.splitlines():
     m = re.search(r"curl\s+", line, re.I)
     if m and re.search(r"https?://", line[m.start() :]):
