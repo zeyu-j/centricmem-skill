@@ -1,6 +1,6 @@
 {
   "name": "centricmem-skill",
-  "version": "0.21.54",
+  "version": "0.21.56",
   "description": "Hosted CentricMem librarian: organise and retrieve Markdown memory via host MCP.",
   "author": {
     "name": "Dr. Z",
@@ -16,16 +16,20 @@
   "interface": {
     "displayName": "CentricMem",
     "shortDescription": "Hosted librarian for agent memory",
-    "longDescription": "Organise and retrieve Markdown memory on the hosted CentricMem librarian. After install, if cm_* are missing send https://centricmem.com/login?signup=1. Codex: `codex mcp add centricmem --url https://mem.centricmem.com/mcp` then `codex mcp login centricmem`. Never paste keys in chat. Never download a settings file that contains a key.",
+    "longDescription": "Organise and retrieve Markdown memory on the hosted CentricMem librarian. After install, if cm_* are missing send https://centricmem.com/login?signup=1 and a /connect?device= URL. Plugin mcp.json is not a completed connect. Codex: `codex mcp add centricmem --url https://mem.centricmem.com/mcp` then `codex mcp login centricmem`, and still send the connect URL unless tools already work. Never paste keys in chat. Never download a settings file that contains a key.",
     "developerName": "Dr. Z",
     "category": "Productivity",
     "capabilities": ["Read", "Write"],
     "websiteURL": "https://centricmem.com",
+    "logo": "./assets/icon.svg",
     "composerIcon": "./assets/icon.svg",
+    "privacyPolicyURL": "https://centricmem.com/privacy",
+    "termsOfServiceURL": "https://centricmem.com/terms",
+    "screenshots": ["https://centricmem.com/favicon.svg"],
     "defaultPrompt": [
       "File this session into CentricMem.",
       "Search my CentricMem shelves for that decision.",
-      "Connect this agent to the CentricMem librarian."
+      "Connect this agent to the CentricMem librarian. If cm_* are missing, send signup and a /connect?device= URL this turn."
     ]
   }
 }

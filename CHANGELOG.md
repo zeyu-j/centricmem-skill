@@ -2,6 +2,13 @@
 
 Skill-facing notes for [centricmem-skill](https://github.com/zeyu-j/centricmem-skill). This repo is how to use the hosted librarian.
 
+## 0.21.56
+
+- After plugin install, if `cm_*` are missing the same reply must send https://centricmem.com/login?signup=1 **and** a `/connect?device=` URL. Plugin `mcp.json` is URL-only — it is not a completed connect.
+- WorkBuddy/CodeBuddy mint that connect URL this turn. Codex: `codex mcp add` then `codex mcp login` is additive; still send the connect URL unless tools already work.
+- Do not curl OAuth or librarian HTTP.
+- CLI **>=0.21.36**.
+
 ## 0.21.55
 
 - Host MCP is `https://mem.centricmem.com/mcp` only. Do not install or document a local connector.
@@ -17,12 +24,12 @@ Skill-facing notes for [centricmem-skill](https://github.com/zeyu-j/centricmem-s
 ## 0.21.53
 
 - Cursor may use **Add to Cursor** on https://centricmem.com (URL only, no Bearer in the deeplink) then finish the browser prompt. Prefer `mcp.json` with `https://mem.centricmem.com/mcp` and no `Authorization`. Paste-key and `/connect?device=` stay for hosts that cannot complete OAuth.
-- Do not curl `/oauth/authorize`, `/oauth/token`, or `/oauth/register`.
+- Do not curl OAuth endpoints.
 - CLI **>=0.21.36**.
 
 ## 0.21.52
 
-- If this client can complete MCP OAuth, add `https://mem.centricmem.com/mcp` **with no Bearer** and finish the browser prompt. Do not curl `/oauth/authorize`, `/oauth/token`, or `/oauth/register`. Hermes, Grok, and the CLI still use `/connect?device=` or paste-Bearer.
+- If this client can complete MCP OAuth, add `https://mem.centricmem.com/mcp` **with no Bearer** and finish the browser prompt. Do not curl OAuth or librarian HTTP. Hermes, Grok, and the CLI still use `/connect?device=` or paste-Bearer.
 - After Skill install, the same reply must still send https://centricmem.com/login?signup=1 and tell them to save a backup of the key — Keys shows it only once; never paste it in chat.
 - CLI **>=0.21.36**.
 

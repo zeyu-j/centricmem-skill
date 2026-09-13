@@ -11,7 +11,7 @@ This repository is **one package**: [Agent Skills](https://agentskills.io) `SKIL
 Paste this to the agent (one line):
 
 ```
-Install CentricMem from zeyu-j/centricmem-skill. After install, send https://centricmem.com/login?signup=1. If this client can complete MCP OAuth, add https://mem.centricmem.com/mcp with no Bearer and finish the browser prompt. Cursor can use Add to Cursor on centricmem.com (URL only, then the browser prompt). Codex: codex mcp add centricmem --url https://mem.centricmem.com/mcp then codex mcp login centricmem. Otherwise send a /connect?device= link. Tell them the key appears only once — save a backup; never paste keys.
+Install CentricMem from zeyu-j/centricmem-skill. After install, send https://centricmem.com/login?signup=1 and a /connect?device= URL — plugin mcp.json is not a completed connect. OAuth-capable clients may also add https://mem.centricmem.com/mcp with no Bearer and finish the browser prompt. Cursor can use Add to Cursor on centricmem.com (URL only, then the browser prompt). Codex: codex mcp add centricmem --url https://mem.centricmem.com/mcp then codex mcp login centricmem, and still send the connect URL unless cm_* already work. Tell them the key appears only once — save a backup; never paste keys.
 ```
 
 If the shell works, a terminal in the project can run:
@@ -39,7 +39,7 @@ Same GitHub repo as a plugin marketplace:
 | SkillKit | `skillkit add https://centricmem.com` or `skillkit add zeyu-j/centricmem-skill` |
 | skills.sh / SkillMD | `npx skills add` above, or `skillmd add zeyu-j/centricmem-skill` |
 
-Then keep talking. After install, if `cm_*` tools are missing the agent sends signup. OAuth-capable clients add `https://mem.centricmem.com/mcp` with no Bearer and finish the browser prompt (Cursor can use Add to Cursor on [centricmem.com](https://centricmem.com); Codex uses `codex mcp add` then `codex mcp login`). Do not download a settings file that contains a key. Otherwise it sends a `/connect?device=` link, and tells you to save a backup of the key (it appears only once). You do not paste chats, tokens, or CLI.
+Then keep talking. After install, if `cm_*` tools are missing the agent sends signup **and** a `/connect?device=` link. Plugin `mcp.json` is not a completed connect. OAuth-capable clients may also add `https://mem.centricmem.com/mcp` with no Bearer and finish the browser prompt (Cursor can use Add to Cursor on [centricmem.com](https://centricmem.com); Codex uses `codex mcp add` then `codex mcp login`, and still the connect URL if tools are missing). WorkBuddy/CodeBuddy get the connect URL. Do not download a settings file that contains a key. The agent tells you to save a backup of the key (it appears only once). You do not paste chats, tokens, or CLI.
 
 Hosted librarian: [centricmem.com](https://centricmem.com). Sign up is open. Host MCP: `https://mem.centricmem.com/mcp`. Never paste keys in chat.
 
