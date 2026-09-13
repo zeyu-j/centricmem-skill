@@ -47,6 +47,11 @@ if re.search(r"^(version|compatible_cli|changelog_url):", skill, re.M):
     raise SystemExit("Agent Skills extra keys must live under metadata:")
 assert "npx --yes skills add zeyu-j/centricmem-skill" in readme
 assert "/plugin marketplace add zeyu-j/centricmem-skill" in readme
+assert "dsh plugin --profile web add github:zeyu-j/centricmem-skill" in readme
+assert "pi install https://github.com/zeyu-j/centricmem-skill" in readme
+assert "openclaw plugins install git:github.com/zeyu-j/centricmem-skill" in readme
+assert "hermes mcp add" in readme
+assert "clawhub:" not in readme.lower()
 assert "cm_delete" in skill and "{file" in skill and "shelf" in skill
 assert "cm_rename" in skill
 for line in skill.splitlines():
@@ -71,6 +76,16 @@ pkg = json.loads(Path("package.json").read_text(encoding="utf-8"))
 version = pkg["version"]
 assert pkg["name"] == "centricmem-skill"
 assert "bin" not in pkg
+assert pkg.get("pi", {}).get("skills") == ["./skills"]
+assert pkg.get("dsh", {}).get("bundle", {}).get("patch") == "./dsh/cordis.patch.yml"
+dsh_patch = Path("dsh/cordis.patch.yml").read_text(encoding="utf-8")
+assert MCP_URL in dsh_patch
+assert "@deepseek-ai/dsh-mcp-client" in dsh_patch
+if re.search(r"^\s*Authorization\s*:", dsh_patch, re.I | re.M) or re.search(
+    r"Bearer\s+cm_", dsh_patch
+):
+    raise SystemExit("dsh patch must stay URL-only (no Authorization header)")
+assert Path("dsh/LICENSE").is_file()
 lock = json.loads(Path("package-lock.json").read_text(encoding="utf-8"))
 assert lock["name"] == "centricmem-skill"
 assert lock["version"] == version

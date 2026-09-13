@@ -2,6 +2,14 @@
 
 Skill-facing notes for [centricmem-skill](https://github.com/zeyu-j/centricmem-skill). This repo is how to use the hosted librarian.
 
+## 0.21.60
+
+- Hermes: `hermes skills install zeyu-j/centricmem-skill/skills/centricmem-agent`, then prefer `hermes mcp add --url https://mem.centricmem.com/mcp --auth oauth centricmem` (`auth: oauth` in `~/.hermes/config.yaml`). Bearer headers only when OAuth is unavailable. Still send `/connect?device=` unless `cm_*` work.
+- Pi: `pi install https://github.com/zeyu-j/centricmem-skill` (package.json `pi.skills`). MCP is URL-only in `~/.pi/agent/mcp.json` — not auto-wired.
+- OpenClaw: install this repo as an Agent Plugins / Claude / Codex / Cursor **bundle**. Not ClawHub. Do not add `openclaw.plugin.json`.
+- DSH: root `dsh.bundle` mounts [`dsh/cordis.patch.yml`](./dsh/cordis.patch.yml) (`@deepseek-ai/dsh-mcp-client`, URL only, MIT glue). Skill stays PolyForm. Overlay Bearer in the profile patch after `/connect?device=`. GitHub topic `dsh-plugin`.
+- CLI **>=0.21.36** (guest `setup --install-skill` on CLI **>=0.21.46** also copies Claude and Pi skill homes).
+
 ## 0.21.59
 
 - SKILL.md is the handover: When to Use plus three Typical Workflows (first connect, daily cite-and-file, empty shelf). REFERENCE holds client connect branches.

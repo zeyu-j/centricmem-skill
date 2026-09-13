@@ -9,7 +9,7 @@ Replay these. Do not invent a hub, curl, or CLI-write.
 **First connect** (`cm_*` missing this chat):
 
 1. This same reply sends https://centricmem.com/login?signup=1 **and** a `/connect?device=` URL **and** tells them to save a backup of the key (Keys shows it only once). Plugin `mcp.json` is not a completed connect.
-2. If this runtime can complete MCP OAuth, **also** add `https://mem.centricmem.com/mcp` with no Bearer and finish the browser prompt (Cursor: Add to Cursor on https://centricmem.com; Codex: `codex mcp add` then `codex mcp login`). Still send the connect URL unless tools already work.
+2. If this runtime can complete MCP OAuth, **also** add `https://mem.centricmem.com/mcp` with no Bearer and finish the browser prompt (Cursor: Add to Cursor on https://centricmem.com; Codex: `codex mcp add` then `codex mcp login`; Hermes: `hermes mcp add --url https://mem.centricmem.com/mcp --auth oauth centricmem`). Still send the connect URL unless tools already work.
 3. Mint the device URL: `centricmem connect --device` when the CLI is on PATH; otherwise POST `/connect/device` `{hostname}` once and send JSON `url`. Keep `secret` off chat. They enter the key on that page (ten minutes). Claim off-chat; never print the token.
 4. Retry `cm_health` here. New chat only if still 401.
 
@@ -43,11 +43,11 @@ If they are missing, connect them **this turn**. Never paste the key in chat. Ne
 
 **This same reply** sends https://centricmem.com/login?signup=1 **and** a `/connect?device=` URL **and** tells them to save a backup of the key — Keys shows it only once; never paste it here. Plugin `mcp.json` is URL-only: it is **not** a completed connect. WorkBuddy/CodeBuddy: mint that connect URL this turn.
 
-**MCP OAuth (additive):** if this runtime can also add a remote MCP URL and complete a browser login/consent prompt, tell them to add `https://mem.centricmem.com/mcp` **with no Bearer**. Cursor may use Add to Cursor on https://centricmem.com (URL only, then the same prompt). Codex: `codex mcp add centricmem --url https://mem.centricmem.com/mcp` then `codex mcp login centricmem` **and still send the connect URL unless cm_* already work**. Do not curl OAuth or librarian HTTP. Do not download or open a settings file that contains a key, and do not ask them to send you that path. A URL-only `mcp.json` or Codex `config.toml` (url, no `Authorization`) may be copied or opened. After they finish the prompt, retry `cm_health`.
+**MCP OAuth (additive):** if this runtime can also add a remote MCP URL and complete a browser login/consent prompt, tell them to add `https://mem.centricmem.com/mcp` **with no Bearer**. Cursor may use Add to Cursor on https://centricmem.com (URL only, then the same prompt). Codex: `codex mcp add centricmem --url https://mem.centricmem.com/mcp` then `codex mcp login centricmem`. Hermes: `hermes mcp add --url https://mem.centricmem.com/mcp --auth oauth centricmem` (or `auth: oauth` in `~/.hermes/config.yaml`). **Still send the connect URL unless cm_* already work**. Do not curl OAuth or librarian HTTP. Do not download or open a settings file that contains a key, and do not ask them to send you that path. A URL-only `mcp.json` or Codex `config.toml` (url, no `Authorization`) may be copied or opened. After they finish the prompt, retry `cm_health`.
 
 **Shell blocked** (Grok Bot, web bots): cannot mint `device=`. Send signup only. Tell them to save a backup (shown once). They paste Bearer **only** in this agent’s MCP / plugin settings (`https://mem.centricmem.com/mcp`). Never here.
 
-**Shell works, `centricmem` missing** (Hermes, Codex, WorkBuddy): do not npm-install the CLI. Fetch **POST** `https://mem.centricmem.com/connect/device` with `{hostname}` once — authenticate bootstrap, not a card write. Send JSON `url` (`https://centricmem.com/connect?device=…`). Keep `secret` off chat (agent memory / a local file outside the git repo). They sign up, copy the key from the box at the **top** of Agent keys (once — tell them to save a backup), enter it on that page (ten minutes). Poll GET `https://mem.centricmem.com/connect/device/<id>` until `status=ready`, then POST `…/claim` `{secret}`. Write the claimed Bearer into this agent’s MCP file. Never print the token. Retry `cm_health`. “Do not call `/register` `/login`” means do not POST those HTTP APIs; you **do** send the signup URL and you **do** POST `/connect/device`.
+**Shell works, `centricmem` missing** (Hermes, Codex, WorkBuddy, Pi, OpenClaw, DSH): do not npm-install the CLI. Prefer MCP OAuth when this client can complete a browser prompt (Hermes `auth: oauth`; Codex `mcp login`; Claude custom connector). Otherwise fetch **POST** `https://mem.centricmem.com/connect/device` with `{hostname}` once — authenticate bootstrap, not a card write. Send JSON `url` (`https://centricmem.com/connect?device=…`). Keep `secret` off chat (agent memory / a local file outside the git repo). They sign up, copy the key from the box at the **top** of Agent keys (once — tell them to save a backup), enter it on that page (ten minutes). Poll GET `https://mem.centricmem.com/connect/device/<id>` until `status=ready`, then POST `…/claim` `{secret}`. Write the claimed Bearer into this agent’s MCP file. Never print the token. Retry `cm_health`. “Do not call `/register` `/login`” means do not POST those HTTP APIs; you **do** send the signup URL and you **do** POST `/connect/device`.
 
 **`centricmem` on PATH:** run `centricmem connect --device` and send **only** the printed `/connect?device=` URL — never the secret, never the key. They have ten minutes. Tell them to save a backup — the secret appears only once. They enter **any** agent key on that page (default = every shelf, extra key = granted shelves).
 
@@ -75,7 +75,16 @@ url = "https://mem.centricmem.com/mcp"
 
 Do not put `http_headers` Authorization in that file when OAuth works. Device-connect may still write a Bearer there as fallback.
 
-Hermes `~/.hermes/config.yaml` when OAuth is unavailable:
+Hermes `~/.hermes/config.yaml` — prefer OAuth (no Bearer in the file; tokens land in `~/.hermes/mcp-tokens/`):
+
+```yaml
+mcp_servers:
+  centricmem:
+    url: "https://mem.centricmem.com/mcp"
+    auth: oauth
+```
+
+Same as `hermes mcp add --url https://mem.centricmem.com/mcp --auth oauth centricmem`. First connect opens a browser. When OAuth is unavailable, device-connect then Bearer:
 
 ```yaml
 mcp_servers:
@@ -101,7 +110,30 @@ Other agents (`mcp.json`) paste-key fallback:
 }
 ```
 
-`setup --install-skill` on a guest copies Skill files only (CLI >=0.21.25). It must not merge leftover catalog pairing tokens into Cursor `mcp.json`. Host MCP on a guest is MCP OAuth when this client can complete a browser prompt (add `https://mem.centricmem.com/mcp` with no Bearer); otherwise `centricmem connect --device` when the CLI works; if the shell works but `centricmem` is missing, fetch POST `/connect/device` and send the JSON `url`; if the shell is blocked, the human adds `https://mem.centricmem.com/mcp` in this agent’s settings (Bearer from Keys, never in chat). Local librarian hosts may still merge loopback MCP when `/health` advertises `mcp`. Never ask them to paste a token in chat. Never one-click install. Never a dashboard “connect this computer”. After they connect, retry `cm_health` in this chat; a new chat only if tools still 401. Token failure: say once; connect again (CLI or signup+settings); **hold the sweep** (this agent’s memory `CentricMem deferred sweep` + transcript path) until `cm_health` works. Only drop the hold if they said don't log or they stopped using this Skill.
+`setup --install-skill` on a guest copies Skill files only (CLI >=0.21.46 also writes `~/.claude/skills/` and `~/.pi/agent/skills/`). It must not merge leftover catalog pairing tokens into Cursor `mcp.json`. Host MCP on a guest is MCP OAuth when this client can complete a browser prompt (add `https://mem.centricmem.com/mcp` with no Bearer); otherwise `centricmem connect --device` when the CLI works; if the shell works but `centricmem` is missing, fetch POST `/connect/device` and send the JSON `url`; if the shell is blocked, the human adds `https://mem.centricmem.com/mcp` in this agent’s settings (Bearer from Keys, never in chat). Local librarian hosts may still merge loopback MCP when `/health` advertises `mcp`. Never ask them to paste a token in chat. Never one-click install. Never a dashboard “connect this computer”. After they connect, retry `cm_health` in this chat; a new chat only if tools still 401. Token failure: say once; connect again (CLI or signup+settings); **hold the sweep** (this agent’s memory `CentricMem deferred sweep` + transcript path) until `cm_health` works. Only drop the hold if they said don't log or they stopped using this Skill.
+
+### Client recipes (same MCP URL)
+
+Skill folder name is always `centricmem-agent`. Plugin `mcp.json` is URL-only — not a completed connect. Do not list this Skill on ClawHub.
+
+**Pi.** `pi install https://github.com/zeyu-j/centricmem-skill` (discovers `skills/`; also loads `~/.agents/skills/`). MCP is not in the package. Write URL-only `~/.pi/agent/mcp.json`:
+
+```json
+{
+  "mcpServers": {
+    "centricmem": {
+      "url": "https://mem.centricmem.com/mcp",
+      "type": "streamable-http"
+    }
+  }
+}
+```
+
+If `cm_*` are missing, mint `/connect?device=` this turn. Paste-key fallback may use `"Authorization": "Bearer ${CENTRICMEM_API_KEY}"` (env placeholder — never a literal in git).
+
+**OpenClaw.** Compatible **bundle** (Agent Plugins / `.claude-plugin` / `.codex-plugin` / `.cursor-plugin`). Not a native in-process plugin — do not add `openclaw.plugin.json`. Not ClawHub. `openclaw plugins install git:github.com/zeyu-j/centricmem-skill` or `openclaw plugins install centricmem-skill --marketplace zeyu-j/centricmem-skill`. Restart the gateway if tools stay missing. Then the same connect as other plugin clients.
+
+**DSH.** Cordis **funnel** only. `dsh plugin --profile web add github:zeyu-j/centricmem-skill` mounts `@deepseek-ai/dsh-mcp-client` from `dsh/cordis.patch.yml` (URL only). The Skill stays PolyForm; the patch is MIT glue. Overlay Bearer in `$DSH_HOME/profiles/<profile>/cordis.patch.yml` after `/connect?device=` — never commit headers. GitHub topic `dsh-plugin` is discovery. DSH does not speak MCP OAuth in that client.
 
 ### 1Password (optional vault, not a connect path)
 
@@ -197,7 +229,7 @@ Guests install from GitHub, not from the librarian disk. `cm_health` `min_skill`
 
 1. Read `version` from this Skill’s frontmatter (`metadata.version`).
 2. `latest` = JSON `skill_latest` if present, else `metadata.version` at `https://raw.githubusercontent.com/zeyu-j/centricmem-skill/main/skills/centricmem-agent/SKILL.md`.
-3. If `latest` is newer and the shell works: `npx --yes skills add zeyu-j/centricmem-skill --skill centricmem-agent -y` (omit `-g` when this agent has no user-wide skills dir). If the shell is blocked, skip npx; tell them to update via this client’s plugin UI. If this session is a **plugin** install, also update via that client (`/plugin`, Codex plugins UI, Copilot plugin, Kiro Powers re-import). Say once: on disk now; this chat still uses the loaded copy.
+3. If `latest` is newer and the shell works: `npx --yes skills add zeyu-j/centricmem-skill --skill centricmem-agent -y` (omit `-g` when this agent has no user-wide skills dir). If the shell is blocked, skip npx; tell them to update via this client’s plugin UI. If this session is a **plugin** install, also update via that client (`/plugin`, Codex plugins UI, Copilot plugin, Kiro Powers re-import, `hermes skills install zeyu-j/centricmem-skill/skills/centricmem-agent`, `pi update --extensions`, re-install `openclaw plugins install git:github.com/zeyu-j/centricmem-skill`, `dsh plugin` re-add). Say once: on disk now; this chat still uses the loaded copy.
 4. If this file is newer, or the fetch/npx fails or is blocked: continue. Do not `setup --install-skill`.
 
 ## Writes (one sweep as soon as Non-Micro work exists)
@@ -228,7 +260,7 @@ Do not send `path=` for the librarian to open a server file. Mention `#NNNN` in 
 
 Cursor already writes `~/.cursor/projects/<workspace>/agent-transcripts/<uuid>/<uuid>.jsonl`. Shell-read it; never paste jsonl; never delete that local file.
 
-Claude Code, Codex, Kiro, Kilo, Copilot, and other Agent Skills clients: only keep a transcript if that runtime actually wrote a local file for **this** chat. If there is no file, say so; do not invent a dump. Never paste the bytes into chat.
+Claude Code, Codex, Hermes, Pi, OpenClaw, DSH, Kiro, Kilo, Copilot, and other Agent Skills clients: only keep a transcript if that runtime actually wrote a local file for **this** chat. If there is no file, say so; do not invent a dump. Never paste the bytes into chat.
 
 ## Do not
 

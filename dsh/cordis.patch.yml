@@ -1,0 +1,11 @@
+# URL-only MCP funnel for DeepSeek Harness.
+# Do not put request headers in this file.
+# After device-connect, overlay headers in
+# $DSH_HOME/profiles/<profile>/cordis.patch.yml (never commit that overlay).
+- insert:
+    - id: mcp-centricmem
+      name: '@deepseek-ai/dsh-mcp-client'
+      config:
+        serverName: centricmem
+        transport: streamable-http
+        url: https://mem.centricmem.com/mcp

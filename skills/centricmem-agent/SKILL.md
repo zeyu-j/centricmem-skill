@@ -4,12 +4,12 @@ description: "Organises and retrieves Markdown memory on the hosted CentricMem l
 license: PolyForm-Noncommercial-1.0.0
 compatibility: "Requires host MCP at https://mem.centricmem.com/mcp. CLI >=0.21.36: every card is summary + key points (a keep stub is not a card); a folder is cm_keep card:false then cm_import items. Archive zip is optional. share: shelf ids; cm_move selected cards; cm_delete {file,shelf} a card; cm_rename {file,shelf,title} a card."
 metadata:
-  version: "0.21.59"
+  version: "0.21.60"
   compatible_cli: ">=0.21.36"
   changelog_url: https://github.com/zeyu-j/centricmem-skill/blob/main/CHANGELOG.md
 ---
 
-# CentricMem Agent Skill v0.21.59
+# CentricMem Agent Skill v0.21.60
 
 This file is the handover (when / loop / recipes). Host MCP tool schemas are the live contract. Client connect branches, grants, bulk import, 1Password: [REFERENCE.md](REFERENCE.md).
 
@@ -40,7 +40,7 @@ CentricMem is the **manager layer** (organise / retrieve / cross-agent store) **
 
 ## 2. Start
 
-`cm_health` then `cm_ambient`. Ignore a stale `.ambient.md`. Unreachable or `state=UNINITIALIZED`: **say once** — do not bootstrap. Writes need a **named shelf**. Unmatched cwd is not a shelf. `library=(none)` → pick from `libraries=` or mint (`cm_library`). Guests do not `--link`. `corpus=<slug>` → `library=` that slug. Ignore hub `skill_status=outdated`. Folder name is always `centricmem-agent` (Cursor, Hermes, Claude, Codex, Kiro, Kilo, Copilot, CodeBuddy/WorkBuddy, Kimi, Agent Plugins `plugin.json` + `mcp.json`).
+`cm_health` then `cm_ambient`. Ignore a stale `.ambient.md`. Unreachable or `state=UNINITIALIZED`: **say once** — do not bootstrap. Writes need a **named shelf**. Unmatched cwd is not a shelf. `library=(none)` → pick from `libraries=` or mint (`cm_library`). Guests do not `--link`. `corpus=<slug>` → `library=` that slug. Ignore hub `skill_status=outdated`. Folder name is always `centricmem-agent` (Cursor, Hermes, Claude, Codex, Pi, OpenClaw, DSH, Kiro, Kilo, Copilot, CodeBuddy/WorkBuddy, Kimi, Agent Plugins `plugin.json` + `mcp.json`).
 
 **Once this chat, after health/ambient:** if published `skill_latest` is newer than this file's `metadata.version`, refresh with `npx --yes skills add zeyu-j/centricmem-skill --skill centricmem-agent -y` (omit `-g` if no user-wide skills dir). Shell blocked: this client's plugin UI. **Tell the human** it is on disk; **this chat still uses the already-loaded Skill**. Never `setup --install-skill` for this refresh.
 
