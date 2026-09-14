@@ -6,12 +6,14 @@ The session loop lives in [SKILL.md](SKILL.md) (When to Use, classify, sweep, Ty
 
 Replay these. Do not invent a hub, curl, or CLI-write.
 
-**First connect** (`cm_*` missing this chat):
+**First connect** (`cm_*` missing this chat **and** they have not already added a key or MCP URL in this agent):
 
 1. This same reply sends https://centricmem.com/login?signup=1 **and** a `/connect?device=` URL **and** tells them to save a backup of the key (Keys shows it only once). Plugin `mcp.json` is not a completed connect.
 2. If this runtime can complete MCP OAuth, **also** add `https://mem.centricmem.com/mcp` with no Bearer and finish the browser prompt (Cursor: Add to Cursor on https://centricmem.com; Codex: `codex mcp add` then `codex mcp login`; Hermes: `hermes mcp add --url https://mem.centricmem.com/mcp --auth oauth centricmem`). Still send the connect URL unless tools already work.
-3. Mint the device URL: `centricmem connect --device` when the CLI is on PATH; otherwise POST `/connect/device` `{hostname}` once and send JSON `url`. Keep `secret` off chat. They enter the key on that page (ten minutes). Claim off-chat; never print the token.
+3. Mint the device URL: `centricmem connect --device` when that subcommand exists; otherwise POST `/connect/device` `{hostname}` once and send JSON `url`. If `centricmem` is on PATH but has no `connect --device`, ignore that leftover npm binary — do not npm-install. Keep `secret` off chat. They enter the key on that page (ten minutes). Claim off-chat; never print the token.
 4. Retry `cm_health` here. New chat only if still 401. If connect still fails, or they have a usage problem this Skill cannot fix: tell them to email zeyu@poppyg.com (which agent + what they saw; never a key or token). Do not send that mail for them. Legal/privacy mail stays poppy@poppyg.com on the website.
+
+**Already added** a key or the MCP URL in this agent, but `cm_*` are still missing: do not mint a new `/connect?device=`. Do not tell them to re-add `https://mem.centricmem.com/mcp` with no Bearer (that drops the key). Ask for a **new chat** so this session loads MCP. Codex: a Bearer in `~/.codex/config.toml` `[mcp_servers.centricmem]` `http_headers`, or a completed `codex mcp login`, is a completed connect — restart/new thread. Still missing after that → email zeyu@poppyg.com (never a key).
 
 **Daily cite and file:** `cm_health` then `cm_ambient` (ignore a stale `.ambient.md`). `cm_search` / `cm_show` while working. When this reply finishes Non-Micro work: pick a named shelf, `cm_keep` this chat’s transcript if a file exists, then `cm_note` / `cm_log_decision` / `cm_done` with summary + key points. Do not wait for wrap up.
 
@@ -39,9 +41,9 @@ Inbox is gone. Do not mint `unclassified`. Leftover Inbox on an old hub: `cm_cop
 
 MCP tools must be present: `cm_health` `cm_ambient` `cm_doctor` `cm_search` `cm_show` `cm_note` `cm_log_decision` `cm_done` `cm_keep` `cm_library` `cm_copy` `cm_move` `cm_delete` `cm_rename` `cm_import` `cm_index`.
 
-If they are missing, connect them **this turn**. Never paste the key in chat. Never copy JSON into chat. Do not curl card/search APIs. Do not CLI-write. Do not bootstrap. Do not send a loopback `/connect` or a bare `/connect` with no `device=`.
+If they are missing: **Already added** a key or MCP URL in this agent → new chat, do not strip Bearer (Typical Workflows). **Otherwise** first connect this turn. Never paste the key in chat. Never copy JSON into chat. Do not curl card/search APIs. Do not CLI-write. Do not bootstrap. Do not send a loopback `/connect` or a bare `/connect` with no `device=`.
 
-**This same reply** sends https://centricmem.com/login?signup=1 **and** a `/connect?device=` URL **and** tells them to save a backup of the key — Keys shows it only once; never paste it here. Plugin `mcp.json` is URL-only: it is **not** a completed connect. WorkBuddy/CodeBuddy: mint that connect URL this turn.
+**First connect, this same reply** sends https://centricmem.com/login?signup=1 **and** a `/connect?device=` URL **and** tells them to save a backup of the key — Keys shows it only once; never paste it here. Plugin `mcp.json` is URL-only: it is **not** a completed connect. WorkBuddy/CodeBuddy: mint that connect URL this turn.
 
 **MCP OAuth (additive):** if this runtime can also add a remote MCP URL and complete a browser login/consent prompt, tell them to add `https://mem.centricmem.com/mcp` **with no Bearer**. Cursor may use Add to Cursor on https://centricmem.com (URL only, then the same prompt). Codex: `codex mcp add centricmem --url https://mem.centricmem.com/mcp` then `codex mcp login centricmem`. Hermes: `hermes mcp add --url https://mem.centricmem.com/mcp --auth oauth centricmem` (or `auth: oauth` in `~/.hermes/config.yaml`). **Still send the connect URL unless cm_* already work**. Do not curl OAuth or librarian HTTP. Do not download or open a settings file that contains a key, and do not ask them to send you that path. A URL-only `mcp.json` or Codex `config.toml` (url, no `Authorization`) may be copied or opened. After they finish the prompt, retry `cm_health`. Still failing, or a usage problem you cannot fix: they email zeyu@poppyg.com (never a key). Do not email on their behalf.
 
@@ -49,7 +51,7 @@ If they are missing, connect them **this turn**. Never paste the key in chat. Ne
 
 **Shell works, `centricmem` missing** (Hermes, Codex, WorkBuddy, Pi, OpenClaw, DSH): do not npm-install the CLI. Prefer MCP OAuth when this client can complete a browser prompt (Hermes `auth: oauth`; Codex `mcp login`; Claude custom connector). Otherwise fetch **POST** `https://mem.centricmem.com/connect/device` with `{hostname}` once — authenticate bootstrap, not a card write. Send JSON `url` (`https://centricmem.com/connect?device=…`). Keep `secret` off chat (agent memory / a local file outside the git repo). They sign up, copy the key from the box at the **top** of Agent keys (once — tell them to save a backup), enter it on that page (ten minutes). Poll GET `https://mem.centricmem.com/connect/device/<id>` until `status=ready`, then POST `…/claim` `{secret}`. Write the claimed Bearer into this agent’s MCP file. Never print the token. Retry `cm_health`. “Do not call `/register` `/login`” means do not POST those HTTP APIs; you **do** send the signup URL and you **do** POST `/connect/device`.
 
-**`centricmem` on PATH:** run `centricmem connect --device` and send **only** the printed `/connect?device=` URL — never the secret, never the key. They have ten minutes. Tell them to save a backup — the secret appears only once. They enter **any** agent key on that page (default = every shelf, extra key = granted shelves).
+**`centricmem` on PATH:** only if `connect --device` exists, run it and send **only** the printed `/connect?device=` URL — never the secret, never the key. They have ten minutes. Tell them to save a backup — the secret appears only once. They enter **any** agent key on that page (default = every shelf, extra key = granted shelves). If the binary has no `connect --device` (leftover npm 0.14.x), ignore it. Do not npm-install the CLI on a guest.
 
 Config (agent key stays off git). Prefer OAuth — URL only, no Bearer:
 
@@ -73,7 +75,7 @@ Codex (`~/.codex/config.toml`) when OAuth works — URL only, then `codex mcp lo
 url = "https://mem.centricmem.com/mcp"
 ```
 
-Do not put `http_headers` Authorization in that file when OAuth works. Device-connect may still write a Bearer there as fallback.
+Do not put `http_headers` Authorization in that file when OAuth works. Device-connect or a paste key may still write a Bearer there — that **is** a completed connect. If `cm_*` are missing after that, a new Codex thread, not a second `codex mcp add` with no Bearer.
 
 Hermes `~/.hermes/config.yaml` — prefer OAuth (no Bearer in the file; tokens land in `~/.hermes/mcp-tokens/`):
 

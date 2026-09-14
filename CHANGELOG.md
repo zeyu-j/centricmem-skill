@@ -2,6 +2,11 @@
 
 Skill-facing notes for [centricmem-skill](https://github.com/zeyu-j/centricmem-skill). This repo is how to use the hosted librarian.
 
+## 0.21.62
+
+- If they already added a key or MCP URL in this agent, `cm_*` missing means a **new chat** — do not mint `/connect?device=` and do not tell them to add the URL with no Bearer (that drops the key). Ignore leftover `centricmem` on PATH when `connect --device` is missing (npm 0.14.x). First connect is unchanged.
+- CLI **>=0.21.36**.
+
 ## 0.21.61
 
 - If connect still fails after signup + `/connect?device=` / OAuth, or they have a usage problem the Skill cannot fix: tell them to email zeyu@poppyg.com (which agent + what they saw; never a key or token). Do not send that mail for them. Website legal/privacy mail stays poppy@poppyg.com.
