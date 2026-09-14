@@ -2,6 +2,11 @@
 
 Skill-facing notes for [centricmem-skill](https://github.com/zeyu-j/centricmem-skill). This repo is how to use the hosted librarian.
 
+## 0.21.61
+
+- If connect still fails after signup + `/connect?device=` / OAuth, or they have a usage problem the Skill cannot fix: tell them to email zeyu@poppyg.com (which agent + what they saw; never a key or token). Do not send that mail for them. Website legal/privacy mail stays poppy@poppyg.com.
+- CLI **>=0.21.36**.
+
 ## 0.21.60
 
 - Hermes: `hermes skills install zeyu-j/centricmem-skill/skills/centricmem-agent`, then prefer `hermes mcp add --url https://mem.centricmem.com/mcp --auth oauth centricmem` (`auth: oauth` in `~/.hermes/config.yaml`). Bearer headers only when OAuth is unavailable. Still send `/connect?device=` unless `cm_*` work.

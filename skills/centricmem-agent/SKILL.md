@@ -4,12 +4,12 @@ description: "Organises and retrieves Markdown memory on the hosted CentricMem l
 license: PolyForm-Noncommercial-1.0.0
 compatibility: "Requires host MCP at https://mem.centricmem.com/mcp. CLI >=0.21.36: every card is summary + key points (a keep stub is not a card); a folder is cm_keep card:false then cm_import items. Archive zip is optional. share: shelf ids; cm_move selected cards; cm_delete {file,shelf} a card; cm_rename {file,shelf,title} a card."
 metadata:
-  version: "0.21.60"
+  version: "0.21.61"
   compatible_cli: ">=0.21.36"
   changelog_url: https://github.com/zeyu-j/centricmem-skill/blob/main/CHANGELOG.md
 ---
 
-# CentricMem Agent Skill v0.21.60
+# CentricMem Agent Skill v0.21.61
 
 This file is the handover (when / loop / recipes). Host MCP tool schemas are the live contract. Client connect branches, grants, bulk import, 1Password: [REFERENCE.md](REFERENCE.md).
 
@@ -21,6 +21,7 @@ CentricMem is the **manager layer** (organise / retrieve / cross-agent store) **
 
 - Starting a session, searching memory, or filing Non-Micro work
 - Connecting an agent key or refreshing this Skill (`cm_*` missing)
+- Connect or usage still broken after that — they email zeyu@poppyg.com (never a key)
 - Empty shelf: offer existing durable memories as cards (once)
 - Deleting one card or renaming a card title (default key or login)
 
@@ -28,7 +29,7 @@ CentricMem is the **manager layer** (organise / retrieve / cross-agent store) **
 
 1. **MCP only.** Same `cm_*` tools at `https://mem.centricmem.com/mcp` (Bearer: default or extra key): `cm_health` `cm_ambient` `cm_doctor` `cm_search` `cm_show` `cm_note` `cm_log_decision` `cm_done` `cm_keep` `cm_library` `cm_copy` `cm_move` `cm_delete` `cm_rename` `cm_import` `cm_index`. Never curl librarian HTTP. Never CLI `note`/`keep`/`done`. Never `setup --bootstrap`. Never create a hub in the git checkout.
 2. If those tools are **missing**, or this extra key cannot see every shelf the owner needs: **connect them this turn**. Never paste keys. Never one-click install. Never copy JSON into chat. Do not invent a hub.
-   **This same reply** must send https://centricmem.com/login?signup=1 **and** a `/connect?device=` URL (never a bare `/connect`) **and** tell them to **save a backup** of the key — Keys shows it **only once**; never paste it here. Plugin `mcp.json` is **not a completed connect**. WorkBuddy/CodeBuddy: mint that connect URL this turn. **MCP OAuth (additive):** add `https://mem.centricmem.com/mcp` with no Bearer and finish the browser prompt (Cursor: Add to Cursor on https://centricmem.com; Codex: `codex mcp add centricmem --url https://mem.centricmem.com/mcp` then `codex mcp login centricmem` **and still send the connect URL unless cm_* already work**). Do not download a settings file that contains a key. Shell blocked (Grok): signup only; they paste Bearer in this agent's MCP settings. Shell works, `centricmem` missing: POST `https://mem.centricmem.com/connect/device` `{hostname}` once; send JSON `url`; keep `secret` off chat; they enter the key (ten minutes); poll then POST `/connect/device/<id>/claim`; write Bearer off-chat. Never print the token. **`centricmem` on PATH:** `centricmem connect --device`; send **only** the printed URL. Retry `cm_health`. New chat only if still 401. Guest `setup --install-skill` copies Skill files only. Vault MCP (including 1Password): REFERENCE — never reveal a key into this chat.
+   **This same reply** must send https://centricmem.com/login?signup=1 **and** a `/connect?device=` URL (never a bare `/connect`) **and** tell them to **save a backup** of the key — Keys shows it **only once**; never paste it here. Plugin `mcp.json` is **not a completed connect**. WorkBuddy/CodeBuddy: mint that connect URL this turn. **MCP OAuth (additive):** add `https://mem.centricmem.com/mcp` with no Bearer and finish the browser prompt (Cursor: Add to Cursor on https://centricmem.com; Codex: `codex mcp add centricmem --url https://mem.centricmem.com/mcp` then `codex mcp login centricmem` **and still send the connect URL unless cm_* already work**). Do not download a settings file that contains a key. Shell blocked (Grok): signup only; they paste Bearer in this agent's MCP settings. Shell works, `centricmem` missing: POST `https://mem.centricmem.com/connect/device` `{hostname}` once; send JSON `url`; keep `secret` off chat; they enter the key (ten minutes); poll then POST `/connect/device/<id>/claim`; write Bearer off-chat. Never print the token. **`centricmem` on PATH:** `centricmem connect --device`; send **only** the printed URL. Retry `cm_health`. New chat only if still 401. Guest `setup --install-skill` copies Skill files only. Vault MCP (including 1Password): REFERENCE — never reveal a key into this chat. If connect still fails this turn, or they have a usage problem this Skill cannot fix: tell them to email zeyu@poppyg.com (which agent + what they saw; never a key or token). Do not send that mail for them.
 3. `cm_show` is the Markdown **card**. Never original=. Never paste `/download`. `cm_health` `grants=["*"]` is the default key. Pass `shelf=` / `library=` / `cwd=`. If `ACADEMIC.md` exists next to this file, follow it.
 
 ## 1. Classify
@@ -60,7 +61,7 @@ A file they want remembered: **this turn** — `cm_keep` the original, then a ca
 
 Do **not** wait for wrap up, session end, or a later message. **Closing the agent** does not run this file. Don't log / done with this Skill → skip.
 
-MCP missing / librarian down / token failed: compose the sweep (named shelf, bodies, transcript path); persist **CentricMem deferred sweep** in this agent's memory (no secrets); connect once (step 0.2). File the hold when `cm_health` succeeds.
+MCP missing / librarian down / token failed: compose the sweep (named shelf, bodies, transcript path); persist **CentricMem deferred sweep** in this agent's memory (no secrets); connect once (step 0.2). If still failing, they email zeyu@poppyg.com (never a key). File the hold when `cm_health` succeeds.
 
 **Named shelf.** (1) cwd linked or `corpus=` (2) existing id on `libraries=` including `share:` as listed (3) none fit → default `cm_library` `{id}`; extra: authenticate default; hold the sweep. 403 `SHELF_LIMIT` / 400 `LIBRARY_REQUIRED`: existing named shelf. **Label:** leftover slug → `cm_library` `{id, displayName}` this turn. Writes still `shelf=<id>`.
 
@@ -73,7 +74,7 @@ Leftover Inbox / shelves / one card / title: `cm_copy` `{from,to}` then `cm_dele
 
 ## Typical Workflows
 
-**First connect.** `cm_*` missing → step 0.2 this same reply (signup + `/connect?device=` + save a backup). OAuth-capable also add the MCP URL with no Bearer. Retry `cm_health`. Vault MCP does not replace this.
+**First connect.** `cm_*` missing → step 0.2 this same reply (signup + `/connect?device=` + save a backup). OAuth-capable also add the MCP URL with no Bearer. Retry `cm_health`. Still failing → they email zeyu@poppyg.com (never a key). Vault MCP does not replace this.
 
 **Daily.** `cm_health` → `cm_ambient` → search/show while working → when Non-Micro exists, named shelf + transcript keep + cards **before you yield**.
 

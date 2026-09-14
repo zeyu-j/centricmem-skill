@@ -11,7 +11,7 @@ This repository is **one package**: [Agent Skills](https://agentskills.io) `SKIL
 Paste this to the agent (one line):
 
 ```
-Install CentricMem from zeyu-j/centricmem-skill. After install, send https://centricmem.com/login?signup=1 and a /connect?device= URL — plugin mcp.json is not a completed connect. OAuth-capable clients may also add https://mem.centricmem.com/mcp with no Bearer and finish the browser prompt. Cursor can use Add to Cursor on centricmem.com (URL only, then the browser prompt). Codex: codex mcp add centricmem --url https://mem.centricmem.com/mcp then codex mcp login centricmem, and still send the connect URL unless cm_* already work. Tell them the key appears only once — save a backup; never paste keys.
+Install CentricMem from zeyu-j/centricmem-skill. After install, send https://centricmem.com/login?signup=1 and a /connect?device= URL — plugin mcp.json is not a completed connect. OAuth-capable clients may also add https://mem.centricmem.com/mcp with no Bearer and finish the browser prompt. Cursor can use Add to Cursor on centricmem.com (URL only, then the browser prompt). Codex: codex mcp add centricmem --url https://mem.centricmem.com/mcp then codex mcp login centricmem, and still send the connect URL unless cm_* already work. Tell them the key appears only once — save a backup; never paste keys. If connect or usage still fails, they email zeyu@poppyg.com (never a key).
 ```
 
 If the shell works, a terminal in the project can run:
