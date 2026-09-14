@@ -2,6 +2,11 @@
 
 Skill-facing notes for [centricmem-skill](https://github.com/zeyu-j/centricmem-skill). This repo is how to use the hosted librarian.
 
+## 0.21.63
+
+- `cm_delete` `{file, shelf, heading}` removes one `##` section in `lessons.md` (notes stay sections, not one file per card). Do not pass `file#heading`. Same-title `cm_note` is an error — pick a new title, or delete that heading then rewrite. Import `dryRun` `files[].file` is the disk path apply will write.
+- CLI **>=0.21.48**.
+
 ## 0.21.62
 
 - If they already added a key or MCP URL in this agent, `cm_*` missing means a **new chat** — do not mint `/connect?device=` and do not tell them to add the URL with no Bearer (that drops the key). Ignore leftover `centricmem` on PATH when `connect --device` is missing (npm 0.14.x). First connect is unchanged.
