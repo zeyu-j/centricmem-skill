@@ -203,10 +203,10 @@ Offer **once**, in their language. They keep talking. Skip / later / don't log =
 
 1. Capture stays (Cursor memories and other plugins). Do not uninstall. Do not dump every memory or every transcript folder.
 2. Ask what they already have that should be **cited later**: facts in agent memory they can name, Markdown/PDF they can open, an exporter JSON.
-3. Named shelf: pick from `libraries=` or `cm_library` `{id, displayName}`. If the id is `share:…`, pass it as `shelf=` — do not mint that string. Extra key cannot mint and cannot see invited shelves — authenticate so they enter the **default** key.
+3. Named shelf: pick from `libraries=` or `cm_library` (omit `id` to list `{id, displayName}`; extra keys list grants only). Mint with `{id, displayName}`. If the id is `share:…`, pass it as `shelf=` — do not mint that string. Extra key cannot mint and cannot see invited shelves — authenticate so they enter the **default** key.
 4. Then:
    - Files they open or point at → `cm_keep` (bytes, never `path=`) → **this turn**, while you can still read that file, a card with **summary** + **key points** (`cm_note` `title`/`body`, or `cm_log_decision`). Do not stop at the keep stub (title + Attach). Later chats `cm_show` that note, not the attach.
-   - ImportBundle JSON they provide → `cm_import` `{library}` then `cm_index`.
+   - ImportBundle JSON they provide → `cm_import` `{bundle, library}` then `cm_index`. Daily cards are `items=`, not this shape.
    - A **folder of originals** → bulk package below. Do not loop 200 `cm_note`s in one chat.
 5. Do not paste chats, keys, or secrets. Do not write back into the capture store.
 
@@ -220,12 +220,18 @@ Stage on this computer (workspace or temp — **not** git, **not** a hub, **not*
 
 1. For each original this commit (≤50): `cm_keep` `{filename, content, shelf, card:false}`. MCP signs and PUTs. `card:false` stores bytes only (no keep stub). Hold the returned `attach` pointer.
 2. Write the Markdown cards locally (Identity / Details / Tags / Body). Prefer Details `- **Shelf**: <id>`. A Tags token that **equals the shelf id** (or its unique display name) also routes — still store about-tags. Mixed shelves in one commit are fine if this key can open each.
-3. One `cm_import` `{ items: [{ title, body, tags, shelf, attach, external_id }] }` (or `{ package: { items } }`). `attach` is the `imported/attach/…` pointer from step 1. `dryRun: true` previews the same disk paths apply will write (`files[].file`, not the title). Colliding titles become `slug-2.md`.
+3. One `cm_import` `{ items: [{ title, body, tags, shelf, attach, external_id }] }` (or `{ package: { items } }`). A `bundle` that is `{items:[...]}` with no `version` is the same ingest. `attach` is the `imported/attach/…` pointer from step 1. `dryRun: true` previews the same disk paths apply will write (`files[].file`, not the title). Colliding titles become `slug-2.md`. `skipExisting: true` skips a dest slug (or mapped `external_id`) instead of allocating `-2`. Reused attach pointers count as attachments on dryRun and apply.
 4. If more files remain, another commit. Tell the human the count left.
 
 **Human path (zip, optional).** Only if they already packed a zip or you cannot read the files. You still file one-or-few with keep+note, and a folder with `{card:false}` then import. When they use the zip: Archive → **Upload zip**. Layout: `cards/*.md` + `attach/*` (optional `manifest.json` with `items[].card` / `attach` / `shelf`). Each card names its shelf (`- **Shelf**: id` or a Tags token that is the shelf id). They do not have to pick the shelf in the form — the card already knows. Mixed shelves in one zip are fine. Invited shelves use the listed `share:` id, not the owner’s slug. You do not fetch the zip.
 
-Text-only exporter JSON still uses ImportBundle (`cm_import` `{bundle}`) — not this package.
+Text-only exporter JSON still uses ImportBundle (`cm_import` `{bundle}`) — not this package. Example:
+
+```json
+{ "version": 1, "lessons": [{ "title": "Summary", "body": "Key points." }] }
+```
+
+Not `{items:[...]}` (that is daily cards). Not a dump of the Zod schema. Other keys: `imported`, `decisions`, `sessions`, `research`.
 
 ## Skill refresh (once per chat)
 
@@ -245,18 +251,18 @@ Hold half-finished thoughts. When the chunk is done, file **before you stop talk
 | Transcript | Each Non-Micro sweep | Shell-read jsonl → `cm_keep` filename + bytes (MCP does sign+PUT) |
 | Session | Same sweep | `cm_done` with `attach`; `summary=` is the key points of this unit |
 | Knowledge | durable model / fact | `cm_note` — `title` = summary, `body` = key points. Same title in `lessons.md` is an error (409); pick a new title, or `cm_delete` `{file:"lessons.md", shelf, heading}` then rewrite |
-| Decision | architecture or durable host fact | `cm_log_decision` — `title` = summary; `decision` / `context` / `consequences` = key points |
-| Original | a file worth keeping | `cm_keep` as above, then a note/decision whose body is the key points. Never `path=`. Never stop at the stub |
+| Decision | architecture or durable host fact | `cm_log_decision` — `title` = summary; `decision` / `context` / `consequences` = key points. `refs` is a string: `1`, `0001`, `#0001`, or a comma list. Junk is 400 |
+| Original | a file worth keeping | `cm_keep` as above, then a note/decision whose body is the key points. Never `path=`. Never stop at the stub. Same-title stubs 另存 (`slug-2.md`) |
 | Bulk originals | many files to card | `cm_keep` `{card:false}` then one `cm_import` `{items}` (≤50). Archive zip only if they already packed one. Never zip via MCP |
-| Shelf | none of the named shelves fit | `cm_library` `{id}` (default key). Extra: authenticate so they enter the **default** key. Connect does not mint a shelf |
+| Shelf | none of the named shelves fit | omit `cm_library` `id` to list; then `{id}` to mint (default key). Extra: list grants only; authenticate so they enter the **default** key to mint. Connect does not mint a shelf |
 | Shelf label | you learn a better **human** name than the current display name (rebrand, leftover folder slug, they say “that’s X”) | default key: `cm_library` `{id, displayName}` **this turn** — do not wait to be asked. Id / folder / grants stay. Writes still `shelf=<id>`. Use the name they use or the public product name; do not invent a prettier one. Skip if the label already matches. Extra key cannot: authenticate for the default key (step 0.2) and say the intended label once. Humans can also rename on the Library desk |
 | Copy shelf | leftover named shelf (or leftover Inbox) should live on another | `cm_copy` `{from,to}`. Dest must exist. Extra keys need both grants. Never download originals here. Never `to=unclassified` |
-| Move cards | a subset of Markdown cards should live on another named shelf | `cm_move` `{from,to,files}` (default key or login). Extra keys cannot. Source files are deleted. Decision numbers stay if free on dest. Never download originals here. Never `to=unclassified` |
+| Move cards | a subset of Markdown cards should live on another named shelf | `cm_move` `{from,to,files}` (default key or login). `files=` whole Markdown card paths only — not `lessons.md`, not `file#heading`. Companion `imported/kept` stubs that cite the same Attach move with the card. `- **Shelf**:` is rewritten to dest. Extra keys cannot. Source files are deleted. Decision numbers stay if free on dest. Never download originals here. Never `to=unclassified` |
 | Delete leftover shelf | leftover is empty or already copied | `cm_delete` `{id}` (default key or login). Extra keys cannot. Leftover Inbox may be the source. This is delete, not archive |
 | Delete a card | one Markdown card should go | `cm_delete` `{file, shelf}` (library= also works). Optional `heading=` deletes one `##` section (`lessons.md` notes). Omitting it deletes the whole file. Do not pass `file#heading`. Always pass the shelf. Default key or login. Extra keys cannot. Shared shelves cannot. R2 attach is removed with the card (or that section). `dryRun` previews |
 | Rename a card | the displayed title is wrong | `cm_rename` `{file, shelf, title}` (optional `heading=` when the file has several `##` sections). File path stays. Decision numbers stay. Default key or login. Extra keys cannot. Shared shelves cannot. Humans can also rename on the Library desk. `dryRun` previews |
 | Bundle | capture import | `cm_import` with `library=` a named shelf |
-| Index | after bulk import | `cm_index` |
+| Index | after bulk import | `cm_index`. `scanned` = candidates, `indexed` = rehashed this pass, `skipped` = walked but not FTS (`imported/kept/from-*` copy asides). `cm_show` by path still works |
 
 Later sweeps in the same chat are OK for **new** facts. Do not re-file the same decision.
 

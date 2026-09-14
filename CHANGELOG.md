@@ -2,6 +2,13 @@
 
 Skill-facing notes for [centricmem-skill](https://github.com/zeyu-j/centricmem-skill). This repo is how to use the hosted librarian.
 
+## 0.21.65
+
+- Daily cards: `cm_import` `{items}` (a `bundle` that is `{items:[...]}` with no `version` is the same path). ImportBundle is `{version:1, lessons?, imported?, …}` — junk shapes name that contract. `skipExisting` skips a dest slug instead of `slug-2.md`.
+- `cm_log_decision` `refs`: `1`, `0001`, `#0001`, or a comma list. Junk is 400.
+- Copy asides `imported/kept/from-*` stay out of FTS (`cm_show` by path still works). Keep stubs 另存 on collision. `limit` caps browse and tags-only. Omit `cm_library` `id` to list shelves. `cm_index` reports `skipped`. `cm_move` `files=` is whole Markdown paths only; companion keep stubs and `- **Shelf**:` follow the card.
+- Librarian **>=0.21.50**. CLI **>=0.21.50**.
+
 ## 0.21.64
 
 - Codex still waiting after **Approve**: click **Open the agent callback** on the authorize page (the browser may block the jump to `127.0.0.1`). Do not re-add the MCP URL with no Bearer. Librarian **>=0.21.49**.

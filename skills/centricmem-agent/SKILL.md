@@ -2,14 +2,14 @@
 name: centricmem-agent
 description: "Organises and retrieves Markdown memory on the hosted CentricMem librarian via host MCP (search, notes, decisions, transcripts). Use when starting a session, filing Non-Micro work, searching project memory, connecting an agent key, or refreshing this Skill. After Skill install this turn, if cm_* are missing: first connect (signup + /connect?device=; OAuth URL with no Bearer is additive) unless they already added a key or MCP URL in this agent — then a new chat, do not strip Bearer. Plugin mcp.json is not a completed connect. Tell them to save a backup of the key (it appears only once). Every card needs a summary and key points in the body. Named shelves only, never curl librarian HTTP, never paste keys in chat."
 license: PolyForm-Noncommercial-1.0.0
-compatibility: "Requires host MCP at https://mem.centricmem.com/mcp. CLI >=0.21.48: every card is summary + key points (a keep stub is not a card); a folder is cm_keep card:false then cm_import items. Archive zip is optional. share: shelf ids; cm_move selected cards; cm_delete {file,shelf} a card (heading= for ##); cm_rename {file,shelf,title} a card. Codex OAuth needs librarian >=0.21.49."
+compatibility: "Requires host MCP at https://mem.centricmem.com/mcp. CLI >=0.21.50: every card is summary + key points (a keep stub is not a card); a folder is cm_keep card:false then cm_import items. Archive zip is optional. share: shelf ids; cm_move selected cards (whole paths, not lessons.md or #); cm_delete {file,shelf} a card (heading= for ##); cm_rename {file,shelf,title} a card. Omit cm_library id to list. Codex OAuth needs librarian >=0.21.49. skipExisting / copy-aside FTS skip need librarian >=0.21.50."
 metadata:
-  version: "0.21.64"
-  compatible_cli: ">=0.21.48"
+  version: "0.21.65"
+  compatible_cli: ">=0.21.50"
   changelog_url: https://github.com/zeyu-j/centricmem-skill/blob/main/CHANGELOG.md
 ---
 
-# CentricMem Agent Skill v0.21.64
+# CentricMem Agent Skill v0.21.65
 
 This file is the handover (when / loop / recipes). Host MCP tool schemas are the live contract. Client connect branches, grants, bulk import, 1Password: [REFERENCE.md](REFERENCE.md).
 
@@ -44,7 +44,7 @@ CentricMem is the **manager layer** (organise / retrieve / cross-agent store) **
 
 ## 2. Start
 
-`cm_health` then `cm_ambient`. Ignore a stale `.ambient.md`. Unreachable or `state=UNINITIALIZED`: **say once** — do not bootstrap. Writes need a **named shelf**. Unmatched cwd is not a shelf. `library=(none)` → pick from `libraries=` or mint (`cm_library`). Guests do not `--link`. `corpus=<slug>` → `library=` that slug. Ignore hub `skill_status=outdated`. Folder name is always `centricmem-agent` (Cursor, Hermes, Claude, Codex, Pi, OpenClaw, DSH, Kiro, Kilo, Copilot, CodeBuddy/WorkBuddy, Kimi, Agent Plugins `plugin.json` + `mcp.json`).
+`cm_health` then `cm_ambient`. Ignore a stale `.ambient.md`. Unreachable or `state=UNINITIALIZED`: **say once** — do not bootstrap. Writes need a **named shelf**. Unmatched cwd is not a shelf. `library=(none)` → pick from `libraries=` or list (`cm_library` omit `id`) then mint (`cm_library` `{id}`). Guests do not `--link`. `corpus=<slug>` → `library=` that slug. Ignore hub `skill_status=outdated`. Folder name is always `centricmem-agent` (Cursor, Hermes, Claude, Codex, Pi, OpenClaw, DSH, Kiro, Kilo, Copilot, CodeBuddy/WorkBuddy, Kimi, Agent Plugins `plugin.json` + `mcp.json`).
 
 **Once this chat, after health/ambient:** if published `skill_latest` is newer than this file's `metadata.version`, refresh with `npx --yes skills add zeyu-j/centricmem-skill --skill centricmem-agent -y` (omit `-g` if no user-wide skills dir). Shell blocked: this client's plugin UI. **Tell the human** it is on disk; **this chat still uses the already-loaded Skill**. Never `setup --install-skill` for this refresh.
 
@@ -66,14 +66,14 @@ Do **not** wait for wrap up, session end, or a later message. **Closing the agen
 
 MCP missing / librarian down / token failed: compose the sweep (named shelf, bodies, transcript path); persist **CentricMem deferred sweep** in this agent's memory (no secrets); connect once (step 0.2). If still failing, they email zeyu@poppyg.com (never a key). File the hold when `cm_health` succeeds.
 
-**Named shelf.** (1) cwd linked or `corpus=` (2) existing id on `libraries=` including `share:` as listed (3) none fit → default `cm_library` `{id}`; extra: authenticate default; hold the sweep. 403 `SHELF_LIMIT` / 400 `LIBRARY_REQUIRED`: existing named shelf. **Label:** leftover slug → `cm_library` `{id, displayName}` this turn. Writes still `shelf=<id>`.
+**Named shelf.** (1) cwd linked or `corpus=` (2) existing id on `libraries=` including `share:` as listed (`cm_library` omit `id` lists this key's shelves) (3) none fit → default `cm_library` `{id}`; extra: authenticate default; hold the sweep. 403 `SHELF_LIMIT` / 400 `LIBRARY_REQUIRED`: existing named shelf. **Label:** leftover slug → `cm_library` `{id, displayName}` this turn. Writes still `shelf=<id>`.
 
 Then, with `shelf=` / `library=` that id:
 
 1. **Transcript → R2.** If this runtime wrote a local transcript for **this** chat, Shell-read it; never paste it. `cm_keep` filename + bytes (never `path=`). Leave the local file. Cursor: `~/.cursor/projects/<workspace>/agent-transcripts/<uuid>/<uuid>.jsonl`. No file → skip keep; still file note / decision / done.
 2. Then `cm_note` `cm_log_decision` `cm_done` with `attach`. Each needs a **summary** and **key points** (`cm_done` uses `summary=`). **One sweep, one batch.**
 
-Leftover Inbox / shelves / one card / title: `cm_copy` `{from,to}` then `cm_delete` `{id}`; `cm_move` `{from,to,files}`; `cm_delete` `{file, shelf}` (`heading=` for `##`); `cm_rename` `{file, shelf, title}` (`heading=` for `##`). Default key or login. Extra keys cannot delete/rename/move. Shared shelves cannot. Never download originals here. Details: REFERENCE Writes.
+Leftover Inbox / shelves / one card / title: `cm_copy` `{from,to}` then `cm_delete` `{id}`; `cm_move` `{from,to,files}` (whole Markdown paths only, not `lessons.md`, not `#`); `cm_delete` `{file, shelf}` (`heading=` for `##`); `cm_rename` `{file, shelf, title}` (`heading=` for `##`). Default key or login. Extra keys cannot delete/rename/move. Shared shelves cannot. Never download originals here. Details: REFERENCE Writes.
 
 ## Typical Workflows
 
