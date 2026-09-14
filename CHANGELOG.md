@@ -2,6 +2,11 @@
 
 Skill-facing notes for [centricmem-skill](https://github.com/zeyu-j/centricmem-skill). This repo is how to use the hosted librarian.
 
+## 0.21.64
+
+- Codex still waiting after **Approve**: click **Open the agent callback** on the authorize page (the browser may block the jump to `127.0.0.1`). Do not re-add the MCP URL with no Bearer. Librarian **>=0.21.49**.
+- CLI **>=0.21.48**.
+
 ## 0.21.63
 
 - `cm_delete` `{file, shelf, heading}` removes one `##` section in `lessons.md` (notes stay sections, not one file per card). Do not pass `file#heading`. Same-title `cm_note` is an error — pick a new title, or delete that heading then rewrite. Import `dryRun` `files[].file` is the disk path apply will write.

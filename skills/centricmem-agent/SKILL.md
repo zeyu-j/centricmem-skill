@@ -2,14 +2,14 @@
 name: centricmem-agent
 description: "Organises and retrieves Markdown memory on the hosted CentricMem librarian via host MCP (search, notes, decisions, transcripts). Use when starting a session, filing Non-Micro work, searching project memory, connecting an agent key, or refreshing this Skill. After Skill install this turn, if cm_* are missing: first connect (signup + /connect?device=; OAuth URL with no Bearer is additive) unless they already added a key or MCP URL in this agent — then a new chat, do not strip Bearer. Plugin mcp.json is not a completed connect. Tell them to save a backup of the key (it appears only once). Every card needs a summary and key points in the body. Named shelves only, never curl librarian HTTP, never paste keys in chat."
 license: PolyForm-Noncommercial-1.0.0
-compatibility: "Requires host MCP at https://mem.centricmem.com/mcp. CLI >=0.21.48: every card is summary + key points (a keep stub is not a card); a folder is cm_keep card:false then cm_import items. Archive zip is optional. share: shelf ids; cm_move selected cards; cm_delete {file,shelf} a card (heading= for ##); cm_rename {file,shelf,title} a card."
+compatibility: "Requires host MCP at https://mem.centricmem.com/mcp. CLI >=0.21.48: every card is summary + key points (a keep stub is not a card); a folder is cm_keep card:false then cm_import items. Archive zip is optional. share: shelf ids; cm_move selected cards; cm_delete {file,shelf} a card (heading= for ##); cm_rename {file,shelf,title} a card. Codex OAuth needs librarian >=0.21.49."
 metadata:
-  version: "0.21.63"
+  version: "0.21.64"
   compatible_cli: ">=0.21.48"
   changelog_url: https://github.com/zeyu-j/centricmem-skill/blob/main/CHANGELOG.md
 ---
 
-# CentricMem Agent Skill v0.21.63
+# CentricMem Agent Skill v0.21.64
 
 This file is the handover (when / loop / recipes). Host MCP tool schemas are the live contract. Client connect branches, grants, bulk import, 1Password: [REFERENCE.md](REFERENCE.md).
 
@@ -23,6 +23,7 @@ CentricMem is the **manager layer** (organise / retrieve / cross-agent store) **
 - Connecting an agent key or refreshing this Skill (`cm_*` missing)
 - Skill on disk but they already added a key and `cm_*` still missing — new chat, do not strip Bearer
 - Connect or usage still broken after that — they email zeyu@poppyg.com (never a key)
+- Codex still waiting after Approve — they click **Open the agent callback** on the authorize page
 - Empty shelf: offer existing durable memories as cards (once)
 - Deleting one card or renaming a card title (default key or login)
 
