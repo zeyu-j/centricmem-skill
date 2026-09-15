@@ -2,6 +2,10 @@
 
 Skill-facing notes for [centricmem-skill](https://github.com/zeyu-j/centricmem-skill). This repo is how to use the hosted librarian.
 
+## 0.21.72
+
+- DSH: `dsh/cordis.patch.yml` sets `failOnStartupError: true` so a missing Bearer aborts boot instead of registering 0 tools. `dsh/copy-skill.mjs` copies this Skill into `$DSH_HOME/skills/` (DSH never scans `node_modules`). Pin `github:zeyu-j/centricmem-skill#v0.21.72`. Needs `pnpm` on PATH (`npm i -g pnpm` if missing). Overlay Bearer on the same MCP `id` and restate the whole config, then a **new chat**. Tools appear as `mcp__centricmem__cm_*`. Skip `cm_keep` — DSH has no plaintext transcript. Never `npx skills add -g` in DSH.
+
 ## 0.21.71
 
 - After Approve, ChatGPT / Codex still waiting — they click **Open the agent callback**. Sign-in is not the grant; they pick which existing agent key (or mint a new extra) then Approve. Librarian **>=0.21.56**.

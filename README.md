@@ -35,7 +35,7 @@ Same GitHub repo as a plugin marketplace:
 | Hermes | `hermes skills install zeyu-j/centricmem-skill/skills/centricmem-agent`. Mint `/connect?device=` first. Local `hermes mcp add --url https://mem.centricmem.com/mcp --auth oauth centricmem` only after that mint fails if this Hermes will receive the browser login. |
 | Pi | `pi install https://github.com/zeyu-j/centricmem-skill`. Then URL-only `~/.pi/agent/mcp.json` (`url` + `type: streamable-http`). MCP is not auto-wired by the package. |
 | OpenClaw | Compatible **bundle** (Agent Plugins / Claude / Codex / Cursor). Not ClawHub. `openclaw plugins install git:github.com/zeyu-j/centricmem-skill` or `openclaw plugins install centricmem-skill --marketplace zeyu-j/centricmem-skill`. Do not add `openclaw.plugin.json`. |
-| DSH | Cordis **funnel** only. `dsh plugin --profile web add github:zeyu-j/centricmem-skill` mounts URL-only `@deepseek-ai/dsh-mcp-client`. Overlay Bearer in `$DSH_HOME/profiles/<profile>/cordis.patch.yml` after `/connect?device=`. Skill stays PolyForm; [`dsh/`](./dsh/) is MIT glue. GitHub topic `dsh-plugin`. |
+| DSH | Cordis **funnel** only. Needs `pnpm` (`npm i -g pnpm` if missing). Pin: `dsh plugin --profile web add github:zeyu-j/centricmem-skill#v0.21.72`. Then from the profile dir run `node node_modules/centricmem-skill/dsh/copy-skill.mjs` so `$DSH_HOME/skills/centricmem-agent` exists (funnel MCP does not load Skill from `node_modules`). Overlay Bearer on the same `id` in `$DSH_HOME/profiles/<profile>/cordis.patch.yml` (restate the whole config). New chat. Tools are `mcp__centricmem__cm_*`. Skill stays PolyForm; [`dsh/`](./dsh/) is MIT glue. GitHub topic `dsh-plugin`. |
 | Copilot CLI | `copilot plugin marketplace add zeyu-j/centricmem-skill` then `copilot plugin install centricmem-skill` |
 | Kiro | Powers → Add Custom Power → GitHub `https://github.com/zeyu-j/centricmem-skill` |
 | Grok Bot | Paste the one-liner. Shell is blocked, so send signup only; add `https://mem.centricmem.com/mcp` in that bot’s MCP settings (key from Keys, never in chat). |
@@ -70,7 +70,7 @@ This repository is the **Skill**: how agents talk to the hosted librarian.
 - [`.agents/plugins/marketplace.json`](./.agents/plugins/marketplace.json) — Codex marketplace
 - [`.github/plugin/marketplace.json`](./.github/plugin/marketplace.json) — Copilot CLI marketplace
 - [`.kiro/plugins/marketplace.json`](./.kiro/plugins/marketplace.json) — Kiro pin-sync catalog
-- [`dsh/cordis.patch.yml`](./dsh/cordis.patch.yml) — DSH Cordis funnel (MIT glue, URL-only MCP). Skill stays PolyForm. Not ClawHub.
+- [`dsh/cordis.patch.yml`](./dsh/cordis.patch.yml) — DSH Cordis funnel (MIT glue, URL-only MCP, `failOnStartupError: true`). [`dsh/copy-skill.mjs`](./dsh/copy-skill.mjs) copies the Skill into `$DSH_HOME/skills/`. Skill stays PolyForm. Not ClawHub.
 
 It is not the librarian, not the CLI source, and not a self-hosted kit. One public skill: `centricmem-agent`.
 
