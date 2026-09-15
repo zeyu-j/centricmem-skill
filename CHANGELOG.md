@@ -6,6 +6,7 @@ Skill-facing notes for [centricmem-skill](https://github.com/zeyu-j/centricmem-s
 
 - After Approve, ChatGPT / Codex still waiting — they click **Open the agent callback**. Sign-in is not the grant; they pick which existing agent key (or mint a new extra) then Approve. Librarian **>=0.21.56**.
 - ChatGPT Apps directory Skill is a Scan Tools snapshot of this folder from host MCP (`skills/list`), not a live GitHub pull. After a Skill bump: origin librarian **>=0.21.59**, then Scan Tools, then a new plugin version. Do not `npx skills add` inside ChatGPT to refresh the listed plugin.
+- ChatGPT directory starter prompts (at most three, no `@mention`) are served from host MCP `prompts/list` on librarian **>=0.21.61**. If the portal Prompts tab stays empty after Scan Tools, paste those three lines; ChatGPT adds the plugin mention when it displays them.
 
 ## 0.21.70
 
