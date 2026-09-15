@@ -2,6 +2,10 @@
 
 Skill-facing notes for [centricmem-skill](https://github.com/zeyu-j/centricmem-skill). This repo is how to use the hosted librarian.
 
+## 0.21.69
+
+- Codex / ChatGPT Mixed is not “OAuth plus paste a key”. Mixed tries unauthenticated `initialize` / `tools/list`; we 401 that. Pick OAuth for the browser, or Bearer in `http_headers` instead of OAuth.
+
 ## 0.21.68
 
 - Every agent tries `/connect?device=` first. If minting that URL fails, they email zeyu@poppyg.com with the error (never a key); then MCP OAuth only if this agent will receive the browser login (Grok Bot / Manus may). A Loopback `127.0.0.1` callback does not count when this agent is not listening there.

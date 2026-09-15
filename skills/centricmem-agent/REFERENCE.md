@@ -77,6 +77,8 @@ url = "https://mem.centricmem.com/mcp"
 
 Do not put `http_headers` Authorization in that file when writing URL-only. Device-connect or a paste key may still write a Bearer there — that **is** a completed connect. If `cm_*` are missing after a Bearer or a finished local login, a new Codex thread, not a second `codex mcp add` with no Bearer.
 
+Codex / ChatGPT **OAuth vs Mixed**: Mixed is not “OAuth plus paste a key”. Mixed means the client may `initialize` / `tools/list` with **no** token, then OAuth later. We 401 unauthenticated MCP — Mixed fails. Pick **OAuth** for the browser prompt (`codex mcp login`). To paste a Keys agent key, put Bearer in `http_headers` (or `bearer_token_env_var`) **instead of** OAuth — Codex skips OAuth when Authorization is already set. An empty Mixed still tries anonymous discovery.
+
 After **Approve**, Codex on this machine waits on `http://127.0.0.1:<port>/callback` (some builds append `/<callback_id>`). The authorize page hops through same-origin `/oauth/continue` then 302s to that loopback URL. If the browser stays on authorize, they click **Open the agent callback**. That hop is the **browser host**. Do not send that loopback link when this agent is not listening there. Do not re-add the MCP URL with no Bearer. Librarian **>=0.21.51**.
 
 Hermes `~/.hermes/config.yaml` — mint `/connect?device=` first when `cm_*` are missing. OAuth (`auth: oauth`; tokens land in `~/.hermes/mcp-tokens/`) only after that mint fails, and only if this Hermes will receive the browser login:
