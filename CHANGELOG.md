@@ -2,6 +2,10 @@
 
 Skill-facing notes for [centricmem-skill](https://github.com/zeyu-j/centricmem-skill). This repo is how to use the hosted librarian.
 
+## 0.21.70
+
+- HTTPS OAuth callback not on the static allowlist: they request it at https://centricmem.com/oauth/callbacks (proof file or operator review). Librarian **>=0.21.55**.
+
 ## 0.21.69
 
 - Codex / ChatGPT Mixed is not “OAuth plus paste a key”. Mixed tries unauthenticated `initialize` / `tools/list`; we 401 that. Pick OAuth for the browser, or Bearer in `http_headers` instead of OAuth.
