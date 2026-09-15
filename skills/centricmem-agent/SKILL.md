@@ -2,14 +2,14 @@
 name: centricmem-agent
 description: "Organises and retrieves Markdown memory on the hosted CentricMem librarian via host MCP (search, notes, decisions, transcripts). Use when starting a session, filing Non-Micro work, searching project memory, connecting an agent key, or refreshing this Skill. After Skill install this turn, if cm_* are missing: every agent first-connects with signup + /connect?device= this turn (plugin mcp.json or mcp add with no Bearer is not a completed connect). If minting that URL fails, they email zeyu@poppyg.com with the error (never a key); then MCP OAuth only if this agent will receive the browser login. Unless they already have a Bearer or a finished OAuth login in this agent — then a new chat, do not strip Bearer. Tell them to save a backup of the key (it appears only once). Every card needs a summary and key points in the body. Named shelves only, never curl librarian HTTP, never paste keys in chat."
 license: PolyForm-Noncommercial-1.0.0
-compatibility: "Requires host MCP at https://mem.centricmem.com/mcp. CLI >=0.21.50: every card is summary + key points (a keep stub is not a card); a folder is cm_keep card:false then cm_import items. Archive zip is optional. share: shelf ids; cm_move selected cards (whole paths, not lessons.md or #); cm_delete {file,shelf} a card (heading= for ##); cm_rename {file,shelf,title} a card. Omit cm_library id to list. Codex OAuth needs librarian >=0.21.51. Applicant HTTPS callbacks: librarian >=0.21.55. skipExisting / copy-aside FTS skip need librarian >=0.21.50."
+compatibility: "Requires host MCP at https://mem.centricmem.com/mcp. CLI >=0.21.50: every card is summary + key points (a keep stub is not a card); a folder is cm_keep card:false then cm_import items. Archive zip is optional. share: shelf ids; cm_move selected cards (whole paths, not lessons.md or #); cm_delete {file,shelf} a card (heading= for ##); cm_rename {file,shelf,title} a card. Omit cm_library id to list. Codex OAuth needs librarian >=0.21.51. OAuth key picker / ChatGPT Approve hop: librarian >=0.21.56. Applicant HTTPS callbacks: librarian >=0.21.55. skipExisting / copy-aside FTS skip need librarian >=0.21.50."
 metadata:
-  version: "0.21.70"
+  version: "0.21.71"
   compatible_cli: ">=0.21.50"
   changelog_url: https://github.com/zeyu-j/centricmem-skill/blob/main/CHANGELOG.md
 ---
 
-# CentricMem Agent Skill v0.21.70
+# CentricMem Agent Skill v0.21.71
 
 This file is the handover (when / loop / recipes). Host MCP tool schemas are the live contract. Client connect branches, grants, bulk import, 1Password: [REFERENCE.md](REFERENCE.md).
 
@@ -25,7 +25,7 @@ CentricMem is the **manager layer** (organise / retrieve / cross-agent store) **
 - Minting that URL failed — they email zeyu@poppyg.com with the error (never a key); then OAuth if this agent will receive the browser login
 - Skill on disk but they already have a Bearer or finished OAuth and `cm_*` still missing — new chat, do not strip Bearer
 - Connect or usage still broken after that — they email zeyu@poppyg.com (never a key)
-- Codex still waiting after Approve — they click **Open the agent callback** on the authorize page
+- Codex / ChatGPT still waiting after Approve — they click **Open the agent callback** on the authorize page (sign-in is not the grant; they pick which key then Approve)
 - Agent callback URL is not allowed — they request it on https://centricmem.com/oauth/callbacks
 - Empty shelf: offer existing durable memories as cards (once)
 - Deleting one card or renaming a card title (default key or login)

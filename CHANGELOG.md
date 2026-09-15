@@ -2,6 +2,10 @@
 
 Skill-facing notes for [centricmem-skill](https://github.com/zeyu-j/centricmem-skill). This repo is how to use the hosted librarian.
 
+## 0.21.71
+
+- After Approve, ChatGPT / Codex still waiting — they click **Open the agent callback**. Sign-in is not the grant; they pick which existing agent key (or mint a new extra) then Approve. Librarian **>=0.21.56**.
+
 ## 0.21.70
 
 - HTTPS OAuth callback not on the static allowlist: they request it at https://centricmem.com/oauth/callbacks (proof file or operator review). Librarian **>=0.21.55**.

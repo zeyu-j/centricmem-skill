@@ -81,7 +81,9 @@ Codex / ChatGPT **OAuth vs Mixed**: Mixed is not “OAuth plus paste a key”. M
 
 HTTPS `redirect_uri` not already on the static list (loopback, Cursor Cloud, Claude, ChatGPT Apps connectors): they sign in at https://centricmem.com/oauth/callbacks, submit the exact URL, then publish `/.well-known/centricmem-oauth-callback` or send it for operator review. Do not email a callback URL. Librarian **>=0.21.55**.
 
-After **Approve**, Codex on this machine waits on `http://127.0.0.1:<port>/callback` (some builds append `/<callback_id>`). The authorize page hops through same-origin `/oauth/continue` then 302s to that loopback URL. If the browser stays on authorize, they click **Open the agent callback**. That hop is the **browser host**. Do not send that loopback link when this agent is not listening there. Do not re-add the MCP URL with no Bearer. Librarian **>=0.21.51**.
+Authorize (after login) lists live agent keys. They pick an existing key (default = every shelf plus `share:`) or mint a new extra. Extra keys do not see invited `share:`. Sign-in is not the grant — they still click **Approve**. Librarian **>=0.21.56**.
+
+After **Approve**, Codex on this machine waits on `http://127.0.0.1:<port>/callback` (some builds append `/<callback_id>`). The authorize page hops through same-origin `/oauth/continue` then 302s to that loopback URL. ChatGPT Apps waits on `https://chatgpt.com/connector/oauth/{id}`. If the agent is still waiting, they click **Open the agent callback**. That hop is the **browser host**. Do not send a loopback link when this agent is not listening there. Do not re-add the MCP URL with no Bearer. Librarian **>=0.21.51**.
 
 Hermes `~/.hermes/config.yaml` — mint `/connect?device=` first when `cm_*` are missing. OAuth (`auth: oauth`; tokens land in `~/.hermes/mcp-tokens/`) only after that mint fails, and only if this Hermes will receive the browser login:
 
