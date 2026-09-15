@@ -1,0 +1,16 @@
+interface:
+  display_name: CentricMem
+  short_description: Memory across agents
+  default_prompt: Search my CentricMem shelves for that decision.
+dependencies:
+  tools:
+    - type: mcp
+      value: centricmem
+      description: Hosted CentricMem librarian
+      transport: streamable_http
+      url: https://mem.centricmem.com/mcp
+policy:
+  products:
+    - CHAT
+    - CODEX
+  allow_implicit_invocation: true
