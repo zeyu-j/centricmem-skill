@@ -1,6 +1,6 @@
 {
   "name": "centricmem-skill",
-  "version": "0.21.67",
+  "version": "0.21.68",
   "description": "Hosted CentricMem librarian: organise and retrieve Markdown memory via host MCP.",
   "author": {
     "name": "Dr. Z",
@@ -16,7 +16,7 @@
   "interface": {
     "displayName": "CentricMem",
     "shortDescription": "Hosted librarian for agent memory",
-    "longDescription": "Organise and retrieve Markdown memory on the hosted CentricMem librarian. After install, if cm_* are missing send https://centricmem.com/login?signup=1 and a /connect?device= URL. Plugin mcp.json or mcp add with no Bearer is not a completed connect. Local `codex mcp login` is additive and does not replace that URL. Loopback OAuth does not authenticate a cloud Codex. Never paste keys in chat. Never download a settings file that contains a key.",
+    "longDescription": "Organise and retrieve Markdown memory on the hosted CentricMem librarian. After install, every agent tries https://centricmem.com/login?signup=1 and a /connect?device= URL. Plugin mcp.json or mcp add with no Bearer is not a completed connect. If minting that URL fails they email zeyu@poppyg.com with the error; then MCP OAuth only if this agent will receive the browser login. Never paste keys in chat. Never download a settings file that contains a key.",
     "developerName": "Dr. Z",
     "category": "Productivity",
     "capabilities": ["Read", "Write"],

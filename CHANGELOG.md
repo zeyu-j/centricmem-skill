@@ -2,6 +2,11 @@
 
 Skill-facing notes for [centricmem-skill](https://github.com/zeyu-j/centricmem-skill). This repo is how to use the hosted librarian.
 
+## 0.21.68
+
+- Every agent tries `/connect?device=` first. If minting that URL fails, they email zeyu@poppyg.com with the error (never a key); then MCP OAuth only if this agent will receive the browser login (Grok Bot / Manus may). A Loopback `127.0.0.1` callback does not count when this agent is not listening there.
+- Librarian **>=0.21.51**. CLI **>=0.21.50**.
+
 ## 0.21.67
 
 - First connect is signup + `/connect?device=` this turn. Already added is only a Bearer or a finished OAuth login in this agent — URL-only plugin / `mcp add` is first connect. Do not skip the device URL because `mcp login` exists. Loopback `127.0.0.1` does not authenticate a cloud or remote agent.
