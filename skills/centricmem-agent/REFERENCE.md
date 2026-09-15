@@ -77,7 +77,7 @@ url = "https://mem.centricmem.com/mcp"
 
 Do not put `http_headers` Authorization in that file when OAuth works. Device-connect or a paste key may still write a Bearer there — that **is** a completed connect. If `cm_*` are missing after that, a new Codex thread, not a second `codex mcp add` with no Bearer.
 
-After **Approve**, Codex waits on `http://127.0.0.1:<port>/callback`. If the browser stays on the authorize page, they click **Open the agent callback** (Chrome may block the jump to 127.0.0.1). Do not re-add the MCP URL with no Bearer.
+After **Approve**, Codex waits on `http://127.0.0.1:<port>/callback` (some builds append `/<callback_id>`). The authorize page hops through same-origin `/oauth/continue` then 302s to that loopback URL. If the browser stays on authorize, they click **Open the agent callback**. Do not re-add the MCP URL with no Bearer. Librarian **>=0.21.51**.
 
 Hermes `~/.hermes/config.yaml` — prefer OAuth (no Bearer in the file; tokens land in `~/.hermes/mcp-tokens/`):
 

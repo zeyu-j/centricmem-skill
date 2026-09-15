@@ -2,6 +2,11 @@
 
 Skill-facing notes for [centricmem-skill](https://github.com/zeyu-j/centricmem-skill). This repo is how to use the hosted librarian.
 
+## 0.21.66
+
+- Codex MCP login: librarian accepts `/callback/<id>` (Codex CallbackSpecific). Approve hops through same-origin `/oauth/continue` then 302s to `127.0.0.1`. If Codex is still waiting, click **Open the agent callback**. Do not re-add the MCP URL with no Bearer.
+- Librarian **>=0.21.51**. CLI **>=0.21.50**.
+
 ## 0.21.65
 
 - Daily cards: `cm_import` `{items}` (a `bundle` that is `{items:[...]}` with no `version` is the same path). ImportBundle is `{version:1, lessons?, imported?, …}` — junk shapes name that contract. `skipExisting` skips a dest slug instead of `slug-2.md`.
