@@ -2,6 +2,11 @@
 
 Skill-facing notes for [centricmem-skill](https://github.com/zeyu-j/centricmem-skill). This repo is how to use the hosted librarian.
 
+## 0.21.67
+
+- First connect is signup + `/connect?device=` this turn. Already added is only a Bearer or a finished OAuth login in this agent — URL-only plugin / `mcp add` is first connect. Do not skip the device URL because `mcp login` exists. Loopback `127.0.0.1` does not authenticate a cloud or remote agent.
+- Librarian **>=0.21.51**. CLI **>=0.21.50**.
+
 ## 0.21.66
 
 - Codex MCP login: librarian accepts `/callback/<id>` (Codex CallbackSpecific). Approve hops through same-origin `/oauth/continue` then 302s to `127.0.0.1`. If Codex is still waiting, click **Open the agent callback**. Do not re-add the MCP URL with no Bearer.
