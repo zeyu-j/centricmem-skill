@@ -1,5 +1,8 @@
-﻿# Changelog
+# Changelog
 
+## 0.21.74
+
+- Audit follow-up: browse-by-card / per-section writers, MCP 25MB keep binary, supersedes validation, drop legacy `centricmem-mcp`, MCP sessions re-check revoked keys. Librarian **>=0.21.74**.
 Skill-facing notes for [centricmem-skill](https://github.com/zeyu-j/centricmem-skill). This repo is how to use the hosted librarian.
 
 ## 0.21.73
