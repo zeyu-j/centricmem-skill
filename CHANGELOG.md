@@ -1,6 +1,13 @@
-# Changelog
+﻿# Changelog
 
 Skill-facing notes for [centricmem-skill](https://github.com/zeyu-j/centricmem-skill). This repo is how to use the hosted librarian.
+
+## 0.21.73
+
+- Shelf routing (#0180): user explicit → charter/displayName match → path tiebreak only → mint with human-supplied name. Cite the matched line before write. Per-shelf charter on cm_library/ambient is next CLI.
+
+- Unknown Agent Skills hosts: copy `skills/centricmem-agent/` to `<skills-root>/centricmem-agent/SKILL.md`. After `centricmem connect --device --url-only`, finish with `connect --claim --target <that-host-config.json>` (or `CENTRICMEM_MCP_TARGETS`). Confirm with `connect --verify`. `doctor connect` prints a paste-ready block for zeyu@poppyg.com (never a key). Repo-root `install.json` is the machine-readable recipe. Do not scrape another client's `mcp.json` for a Bearer.
+- Skill frontmatter `description` is trigger-only. Wording is "this agent (and each client you install into)".
 
 ## 0.21.72
 

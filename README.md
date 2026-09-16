@@ -11,7 +11,7 @@ This repository is **one package**: [Agent Skills](https://agentskills.io) `SKIL
 Paste this to the agent (one line):
 
 ```
-Install CentricMem from zeyu-j/centricmem-skill. After install, every agent sends https://centricmem.com/login?signup=1 and tries a /connect?device= URL — plugin mcp.json or mcp add with no Bearer is not a completed connect. If minting that URL fails, they email zeyu@poppyg.com with the error (never a key); then MCP OAuth only if this agent will receive the browser login (Grok Bot and Manus may; a 127.0.0.1 callback does not when this agent is not listening there). If they already have a key or a finished OAuth login in this agent, ask for a new chat — do not strip Bearer, do not mint a new connect URL. Tell them the key appears only once — save a backup; never paste keys. If connect or usage still fails, they email zeyu@poppyg.com (never a key).
+Install CentricMem from zeyu-j/centricmem-skill. After install, this agent (and each client you install into) sends https://centricmem.com/login?signup=1 and tries a /connect?device= URL — plugin mcp.json or mcp add with no Bearer is not a completed connect. If minting that URL fails, run centricmem doctor connect and they email zeyu@poppyg.com with that output (never a key); then MCP OAuth only if this agent will receive the browser login (Grok Bot and Manus may; a 127.0.0.1 callback does not when this agent is not listening there). If they already have a key or a finished OAuth login in this agent, ask for a new chat — do not strip Bearer, do not mint a new connect URL. Tell them the key appears only once — save a backup; never paste keys. If connect or usage still fails, they email zeyu@poppyg.com (never a key).
 ```
 
 If the shell works, a terminal in the project can run:
@@ -40,9 +40,10 @@ Same GitHub repo as a plugin marketplace:
 | Kiro | Powers → Add Custom Power → GitHub `https://github.com/zeyu-j/centricmem-skill` |
 | Grok Bot | Paste the one-liner. Shell is blocked, so send signup only; add `https://mem.centricmem.com/mcp` in that bot’s MCP settings (key from Keys, never in chat). |
 | SkillKit | `skillkit add https://centricmem.com` or `skillkit add zeyu-j/centricmem-skill` |
+| Any other Agent Skills host | Copy `skills/centricmem-agent/` so the file is `<skills-root>/centricmem-agent/SKILL.md`. Host MCP is streamable-HTTP at `https://mem.centricmem.com/mcp`. After device claim: `centricmem connect --claim --target <this-host-config.json>` (or `CENTRICMEM_MCP_TARGETS`). Confirm with `centricmem connect --verify`. Do not copy a key from another client's `mcp.json`. |
 | skills.sh / SkillMD | `npx skills add` above, or `skillmd add zeyu-j/centricmem-skill` |
 
-Then keep talking. After install, if `cm_*` tools are missing every agent sends signup **and** tries a `/connect?device=` link. Plugin `mcp.json` is not a completed connect. If minting that URL fails they email zeyu@poppyg.com with the error; then OAuth only if this agent will receive the browser login (Grok Bot / Manus may). Do not skip the connect URL because OAuth exists. WorkBuddy/CodeBuddy try the connect URL too. Do not download a settings file that contains a key. The agent tells you to save a backup of the key (it appears only once). You do not paste chats, tokens, or CLI.
+Then keep talking. After install, if `cm_*` tools are missing this agent (and each client you install into) sends signup **and** tries a `/connect?device=` link. Plugin `mcp.json` is not a completed connect. If minting that URL fails, run centricmem doctor connect and they email zeyu@poppyg.com with that output; then OAuth only if this agent will receive the browser login (Grok Bot / Manus may). Do not skip the connect URL because OAuth exists. WorkBuddy/CodeBuddy try the connect URL too. Do not download a settings file that contains a key. The agent tells you to save a backup of the key (it appears only once). You do not paste chats, tokens, or CLI.
 
 Hosted librarian: [centricmem.com](https://centricmem.com). Sign up is open. Host MCP: `https://mem.centricmem.com/mcp`. Never paste keys in chat.
 
