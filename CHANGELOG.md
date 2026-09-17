@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.21.75
+
+- Define **chunk** (accepted unit this reply) and **yield** (any reply end). Resume after context compress / checkpoint / new chat = new session: `cm_health` → `cm_ambient` first. Single-source §4 sweep + gate (Non-Micro + zero `cm_*` + no Don't log → sweep before yield). Adaptive vs wrap-up table. Slim SKILL; connect recipes stay in REFERENCE. CLI unchanged (**0.21.74**).
+
 ## 0.21.74
 
 - Audit follow-up: browse-by-card / per-section writers, MCP 25MB keep binary, supersedes validation, drop legacy `centricmem-mcp`, MCP sessions re-check revoked keys. Librarian **>=0.21.74**.

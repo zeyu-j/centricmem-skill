@@ -15,7 +15,7 @@ Replay these. Do not invent a hub, curl, or CLI-write.
 
 **Already added** a Bearer or a finished OAuth login in this agent, but `cm_*` are still missing: do not mint a new `/connect?device=`. Do not tell them to re-add `https://mem.centricmem.com/mcp` with no Bearer (that drops the key). Ask for a **new chat** so this session loads MCP. URL-only `mcp.json` / `codex mcp add` is **not** already added. Codex: a Bearer in `~/.codex/config.toml` `[mcp_servers.centricmem]` `http_headers` is a completed connect — restart/new thread. A finished `codex mcp login` on **this** machine is too. Still missing after that → email zeyu@poppyg.com (never a key).
 
-**Daily cite and file:** `cm_health` then `cm_ambient` (ignore a stale `.ambient.md`). `cm_search` / `cm_show` while working. When this reply finishes Non-Micro work: pick a named shelf, `cm_keep` this chat’s transcript if a file exists, then `cm_note` / `cm_log_decision` / `cm_done` with summary + key points. Do not wait for wrap up.
+**Daily cite and file:** SKILL.md §2 (start / resume) then §4 Sweep. Do not restate the batch here.
 
 **Empty shelf → cards:** offer once (Existing memory below). Capture stays. They may skip. You file.
 
@@ -206,7 +206,7 @@ Useful query bits (in `q` / `tags` / `type`): `filter`, `tag`, `type:decision`, 
 
 | Situation | Do |
 |-----------|-----|
-| Session start | `cm_health` + `cm_ambient` (never a stale `.ambient.md`). Then refresh Skill if published `version` is newer. **Once**, say which key: `*` = default (this library plus shelves shared with this email), else list grant ids. Extra keys do not see `share:` rows. If `library=(none)` / unmatched cwd, pick from `libraries=` or mint — do not use the hub `use` pin. Pass a `share:` id **exactly** as listed; do not mint `share:` |
+| Session start / resume | Same as SKILL §2: `cm_health` + `cm_ambient` (never a stale `.ambient.md`). Context compress, checkpoint restore, or new chat on the same task = new session — re-run health/ambient first. Then refresh Skill if published `version` is newer. **Once**, say which key: `*` = default (this library plus shelves shared with this email), else list grant ids. Extra keys do not see `share:` rows. If `library=(none)` / unmatched cwd, pick from `libraries=` or mint — do not use the hub `use` pin. Pass a `share:` id **exactly** as listed; do not mint `share:` |
 | This chat is default (`grants=["*"]`) | **once**: every shelf. Another agent/person/machine should only see some shelves → they mint an extra on **Keys**, tick those, connect **that** extra there. Do not nag otherwise |
 | This chat is an extra (listed shelf ids) | **once**: those shelves. More/fewer → they tick grants on Keys (login, or connect default first). Need every shelf / mint a shelf / rename label / move cards / delete leftover / rename a card → authenticate **default** |
 | 403 `LIBRARY_MISMATCH` / cannot open a shelf | this key’s grants omit it. Keys: tick that shelf, or connect default. Never paste a key |
@@ -215,13 +215,13 @@ Useful query bits (in `q` / `tags` / `type`): `filter`, `tag`, `type:decision`, 
 | Why we chose X | `cm_search` (decision) |
 | What we know | `cm_search` + lessons / `tags` |
 | Human wants the file | tell them Dashboard Download Original |
-| Durable work just finished | pick a **named** shelf (or `cm_library`), then one MCP sweep **this turn** |
+| Durable work / chunk done | SKILL §4 Sweep before you yield (named shelf + one batch) |
 | Librarian down / token failed | compose the sweep anyway; this agent’s memory `CentricMem deferred sweep`; connect link once; file the hold when health succeeds |
 | Leftover named shelf or leftover Inbox | dest must exist; `cm_copy` `{from,to}` on the librarian, then `cm_delete` `{id}`. Never download originals here. Never `to=unclassified` |
 | Selected cards on the wrong named shelf | `cm_search` / `cm_show` then `cm_move` `{from,to,files}` (default key or login). Extra keys cannot. Source cards are removed. Never download originals here. Never `to=unclassified` |
 | Structured corpus (`corpus=slug`) | `library=` that slug; `cm_search` then `cm_show` the **card**, not a dump page |
 
-Empty ambient + Work/Ops → do not deep-search; execute, then sweep this turn.
+Empty ambient + Work/Ops → do not deep-search; execute, then SKILL §4 before you yield.
 
 ## Existing memory → cards (once)
 
@@ -270,9 +270,9 @@ Guests install from GitHub, not from the librarian disk. `cm_health` `min_skill`
 3. If `latest` is newer and the shell works: `npx --yes skills add zeyu-j/centricmem-skill --skill centricmem-agent -y` (omit `-g` when this agent has no user-wide skills dir). **DSH:** never that npx (and never `-g`); copy into `$DSH_HOME/skills/centricmem-agent` with `dsh/copy-skill.mjs`, or `dsh plugin` re-add the pinned tag then copy-skill again. Bare npx without `-g` writes `<cwd>/.agents/skills` — skip that in DSH. If the shell is blocked, skip npx; tell them to update via this client’s plugin UI. If this session is a **plugin** install, also update via that client (`/plugin`, Codex plugins UI, Copilot plugin, Kiro Powers re-import, `hermes skills install zeyu-j/centricmem-skill/skills/centricmem-agent`, `pi update --extensions`, re-install `openclaw plugins install git:github.com/zeyu-j/centricmem-skill`). Say once: on disk now; this chat still uses the loaded copy.
 4. If this file is newer, or the fetch/npx fails or is blocked: continue. Do not `setup --install-skill`.
 
-## Writes (one sweep as soon as Non-Micro work exists)
+## Writes (card shapes; trigger is SKILL §4)
 
-Hold half-finished thoughts. When the chunk is done, file **before you stop talking**. Closing the agent does not run this Skill. Do not wait for session end or for the human to say wrap up.
+Hold half-finished thoughts. **chunk** / **yield** / the numbered sweep batch and gate live in SKILL.md §3–§4 — file **before you yield**. Closing the agent does not run this Skill.
 
 | Type | When | MCP |
 |------|------|------|
@@ -303,7 +303,7 @@ Claude Code, Codex, Hermes, Pi, OpenClaw, Kiro, Kilo, Copilot, and other Agent S
 ## Do not
 
 - Curl librarian HTTP (or CLI `note` / `keep` / `done`) when MCP is the Skill path
-- Wait for 收尾 / close / wrap up / "log this" before filing finished Non-Micro work
+- Wait for 收尾 / close / wrap up / "log this" before filing a finished chunk (sweep before you yield — SKILL §4)
 - `setup --bootstrap` on a guest machine
 - Uninstall the agent’s own memories or write back into them
 - Put secrets in cards
