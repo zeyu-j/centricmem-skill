@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.21.76
+
+- Per-shelf **charter** is live on the librarian: `cm_library` list/mint, `cm_ambient` `libraries` rows, Keys + Library desk. Routing #0180 matches charter (fallback displayName). Max 280 characters; empty clears. Librarian **>=0.21.75**.
+
 ## 0.21.75
 
 - Define **chunk** (accepted unit this reply) and **yield** (any reply end). Resume after context compress / checkpoint / new chat = new session: `cm_health` → `cm_ambient` first. Single-source §4 sweep + gate (Non-Micro + zero `cm_*` + no Don't log → sweep before yield). Adaptive vs wrap-up table. Slim SKILL; connect recipes stay in REFERENCE. CLI unchanged (**0.21.74**).
@@ -11,7 +15,7 @@ Skill-facing notes for [centricmem-skill](https://github.com/zeyu-j/centricmem-s
 
 ## 0.21.73
 
-- Shelf routing (#0180): user explicit → charter/displayName match → path tiebreak only → mint with human-supplied name. Cite the matched line before write. Per-shelf charter on cm_library/ambient is next CLI.
+- Shelf routing (#0180): user explicit → charter/displayName match → path tiebreak only → mint with human-supplied name. Cite the matched line before write. Per-shelf charter shipped in Skill **0.21.76** / librarian **>=0.21.75**.
 
 - Unknown Agent Skills hosts: copy `skills/centricmem-agent/` to `<skills-root>/centricmem-agent/SKILL.md`. After `centricmem connect --device --url-only`, finish with `connect --claim --target <that-host-config.json>` (or `CENTRICMEM_MCP_TARGETS`). Confirm with `connect --verify`. `doctor connect` prints a paste-ready block for zeyu@poppyg.com (never a key). Repo-root `install.json` is the machine-readable recipe. Do not scrape another client's `mcp.json` for a Bearer.
 - Skill frontmatter `description` is trigger-only. Wording is "this agent (and each client you install into)".

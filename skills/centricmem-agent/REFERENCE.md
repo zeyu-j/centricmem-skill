@@ -44,18 +44,18 @@ Decision **#0180**. Mechanism is fixed for every agent; content lives on each sh
 | Order | Basis | Notes |
 | --- | --- | --- |
 | 1 | User explicit | This turn: named shelf / `shelf=` / `corpus=<slug>` / already-linked project they own |
-| 2 | Charter match | Each shelf declares include / exclude / axis / aliases. Until `charter` ships on `cm_library` / ambient, match `displayName` + ambient `libraries=` topic |
+| 2 | Charter match | Each shelf's `charter` (takes / rejects / axis / aliases). Match that line; if empty, fall back to `displayName` + ambient `libraries=` topic |
 | 3 | Path proximity | cwd / repo / corpus dir — **tiebreak only** among charter matches. Never the primary key (#0092 only made unmatched cwd → `library=none`; it did not make cwd a classifier) |
 | 4 | Mint | Only when the human is present and supplies the id/name |
 | Forbidden | — | Agent's own folder as classifier; guessing a name; silent mint |
 
 **Self-check.** Before writing, cite the charter line (or displayName/topic) you matched. No cite = you are guessing — ask.
 
-**Charter (per shelf).** One short line: what it takes / what it rejects / axis / aliases. Axes include project/repo, topic/discipline, machine, person/customer. Type (decision/lesson/session) is already `docType` — do not invent a shelf per type.
+**Charter (per shelf).** One short line (max 280): what it takes / what it rejects / axis / aliases. Axes include project/repo, topic/discipline, machine, person/customer. Type (decision/lesson/session) is already `docType` — do not invent a shelf per type. Set via `cm_library` `{id, charter}` or the Keys / Library desk. Empty clears.
 
-**One read.** Prefer charter on each shelf in `cm_library` list / `cm_ambient` `libraries=` (product path). Do **not** treat a library-level "Shelf map" lesson as authoritative — those go stale (2026-09-07 inventory). An owner may keep a current topical lesson as interim help for this library only.
+**One read.** Prefer charter on each shelf in `cm_library` list / `cm_ambient` `libraries` rows (product path). Do **not** treat a library-level "Shelf map" lesson as authoritative — those go stale (2026-09-07 inventory). An owner may keep a current topical lesson as interim help for this library only.
 
-`cm_library` omit `id` lists `{id, displayName}` (and `charter` when the field exists). Extra keys list grants only. Pass `share:` ids exactly as listed — do not mint that string.
+`cm_library` omit `id` lists `{id, displayName, charter?}`. Extra keys list grants only. Pass `share:` ids exactly as listed — do not mint that string.
 
 ## Reach
 
