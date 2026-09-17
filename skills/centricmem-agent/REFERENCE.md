@@ -37,6 +37,8 @@ Inbox is gone. Do not mint `unclassified`. Leftover Inbox on an old hub: `cm_cop
 
 **Card contract.** Every write is a card later agents `cm_show`. Required: (1) **summary** — `title`, and `cm_done` `summary=`; one line later search can hit; (2) **key points** — `cm_note` `body`, `cm_log_decision` `decision` / `context` / `consequences`, import `items[].body`; rules, facts, quotes, do/don't they can follow without the original. Not a card: title-only keep stub, empty headings, OCR slice, dump of the whole file.
 
+**Writing style is not CentricMem's.** This Skill fixes structure (summary + key points) and filing rules — not voice, length, evidence density, language, or whether a card looks like nanobot's research notes vs a short Cursor decision. Those come from **this agent** (host norms, model, session) and **the human** (how they ask, house rules, charter). Different agents on the same shelf will write differently; that is expected. If they ask why cards differ, say that once — do not invent a CentricMem house style or tell them another agent wrote "wrong." A shelf charter may say *what* belongs here; it does not dictate prose style unless they put style in the charter themselves.
+
 ## Shelf routing
 
 Decision **#0180**. Mechanism is fixed for every agent; content lives on each shelf.

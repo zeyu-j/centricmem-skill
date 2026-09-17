@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.21.77
+
+- Card **writing style** is the human + this agent — CentricMem only requires summary + key points (structure). Different agents on the same shelf write differently on purpose. Librarian CLI unchanged (**0.21.75**).
+
 ## 0.21.76
 
 - Per-shelf **charter** is live on the librarian: `cm_library` list/mint, `cm_ambient` `libraries` rows, Keys + Library desk. Routing #0180 matches charter (fallback displayName). Max 280 characters; empty clears. Librarian **>=0.21.75**.

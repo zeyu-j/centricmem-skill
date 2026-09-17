@@ -4,15 +4,16 @@ description: "Organises and retrieves Markdown memory on the hosted CentricMem l
 license: PolyForm-Noncommercial-1.0.0
 compatibility: "Requires host MCP at https://mem.centricmem.com/mcp. CLI >=0.21.50: every card is summary + key points (a keep stub is not a card); a folder is cm_keep card:false then cm_import items. Archive zip is optional. share: shelf ids; cm_move selected cards (whole paths, not lessons.md or #); cm_delete {file,shelf} a card (heading= for ##); cm_rename {file,shelf,title} a card. Omit cm_library id to list. Codex OAuth needs librarian >=0.21.51. OAuth key picker / ChatGPT Approve hop: librarian >=0.21.56. Applicant HTTPS callbacks: librarian >=0.21.55. skipExisting / copy-aside FTS skip need librarian >=0.21.50."
 metadata:
-  version: "0.21.76"
+  version: "0.21.77"
   compatible_cli: ">=0.21.50"
   changelog_url: https://github.com/zeyu-j/centricmem-skill/blob/main/CHANGELOG.md
 ---
 
-# CentricMem Agent Skill v0.21.76
+# CentricMem Agent Skill v0.21.77
 
 Handover (when / loop). Schemas win. Branches: [REFERENCE.md](REFERENCE.md).
 **Library** → **Shelf** → **Card** (summary + key points). No Inbox / `unclassified`. One key = grants. Never paste keys.
+**Style** of a card (voice, length, evidence density) is yours + this agent's — not a CentricMem house voice. Structure only: REFERENCE **Card contract**.
 
 ## When to Use
 
@@ -45,7 +46,7 @@ Once after health: refresh if `skill_latest` newer (REFERENCE Skill refresh). Na
 **yield** = any reply end (incl. progress).
 
 Search/show/ambient while working. Hold half-finished. **Chunk done → sweep before you yield.**
-Cards need summary + key points. Keep stubs ≠ cards. File/folder: REFERENCE Writes.
+Cards need summary + key points. Keep stubs ≠ cards. File/folder: REFERENCE Writes. Voice/density: theirs + yours (REFERENCE **Card contract**), not a CentricMem template.
 
 ## 4. Sweep — single source
 
