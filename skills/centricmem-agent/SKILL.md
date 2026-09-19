@@ -4,12 +4,12 @@ description: "Organises and retrieves Markdown memory on the hosted CentricMem l
 license: PolyForm-Noncommercial-1.0.0
 compatibility: "Requires host MCP at https://mem.centricmem.com/mcp. CLI >=0.21.50: every card is summary + key points (a keep stub is not a card); a folder is cm_keep card:false then cm_import items. Archive zip is optional. share: shelf ids; cm_move selected cards (whole paths, not lessons.md or #); cm_delete {file,shelf} a card (heading= for ##); cm_rename {file,shelf,title} a card. Omit cm_library id to list. Codex OAuth needs librarian >=0.21.51. OAuth key picker / ChatGPT Approve hop: librarian >=0.21.56. Applicant HTTPS callbacks: librarian >=0.21.55. skipExisting / copy-aside FTS skip need librarian >=0.21.50."
 metadata:
-  version: "0.21.78"
+  version: "0.21.79"
   compatible_cli: ">=0.21.50"
   changelog_url: https://github.com/zeyu-j/centricmem-skill/blob/main/CHANGELOG.md
 ---
 
-# CentricMem Agent Skill v0.21.78
+# CentricMem Agent Skill v0.21.79
 
 Handover (when / loop). Schemas win. Branches: [REFERENCE.md](REFERENCE.md).
 **Library** → **Shelf** → **Card** (summary + key points). No Inbox / `unclassified`. One key = grants. Never paste keys.
@@ -23,7 +23,7 @@ Start or resume; search; file Non-Micro; connect / refresh Skill. Recipes: REFER
 
 1. MCP only `https://mem.centricmem.com/mcp`: `cm_health` `cm_ambient` `cm_doctor` `cm_search` `cm_show` `cm_note` `cm_log_decision` `cm_done` `cm_keep` `cm_library` `cm_copy` `cm_move` `cm_delete` `cm_rename` `cm_import` `cm_index`. No curl / CLI-write / bootstrap.
 2. Missing tools or short grants → **connect this turn**. REFERENCE **Reach**.
-3. `cm_show` = card. `grants=["*"]` = default. `ACADEMIC.md` beside this → follow it.
+3. `cm_show` = card. `grants=["*"]` = default. Extra `mode=read` = view-only (search/show only). `ACADEMIC.md` beside this → follow it.
 
 ## 1. Classify
 
@@ -38,7 +38,7 @@ Start or resume; search; file Non-Micro; connect / refresh Skill. Recipes: REFER
 
 **Resume = new session.** Compress, checkpoint restore, or new chat on same task → health → ambient first.
 
-Once after health: refresh if `skill_latest` newer (REFERENCE Skill refresh). Name the key once. Don't log → skip sweep. Empty shelf once: REFERENCE Existing memory.
+Once after health: refresh if `skill_latest` newer (REFERENCE Skill refresh). Name the key once (`mode=read` → view-only). Don't log → skip sweep. Empty shelf once: REFERENCE Existing memory.
 
 ## 3. During
 
