@@ -55,7 +55,7 @@ Decision **#0180**. Mechanism is fixed for every agent; content lives on each sh
 
 **Charter (per shelf).** One short line (max 280): what it takes / what it rejects / axis / aliases. Axes include project/repo, topic/discipline, machine, person/customer. Type (decision/lesson/session) is already `docType` — do not invent a shelf per type. Set via `cm_library` `{id, charter}` or the Keys / Library desk. Empty clears.
 
-**One read.** Prefer charter on each shelf in `cm_library` list / `cm_ambient` `libraries` rows (product path). Do **not** treat a library-level "Shelf map" lesson as authoritative — those go stale (2026-09-07 inventory). An owner may keep a current topical lesson as interim help for this library only.
+**One read.** Prefer charter on each shelf in `cm_library` list / `cm_ambient` `libraries` rows (product path). **If `charter` is absent** on a row, treat it as unset — fall back to `displayName` + ambient topic; do not invent a charter or claim the API is broken. Do **not** treat a library-level "Shelf map" lesson as authoritative — those go stale (2026-09-07 inventory). An owner may keep a current topical lesson as interim help for this library only.
 
 `cm_library` omit `id` lists `{id, displayName, charter?}`. Extra keys list grants only. Pass `share:` ids exactly as listed — do not mint that string.
 
@@ -286,9 +286,17 @@ Not `{items:[...]}` (that is daily cards). Not a dump of the Zod schema. Other k
 
 Guests install from GitHub, not from the librarian disk. `cm_health` `min_skill` is the HTTP floor. `skill_latest` is the published Skill (env `CENTRICMEM_SKILL_LATEST` on the librarian) — it is **never** the hub’s `skills/centricmem-agent/SKILL.md`. Host `cm_doctor` `skill_status` is the same hub copy; ignore outdated/missing there.
 
+**Refresh path ≠ load path (hosts differ).** `npx skills add … -g` writes `~/.agents/skills/centricmem-agent/` (and Cursor often mirrors `~/.cursor/skills/`). That does **not** update every host’s loaded copy. **Reasonix** loads the **plugin** tree (Windows: `%APPDATA%\reasonix\plugins\centricmem-skill\skills\centricmem-agent\`). Same skill name in both places → two versions on disk; Reasonix may warn and prefer the plugin copy. Updating only via npx/`~/.agents` leaves Reasonix on the old plugin version — that is expected, not a broken `skill_latest` signal.
+
 1. Read `version` from this Skill’s frontmatter (`metadata.version`).
 2. `latest` = JSON `skill_latest` if present, else `metadata.version` at `https://raw.githubusercontent.com/zeyu-j/centricmem-skill/main/skills/centricmem-agent/SKILL.md`.
-3. If `latest` is newer and the shell works: if **Node/npm exist**, `npx --yes skills add zeyu-j/centricmem-skill --skill centricmem-agent -y` (omit `-g` when this agent has no user-wide skills dir). **No Node / no npm:** do not invent a CLI install — update via this client’s **plugin UI**, or copy `skills/centricmem-agent/` from `https://github.com/zeyu-j/centricmem-skill` into `<skills-root>/centricmem-agent` (so `SKILL.md` lands there). **DSH:** never that npx (and never `-g`); copy into `$DSH_HOME/skills/centricmem-agent` with `dsh/copy-skill.mjs`, or `dsh plugin` re-add the pinned tag then copy-skill again. Bare npx without `-g` writes `<cwd>/.agents/skills` — skip that in DSH. If the shell is blocked, skip npx; tell them to update via this client’s plugin UI. If this session is a **plugin** install, also update via that client (`/plugin`, Codex plugins UI, Copilot plugin, Kiro Powers re-import, `hermes skills install zeyu-j/centricmem-skill/skills/centricmem-agent`, `pi update --extensions`, re-install `openclaw plugins install git:github.com/zeyu-j/centricmem-skill`). Say once: on disk now; this chat still uses the loaded copy.
+3. If `latest` is newer and the shell works: refresh **the copy this agent actually loads**, not only `~/.agents`:
+   - **Cursor / agents skills dir:** if Node/npm exist, `npx --yes skills add zeyu-j/centricmem-skill --skill centricmem-agent -g -y` (omit `-g` when this agent has no user-wide skills dir).
+   - **Reasonix (plugin install):** update the plugin — re-add/reinstall `zeyu-j/centricmem-skill` in Reasonix’s plugin UI, or replace `%APPDATA%\reasonix\plugins\centricmem-skill\` (macOS/Linux: under Reasonix’s plugins dir) from GitHub so `skills/centricmem-agent/SKILL.md` matches `skill_latest`. Do **not** assume npx `-g` fixed Reasonix.
+   - **No Node / no npm:** do not invent a CLI install — update via this client’s **plugin UI**, or copy `skills/centricmem-agent/` from `https://github.com/zeyu-j/centricmem-skill` into `<skills-root>/centricmem-agent`.
+   - **DSH:** never that npx (and never `-g`); copy into `$DSH_HOME/skills/centricmem-agent` with `dsh/copy-skill.mjs`, or `dsh plugin` re-add the pinned tag then copy-skill again. Bare npx without `-g` writes `<cwd>/.agents/skills` — skip that in DSH.
+   - If the shell is blocked, skip npx; tell them to update via this client’s plugin UI. If this session is a **plugin** install, also update via that client (`/plugin`, Codex plugins UI, Copilot plugin, Kiro Powers re-import, `hermes skills install zeyu-j/centricmem-skill/skills/centricmem-agent`, `pi update --extensions`, re-install `openclaw plugins install git:github.com/zeyu-j/centricmem-skill`).
+   - Say once: on disk now; this chat still uses the loaded copy. If two copies exist, say which path this host loads.
 4. If this file is newer, or the fetch/npx fails or is blocked: continue. Do not `setup --install-skill`.
 
 ## Writes (card shapes; trigger is SKILL §4)
