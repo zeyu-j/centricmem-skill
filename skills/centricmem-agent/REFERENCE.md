@@ -71,7 +71,17 @@ If they are missing: **Already added** a Bearer or finished OAuth login in this 
 
 **Shell blocked** (Grok Bot, some web bots): minting `device=` failed. Send signup, tell them to email zeyu@poppyg.com with that error (never a key), then OAuth if this agent will receive a browser login they can finish (Grok Bot / Manus may). Otherwise they paste Bearer **only** in this agent’s MCP / plugin settings (`https://mem.centricmem.com/mcp`). Never here.
 
-**Shell works, `centricmem` missing** (Hermes, Codex, WorkBuddy, Pi, OpenClaw, DSH, Manus when a shell exists — also the first fallback when mint fails and there is no CLI): do not npm-install the CLI. Mint `/connect?device=` this turn: fetch **POST** `https://mem.centricmem.com/connect/device` with `{hostname}` once — authenticate bootstrap, not a card write. Send JSON `url` (`https://centricmem.com/connect?device=…`). Keep `secret` off chat (agent memory / a local file outside the git repo). They sign up, copy the key from the box at the **top** of Agent keys (once — tell them to save a backup), enter it on that page (ten minutes). Poll GET `https://mem.centricmem.com/connect/device/<id>` until `status=ready`, then POST `…/claim` `{secret}`. Write the claimed Bearer into this agent’s MCP file. Never print the token. If that mint fails: they email zeyu@poppyg.com with the error; then OAuth only if this agent will receive the browser login. Retry `cm_health`. “Do not call `/register` `/login`” means do not POST those HTTP APIs; you **do** send the signup URL and you **do** POST `/connect/device`.
+**Remote / cloud / sandbox — OAuth vs paste key.** “Remote” does **not** mean paste-key only. Split on whether **this agent** receives the browser login:
+
+| This agent | Connect |
+| --- | --- |
+| Cloud/remote **and** it will receive the Approve / OAuth callback (human can operate the browser this agent is waiting on — e.g. Grok Bot, Manus, Cursor Cloud, Claude) | **OAuth** is fine: URL-only `https://mem.centricmem.com/mcp`, no Bearer. Same rule as desktop when mint failed. |
+| Cloud/remote/headless **and** it will **not** receive that login (common: `127.0.0.1` loopback while this agent is not listening there; CI; no waiting OAuth session) | **Bearer** in that agent’s MCP / plugin settings (or host injects an extra key). Never paste the key in chat. |
+| Sandbox can mint `/connect?device=` but **claim cannot write** client MCP files (EPERM outside the workspace) | Do not treat claim as done. Human runs `centricmem connect --claim` (with `--target` if needed) **outside** the sandbox, or OAuth if this agent receives the login, or paste Bearer in settings. Sandbox chats then use the already-wired MCP. |
+
+Do not tell them “remote can only paste a key.” Do not send a loopback authorize link when this agent is not listening there.
+
+**Shell works, `centricmem` missing** (Hermes, Codex, WorkBuddy, Pi, OpenClaw, DSH, Manus when a shell exists — also the first fallback when mint fails and there is no CLI): do not npm-install the CLI. Mint `/connect?device=` this turn: fetch **POST** `https://mem.centricmem.com/connect/device` with `{hostname}` once — authenticate bootstrap, not a card write. Send JSON `url` (`https://centricmem.com/connect?device=…`). Keep `secret` off chat (agent memory / a local file outside the git repo). They sign up, copy the key from the box at the **top** of Agent keys (once — tell them to save a backup), enter it on that page (ten minutes). Poll GET `https://mem.centricmem.com/connect/device/<id>` until `status=ready`, then POST `…/claim` `{secret}`. Write the claimed Bearer into this agent’s MCP file. Never print the token. If claim write fails (sandbox EPERM): follow **Remote / cloud / sandbox** above. If that mint fails: they email zeyu@poppyg.com with the error; then OAuth only if this agent will receive the browser login. Retry `cm_health`. “Do not call `/register` `/login`” means do not POST those HTTP APIs; you **do** send the signup URL and you **do** POST `/connect/device`.
 
 **`centricmem` on PATH:** only if `connect --device` exists. Prefer `centricmem connect --device --url-only` (print URL, exit) then `centricmem connect --claim` after they submit the key. Blocking `centricmem connect --device` still waits up to ten minutes. Send **only** the printed `/connect?device=` URL — never the secret, never the key. Tell them to save a backup — the secret appears only once. They enter **any** agent key on that page (default = every shelf, extra key = granted shelves). Unknown host: `centricmem connect --claim --target <that-host-config.json>` (JSON `mcpServers` map). Do not read another client’s `mcp.json` to copy a key. If the binary has no `connect --device` (leftover npm 0.14.x), ignore it. Do not npm-install the CLI on a guest. Mint failure with CLI present → `centricmem doctor connect` then email zeyu@poppyg.com (never a key).
 
@@ -118,17 +128,17 @@ mcp_servers:
     auth: oauth
 ```
 
-Same as `hermes mcp add --url https://mem.centricmem.com/mcp --auth oauth centricmem`. Use that OAuth block only after `/connect?device=` minting failed and this Hermes will receive the browser login. When OAuth is unavailable, device-connect then Bearer:
+Same as `hermes mcp add --url https://mem.centricmem.com/mcp --auth oauth centricmem`. Use that OAuth block only after `/connect?device=` minting failed and this Hermes will receive the browser login. When OAuth is unavailable, device-connect then Bearer. In **docs / install plans / git**, prefer an env placeholder — never a literal hex:
 
 ```yaml
 mcp_servers:
   centricmem:
     url: "https://mem.centricmem.com/mcp"
     headers:
-      Authorization: "Bearer <default key or extra key>"
+      Authorization: "Bearer ${CENTRICMEM_API_KEY}"
 ```
 
-Other agents (`mcp.json`) paste-key fallback:
+Other agents (`mcp.json`) paste-key fallback (same rule — placeholder in shareable text; host may expand from env):
 
 ```json
 {
@@ -137,12 +147,20 @@ Other agents (`mcp.json`) paste-key fallback:
       "type": "http",
       "url": "https://mem.centricmem.com/mcp",
       "headers": {
-        "Authorization": "Bearer <default key or extra key>"
+        "Authorization": "Bearer ${CENTRICMEM_API_KEY}"
       }
     }
   }
 }
 ```
+
+**Bearer: where plaintext is OK vs not.** These are different layers — do not treat them as a conflict.
+
+| Layer | Rule |
+| --- | --- |
+| Chat, git, deeplink, plugin `mcp.json` in the public repo, install-plan **snippets** | Never a raw agent-key hex. Prefer URL-only (OAuth) or `Bearer ${CENTRICMEM_API_KEY}` (host expands from env / `.env`). |
+| `centricmem connect --claim` (or equivalent off-chat claim) writing **this machine’s** private client MCP file (`.cursor/mcp.json`, `.claude.json`, Codex `config.toml`, etc.) | May write a literal `Authorization: Bearer …`. That is a completed connect. Do not copy that file into chat or git. |
+| Host install tools that **propose** headers and will probe `https://mem.centricmem.com/mcp` | Prefer `${VAR}` in the plan. If the host marks “sends auth headers” as high risk, that gate is about **sending** Authorization on apply — not a ban on claim-written local files. Confirm with the human before apply when the host requires it. Do not put a raw hex into the proposed plan. |
 
 `setup --install-skill` on a guest copies Skill files only (CLI >=0.21.46 also writes `~/.claude/skills/` and `~/.pi/agent/skills/`). It must not merge leftover catalog pairing tokens into Cursor `mcp.json`. Host MCP on a guest: every agent tries `/connect?device=` when `cm_*` are missing (`centricmem connect --device` when the CLI works; if the shell works but `centricmem` is missing, fetch POST `/connect/device` and send the JSON `url`). If minting that URL fails, they email zeyu@poppyg.com with the error; then OAuth only if this agent will receive the browser login (add that URL with no Bearer). If the shell is blocked and there is no receivable browser login, the human adds `https://mem.centricmem.com/mcp` in this agent’s settings with Bearer from Keys, never in chat. Local librarian hosts may still merge loopback MCP when `/health` advertises `mcp`. Never ask them to paste a token in chat. Never one-click install. Never a dashboard “connect this computer”. After they connect, retry `cm_health` in this chat; a new chat only if tools still 401. Token failure: say once; connect again (CLI or signup+settings); if still failing they email zeyu@poppyg.com (never a key); **hold the sweep** (this agent’s memory `CentricMem deferred sweep` + transcript path) until `cm_health` works. Only drop the hold if they said don't log or they stopped using this Skill.
 

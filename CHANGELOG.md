@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.21.81
+
+- Clarify Bearer layers: docs/plans/git use `${CENTRICMEM_API_KEY}` or URL-only; `connect --claim` may write plaintext Bearer to private local MCP files; host `sends auth headers` high-risk is about apply/probe, not a ban on claim. Librarian CLI unchanged (**0.21.76**).
+
+## 0.21.80
+
+- Reach clarifies **remote/cloud is not paste-key-only**: OAuth when this agent receives the browser login; Bearer only when it cannot; sandbox claim EPERM → human claim outside / OAuth / paste in settings. Librarian CLI unchanged (**0.21.76**).
+
 ## 0.21.79
 
 - Extra agent keys may be **View only** (`mode: read`): search/show/list only; writes return 403. Mint or change on Keys / `account key --mode`. `cm_health` / `cm_ambient` surface `mode`. Default `*` and `share:` unchanged. Librarian **>=0.21.76**.
@@ -10,7 +18,7 @@
 
 ## 0.21.77
 
-- Card **writing style** is the human + this agent — CentricMem only requires summary + key points (structure). Different agents on the same shelf write differently on purpose. Librarian CLI unchanged (**0.21.75**).
+- Card **writing style** is the human + this agent â€” CentricMem only requires summary + key points (structure). Different agents on the same shelf write differently on purpose. Librarian CLI unchanged (**0.21.75**).
 
 ## 0.21.76
 
@@ -18,7 +26,7 @@
 
 ## 0.21.75
 
-- Define **chunk** (accepted unit this reply) and **yield** (any reply end). Resume after context compress / checkpoint / new chat = new session: `cm_health` → `cm_ambient` first. Single-source §4 sweep + gate (Non-Micro + zero `cm_*` + no Don't log → sweep before yield). Adaptive vs wrap-up table. Slim SKILL; connect recipes stay in REFERENCE. CLI unchanged (**0.21.74**).
+- Define **chunk** (accepted unit this reply) and **yield** (any reply end). Resume after context compress / checkpoint / new chat = new session: `cm_health` â†’ `cm_ambient` first. Single-source Â§4 sweep + gate (Non-Micro + zero `cm_*` + no Don't log â†’ sweep before yield). Adaptive vs wrap-up table. Slim SKILL; connect recipes stay in REFERENCE. CLI unchanged (**0.21.74**).
 
 ## 0.21.74
 
@@ -27,18 +35,18 @@ Skill-facing notes for [centricmem-skill](https://github.com/zeyu-j/centricmem-s
 
 ## 0.21.73
 
-- Shelf routing (#0180): user explicit → charter/displayName match → path tiebreak only → mint with human-supplied name. Cite the matched line before write. Per-shelf charter shipped in Skill **0.21.76** / librarian **>=0.21.75**.
+- Shelf routing (#0180): user explicit â†’ charter/displayName match â†’ path tiebreak only â†’ mint with human-supplied name. Cite the matched line before write. Per-shelf charter shipped in Skill **0.21.76** / librarian **>=0.21.75**.
 
 - Unknown Agent Skills hosts: copy `skills/centricmem-agent/` to `<skills-root>/centricmem-agent/SKILL.md`. After `centricmem connect --device --url-only`, finish with `connect --claim --target <that-host-config.json>` (or `CENTRICMEM_MCP_TARGETS`). Confirm with `connect --verify`. `doctor connect` prints a paste-ready block for zeyu@poppyg.com (never a key). Repo-root `install.json` is the machine-readable recipe. Do not scrape another client's `mcp.json` for a Bearer.
 - Skill frontmatter `description` is trigger-only. Wording is "this agent (and each client you install into)".
 
 ## 0.21.72
 
-- DSH: `dsh/cordis.patch.yml` sets `failOnStartupError: true` so a missing Bearer aborts boot instead of registering 0 tools. `dsh/copy-skill.mjs` copies this Skill into `$DSH_HOME/skills/` (DSH never scans `node_modules`). Pin `github:zeyu-j/centricmem-skill#v0.21.72`. Needs `pnpm` on PATH (`npm i -g pnpm` if missing). Overlay Bearer on the same MCP `id` and restate the whole config, then a **new chat**. Tools appear as `mcp__centricmem__cm_*`. Skip `cm_keep` — DSH has no plaintext transcript. Never `npx skills add -g` in DSH.
+- DSH: `dsh/cordis.patch.yml` sets `failOnStartupError: true` so a missing Bearer aborts boot instead of registering 0 tools. `dsh/copy-skill.mjs` copies this Skill into `$DSH_HOME/skills/` (DSH never scans `node_modules`). Pin `github:zeyu-j/centricmem-skill#v0.21.72`. Needs `pnpm` on PATH (`npm i -g pnpm` if missing). Overlay Bearer on the same MCP `id` and restate the whole config, then a **new chat**. Tools appear as `mcp__centricmem__cm_*`. Skip `cm_keep` â€” DSH has no plaintext transcript. Never `npx skills add -g` in DSH.
 
 ## 0.21.71
 
-- After Approve, ChatGPT / Codex still waiting — they click **Open the agent callback**. Sign-in is not the grant; they pick which existing agent key (or mint a new extra) then Approve. Librarian **>=0.21.56**.
+- After Approve, ChatGPT / Codex still waiting â€” they click **Open the agent callback**. Sign-in is not the grant; they pick which existing agent key (or mint a new extra) then Approve. Librarian **>=0.21.56**.
 - ChatGPT Apps directory Skill is a Scan Tools snapshot of this folder from host MCP (`skills/list`), not a live GitHub pull. After a Skill bump: origin librarian **>=0.21.59**, then Scan Tools, then a new plugin version. Do not `npx skills add` inside ChatGPT to refresh the listed plugin.
 - ChatGPT directory starter prompts (at most three, no `@mention`) are served from host MCP `prompts/list` on librarian **>=0.21.61**. If the portal Prompts tab stays empty after Scan Tools, paste those three lines; ChatGPT adds the plugin mention when it displays them.
 
@@ -48,7 +56,7 @@ Skill-facing notes for [centricmem-skill](https://github.com/zeyu-j/centricmem-s
 
 ## 0.21.69
 
-- Codex / ChatGPT Mixed is not “OAuth plus paste a key”. Mixed tries unauthenticated `initialize` / `tools/list`; we 401 that. Pick OAuth for the browser, or Bearer in `http_headers` instead of OAuth.
+- Codex / ChatGPT Mixed is not â€œOAuth plus paste a keyâ€. Mixed tries unauthenticated `initialize` / `tools/list`; we 401 that. Pick OAuth for the browser, or Bearer in `http_headers` instead of OAuth.
 
 ## 0.21.68
 
@@ -57,7 +65,7 @@ Skill-facing notes for [centricmem-skill](https://github.com/zeyu-j/centricmem-s
 
 ## 0.21.67
 
-- First connect is signup + `/connect?device=` this turn. Already added is only a Bearer or a finished OAuth login in this agent — URL-only plugin / `mcp add` is first connect. Do not skip the device URL because `mcp login` exists. Loopback `127.0.0.1` does not authenticate a cloud or remote agent.
+- First connect is signup + `/connect?device=` this turn. Already added is only a Bearer or a finished OAuth login in this agent â€” URL-only plugin / `mcp add` is first connect. Do not skip the device URL because `mcp login` exists. Loopback `127.0.0.1` does not authenticate a cloud or remote agent.
 - Librarian **>=0.21.51**. CLI **>=0.21.50**.
 
 ## 0.21.66
@@ -67,9 +75,9 @@ Skill-facing notes for [centricmem-skill](https://github.com/zeyu-j/centricmem-s
 
 ## 0.21.65
 
-- Daily cards: `cm_import` `{items}` (a `bundle` that is `{items:[...]}` with no `version` is the same path). ImportBundle is `{version:1, lessons?, imported?, …}` — junk shapes name that contract. `skipExisting` skips a dest slug instead of `slug-2.md`.
+- Daily cards: `cm_import` `{items}` (a `bundle` that is `{items:[...]}` with no `version` is the same path). ImportBundle is `{version:1, lessons?, imported?, â€¦}` â€” junk shapes name that contract. `skipExisting` skips a dest slug instead of `slug-2.md`.
 - `cm_log_decision` `refs`: `1`, `0001`, `#0001`, or a comma list. Junk is 400.
-- Copy asides `imported/kept/from-*` stay out of FTS (`cm_show` by path still works). Keep stubs 另存 on collision. `limit` caps browse and tags-only. Omit `cm_library` `id` to list shelves. `cm_index` reports `skipped`. `cm_move` `files=` is whole Markdown paths only; companion keep stubs and `- **Shelf**:` follow the card.
+- Copy asides `imported/kept/from-*` stay out of FTS (`cm_show` by path still works). Keep stubs å¦å­˜ on collision. `limit` caps browse and tags-only. Omit `cm_library` `id` to list shelves. `cm_index` reports `skipped`. `cm_move` `files=` is whole Markdown paths only; companion keep stubs and `- **Shelf**:` follow the card.
 - Librarian **>=0.21.50**. CLI **>=0.21.50**.
 
 ## 0.21.64
@@ -79,12 +87,12 @@ Skill-facing notes for [centricmem-skill](https://github.com/zeyu-j/centricmem-s
 
 ## 0.21.63
 
-- `cm_delete` `{file, shelf, heading}` removes one `##` section in `lessons.md` (notes stay sections, not one file per card). Do not pass `file#heading`. Same-title `cm_note` is an error — pick a new title, or delete that heading then rewrite. Import `dryRun` `files[].file` is the disk path apply will write.
+- `cm_delete` `{file, shelf, heading}` removes one `##` section in `lessons.md` (notes stay sections, not one file per card). Do not pass `file#heading`. Same-title `cm_note` is an error â€” pick a new title, or delete that heading then rewrite. Import `dryRun` `files[].file` is the disk path apply will write.
 - CLI **>=0.21.48**.
 
 ## 0.21.62
 
-- If they already added a key or MCP URL in this agent, `cm_*` missing means a **new chat** — do not mint `/connect?device=` and do not tell them to add the URL with no Bearer (that drops the key). Ignore leftover `centricmem` on PATH when `connect --device` is missing (npm 0.14.x). First connect is unchanged.
+- If they already added a key or MCP URL in this agent, `cm_*` missing means a **new chat** â€” do not mint `/connect?device=` and do not tell them to add the URL with no Bearer (that drops the key). Ignore leftover `centricmem` on PATH when `connect --device` is missing (npm 0.14.x). First connect is unchanged.
 - CLI **>=0.21.36**.
 
 ## 0.21.61
@@ -95,7 +103,7 @@ Skill-facing notes for [centricmem-skill](https://github.com/zeyu-j/centricmem-s
 ## 0.21.60
 
 - Hermes: `hermes skills install zeyu-j/centricmem-skill/skills/centricmem-agent`, then prefer `hermes mcp add --url https://mem.centricmem.com/mcp --auth oauth centricmem` (`auth: oauth` in `~/.hermes/config.yaml`). Bearer headers only when OAuth is unavailable. Still send `/connect?device=` unless `cm_*` work.
-- Pi: `pi install https://github.com/zeyu-j/centricmem-skill` (package.json `pi.skills`). MCP is URL-only in `~/.pi/agent/mcp.json` — not auto-wired.
+- Pi: `pi install https://github.com/zeyu-j/centricmem-skill` (package.json `pi.skills`). MCP is URL-only in `~/.pi/agent/mcp.json` â€” not auto-wired.
 - OpenClaw: install this repo as an Agent Plugins / Claude / Codex / Cursor **bundle**. Not ClawHub. Do not add `openclaw.plugin.json`.
 - DSH: root `dsh.bundle` mounts [`dsh/cordis.patch.yml`](./dsh/cordis.patch.yml) (`@deepseek-ai/dsh-mcp-client`, URL only, MIT glue). Skill stays PolyForm. Overlay Bearer in the profile patch after `/connect?device=`. GitHub topic `dsh-plugin`.
 - CLI **>=0.21.36** (guest `setup --install-skill` on CLI **>=0.21.46** also copies Claude and Pi skill homes).
@@ -120,7 +128,7 @@ Skill-facing notes for [centricmem-skill](https://github.com/zeyu-j/centricmem-s
 
 ## 0.21.56
 
-- After plugin install, if `cm_*` are missing the same reply must send https://centricmem.com/login?signup=1 **and** a `/connect?device=` URL. Plugin `mcp.json` is URL-only — it is not a completed connect.
+- After plugin install, if `cm_*` are missing the same reply must send https://centricmem.com/login?signup=1 **and** a `/connect?device=` URL. Plugin `mcp.json` is URL-only â€” it is not a completed connect.
 - WorkBuddy/CodeBuddy mint that connect URL this turn. Codex: `codex mcp add` then `codex mcp login` is additive; still send the connect URL unless tools already work.
 - Never call librarian HTTP from the shell. Do not put `curl ` before an `https://` URL on the same SKILL.md line.
 - CLI **>=0.21.36**.
@@ -146,22 +154,22 @@ Skill-facing notes for [centricmem-skill](https://github.com/zeyu-j/centricmem-s
 ## 0.21.52
 
 - If this client can complete MCP OAuth, add `https://mem.centricmem.com/mcp` **with no Bearer** and finish the browser prompt. Do not curl OAuth or librarian HTTP. Hermes, Grok, and the CLI still use `/connect?device=` or paste-Bearer.
-- After Skill install, the same reply must still send https://centricmem.com/login?signup=1 and tell them to save a backup of the key — Keys shows it only once; never paste it in chat.
+- After Skill install, the same reply must still send https://centricmem.com/login?signup=1 and tell them to save a backup of the key â€” Keys shows it only once; never paste it in chat.
 - CLI **>=0.21.36**.
 
 ## 0.21.51
 
-- After Skill install, the same reply must send https://centricmem.com/login?signup=1 **and** a `/connect?device=` URL, **and** tell them to save a backup of the key — Keys shows it only once; never paste it in chat.
+- After Skill install, the same reply must send https://centricmem.com/login?signup=1 **and** a `/connect?device=` URL, **and** tell them to save a backup of the key â€” Keys shows it only once; never paste it in chat.
 - CLI **>=0.21.36**.
 
 ## 0.21.50
 
-- After Skill install, the same reply must send https://centricmem.com/login?signup=1 **and** a `/connect?device=` URL. Agents with a shell (Hermes) POST `https://mem.centricmem.com/connect/device` to mint that session; keep the secret off chat; claim and write Bearer to this agent’s MCP (`~/.hermes/config.yaml`). Signup-only stays for blocked shells (Grok). `connect --device` stays when `centricmem` is on PATH.
+- After Skill install, the same reply must send https://centricmem.com/login?signup=1 **and** a `/connect?device=` URL. Agents with a shell (Hermes) POST `https://mem.centricmem.com/connect/device` to mint that session; keep the secret off chat; claim and write Bearer to this agentâ€™s MCP (`~/.hermes/config.yaml`). Signup-only stays for blocked shells (Grok). `connect --device` stays when `centricmem` is on PATH.
 - CLI **>=0.21.36**.
 
 ## 0.21.49
 
-- After Skill install, the same reply must send https://centricmem.com/login?signup=1 unless `cm_health` already works. A working terminal is not the CentricMem CLI — `connect --device` only when `centricmem` is on PATH. Hermes: `~/.hermes/skills/` and Bearer in `~/.hermes/config.yaml`.
+- After Skill install, the same reply must send https://centricmem.com/login?signup=1 unless `cm_health` already works. A working terminal is not the CentricMem CLI â€” `connect --device` only when `centricmem` is on PATH. Hermes: `~/.hermes/skills/` and Bearer in `~/.hermes/config.yaml`.
 - CLI **>=0.21.36**.
 
 ## 0.21.48
@@ -193,7 +201,7 @@ Skill-facing notes for [centricmem-skill](https://github.com/zeyu-j/centricmem-s
 ## 0.21.43
 
 - The agent files. One or a few originals: `cm_keep` then `cm_note`. A folder: `cm_keep` `{card:false}` then one `cm_import` `{items}`. Do not send a zip through MCP. Archive **Upload zip** only if you already packed a zip or the agent cannot read the files.
-- Ignore host `cm_doctor` saying the Skill is outdated — that is the librarian disk. Compare this file to `skill_latest` / GitHub.
+- Ignore host `cm_doctor` saying the Skill is outdated â€” that is the librarian disk. Compare this file to `skill_latest` / GitHub.
 - CLI **>=0.21.36**.
 
 ## 0.21.42
@@ -208,22 +216,22 @@ Skill-facing notes for [centricmem-skill](https://github.com/zeyu-j/centricmem-s
 
 ## 0.21.40
 
-- `cm_move` `{from,to,files}` relocates selected Markdown cards onto another named shelf. Source files are deleted. Decision numbers stay if free on dest, otherwise a new seq. Attachments re-attach on dest. Default key or owner login; extra keys cannot. Pick cards with `cm_search` / `cm_show`. Do not download originals to “move” them. `cm_copy` still copies a whole leftover shelf; card delete stays login-only.
+- `cm_move` `{from,to,files}` relocates selected Markdown cards onto another named shelf. Source files are deleted. Decision numbers stay if free on dest, otherwise a new seq. Attachments re-attach on dest. Default key or owner login; extra keys cannot. Pick cards with `cm_search` / `cm_show`. Do not download originals to â€œmoveâ€ them. `cm_copy` still copies a whole leftover shelf; card delete stays login-only.
 
 ## 0.21.39
 
-- Hosted ambient/doctor: unmatched cwd or omitted `shelf=` is `library=(none)` plus `libraries=` — not the hub `use` pin. Pick a named shelf this turn (or mint). Extra keys with exactly one grant still open that shelf. Guests do not `--link`.
+- Hosted ambient/doctor: unmatched cwd or omitted `shelf=` is `library=(none)` plus `libraries=` â€” not the hub `use` pin. Pick a named shelf this turn (or mint). Extra keys with exactly one grant still open that shelf. Guests do not `--link`.
 - After first `cm_health` this chat, say **once** which key (`*` = default / every shelf, else list extra grants). Suggest Keys grant ticks or minting an extra for another agent; authenticate default if this extra is too narrow. Never paste keys; never change grants via MCP.
 - Unmatched cwd is not a shelf. If ambient is `library=(none)`, pick from `libraries=` or mint. Do not use the hub `use` pin.
 
 ## 0.21.38
 
 - CodeBuddy / WorkBuddy: `.codebuddy-plugin/marketplace.json` (and `.workbuddy-plugin/` alias). Add with `codebuddy plugin marketplace add zeyu-j/centricmem-skill`.
-- Kimi Code: `.kimi-plugin/plugin.json` plus a Custom catalog. Install with `/plugins install https://github.com/zeyu-j/centricmem-skill`. Host MCP Bearer is `CENTRICMEM_API_KEY` (never in chat). Official/Curated listing is a Moonshot PR — not a self-serve form.
+- Kimi Code: `.kimi-plugin/plugin.json` plus a Custom catalog. Install with `/plugins install https://github.com/zeyu-j/centricmem-skill`. Host MCP Bearer is `CENTRICMEM_API_KEY` (never in chat). Official/Curated listing is a Moonshot PR â€” not a self-serve form.
 
 ## 0.21.37
 
-- If the shell is blocked or `centricmem` is missing, do not retry CLI. Send https://centricmem.com/login?signup=1; the human adds `https://mem.centricmem.com/mcp` in this agent’s MCP settings (key from Keys, never in chat). `connect --device` stays the path when CLI works.
+- If the shell is blocked or `centricmem` is missing, do not retry CLI. Send https://centricmem.com/login?signup=1; the human adds `https://mem.centricmem.com/mcp` in this agentâ€™s MCP settings (key from Keys, never in chat). `connect --device` stays the path when CLI works.
 - Empty shelf: offer once to file existing durable memories as cards (capture stays; they may skip).
 - Website copy prompt is one line.
 
@@ -281,7 +289,7 @@ Skill-facing notes for [centricmem-skill](https://github.com/zeyu-j/centricmem-s
 
 ## 0.21.23
 
-- Public names: **Library** (one per person) → **Shelf** (pairing-key vault) → **Card**. Agents pass `shelf=<id>` or `library=<id>`. Default account key = every shelf in this library. Pairing key = that shelf. Inbox is a system shelf, never a sweep target.
+- Public names: **Library** (one per person) â†’ **Shelf** (pairing-key vault) â†’ **Card**. Agents pass `shelf=<id>` or `library=<id>`. Default account key = every shelf in this library. Pairing key = that shelf. Inbox is a system shelf, never a sweep target.
 - Sign up is open. Install copy no longer says invite-only.
 
 ## 0.21.22
@@ -292,7 +300,7 @@ Skill-facing notes for [centricmem-skill](https://github.com/zeyu-j/centricmem-s
 
 ## 0.21.21
 
-- Authenticate is always a `/connect?device=` link. The agent runs `centricmem connect --device` and sends only that URL. You have **ten minutes** to enter the key. Sign in at the website for the dashboard — there is no “connect this computer” button. Never paste a key into chat.
+- Authenticate is always a `/connect?device=` link. The agent runs `centricmem connect --device` and sends only that URL. You have **ten minutes** to enter the key. Sign in at the website for the dashboard â€” there is no â€œconnect this computerâ€ button. Never paste a key into chat.
 
 ## 0.21.20
 
@@ -301,17 +309,17 @@ Skill-facing notes for [centricmem-skill](https://github.com/zeyu-j/centricmem-s
 
 ## 0.21.19
 
-- Login uniquely owns delete and billing. The **default** account key (all libraries) may mint, rename, grant, and revoke other keys — including every pairing key on a library. Pairing keys cannot. New tokens stay off chat (dashboard / CLI, not MCP).
-- Attachments are metered per plan (Lite 100MB, Education 200MB, Pro 1GB, Ultra 10GB). Markdown is unlimited. Over quota, keep fails — the agent says so.
+- Login uniquely owns delete and billing. The **default** account key (all libraries) may mint, rename, grant, and revoke other keys â€” including every pairing key on a library. Pairing keys cannot. New tokens stay off chat (dashboard / CLI, not MCP).
+- Attachments are metered per plan (Lite 100MB, Education 200MB, Pro 1GB, Ultra 10GB). Markdown is unlimited. Over quota, keep fails â€” the agent says so.
 
 ## 0.21.18
 
 - The authenticate link accepts **any** agent key: default (every library) or a pairing key (that library). Default is one choice, not the only one.
-- Not a one-click install. You enter the key on `https://centricmem.com/connect` — never in chat.
+- Not a one-click install. You enter the key on `https://centricmem.com/connect` â€” never in chat.
 
 ## 0.21.17
 
-- When a key is needed, the agent sends the authenticate link `https://centricmem.com/connect`. You enter the key on that page — never in chat. Not a one-click install. The helper on this computer (`centricmem connect`) writes MCP for every agent.
+- When a key is needed, the agent sends the authenticate link `https://centricmem.com/connect`. You enter the key on that page â€” never in chat. Not a one-click install. The helper on this computer (`centricmem connect`) writes MCP for every agent.
 - The owner's agents use the **default account key** (all libraries). Friend pairing keys stay one vault.
 
 ## 0.21.16
@@ -326,7 +334,7 @@ Skill-facing notes for [centricmem-skill](https://github.com/zeyu-j/centricmem-s
 
 ## 0.21.14
 
-- Sweep never writes Inbox (`unclassified`). Pick a named library, or mint one (`cm_library`) when none fits. Drain leftovers with classify — do not leave them for the human. Pairing keys still cannot mint a library.
+- Sweep never writes Inbox (`unclassified`). Pick a named library, or mint one (`cm_library`) when none fits. Drain leftovers with classify â€” do not leave them for the human. Pairing keys still cannot mint a library.
 - The owner's agent uses the **default account key** (all libraries). Friend pairing keys stay one vault.
 - Still no curl. Originals and key minting stay on the dashboard.
 
@@ -342,7 +350,7 @@ Skill-facing notes for [centricmem-skill](https://github.com/zeyu-j/centricmem-s
 
 ## 0.21.11
 
-- The agent talks to the librarian only through host MCP (`cm_health`, `cm_search`, `cm_keep`, …). It does not curl. Originals stay on the dashboard.
+- The agent talks to the librarian only through host MCP (`cm_health`, `cm_search`, `cm_keep`, â€¦). It does not curl. Originals stay on the dashboard.
 - After `centricmem setup --install-skill`, Cursor MCP is merged on this machine. A new chat picks up the tools.
 
 ## 0.21.10
@@ -351,7 +359,7 @@ Skill-facing notes for [centricmem-skill](https://github.com/zeyu-j/centricmem-s
 
 ## 0.21.9
 
-- The agent files when the work is real — you do not have to say wrap up. Closing the tab does not file; it files before it stops.
+- The agent files when the work is real â€” you do not have to say wrap up. Closing the tab does not file; it files before it stops.
 - If this Skill is behind GitHub, the agent runs `npx skills add` once. This chat still uses the loaded copy; the next chat uses the new one.
 
 ## 0.21.8
@@ -361,7 +369,7 @@ Skill-facing notes for [centricmem-skill](https://github.com/zeyu-j/centricmem-s
 
 ## 0.21.7
 
-- At close, the agent keeps this chat’s transcript in object storage, then files units. You download originals from the dashboard.
+- At close, the agent keeps this chatâ€™s transcript in object storage, then files units. You download originals from the dashboard.
 
 ## 0.21.4
 

@@ -4,15 +4,15 @@ description: "Organises and retrieves Markdown memory on the hosted CentricMem l
 license: PolyForm-Noncommercial-1.0.0
 compatibility: "Requires host MCP at https://mem.centricmem.com/mcp. CLI >=0.21.50: every card is summary + key points (a keep stub is not a card); a folder is cm_keep card:false then cm_import items. Archive zip is optional. share: shelf ids; cm_move selected cards (whole paths, not lessons.md or #); cm_delete {file,shelf} a card (heading= for ##); cm_rename {file,shelf,title} a card. Omit cm_library id to list. Codex OAuth needs librarian >=0.21.51. OAuth key picker / ChatGPT Approve hop: librarian >=0.21.56. Applicant HTTPS callbacks: librarian >=0.21.55. skipExisting / copy-aside FTS skip need librarian >=0.21.50."
 metadata:
-  version: "0.21.79"
+  version: "0.21.81"
   compatible_cli: ">=0.21.50"
   changelog_url: https://github.com/zeyu-j/centricmem-skill/blob/main/CHANGELOG.md
 ---
 
-# CentricMem Agent Skill v0.21.79
+# CentricMem Agent Skill v0.21.81
 
 Handover (when / loop). Schemas win. Branches: [REFERENCE.md](REFERENCE.md).
-**Library** → **Shelf** → **Card** (summary + key points). No Inbox / `unclassified`. One key = grants. Never paste keys.
+**Library** → **Shelf** → **Card** (summary + key points). No Inbox / `unclassified`. One key = grants. Never paste keys in chat (REFERENCE **Bearer: where plaintext is OK vs not** — claim may write a private local MCP file; docs/plans use `${VAR}` or URL-only).
 **Style** of a card (voice, length, evidence density) is yours + this agent's — not a CentricMem house voice. Structure only: REFERENCE **Card contract**.
 
 ## When to Use
@@ -22,7 +22,7 @@ Start or resume; search; file Non-Micro; connect / refresh Skill. Recipes: REFER
 ## 0. Reach
 
 1. MCP only `https://mem.centricmem.com/mcp`: `cm_health` `cm_ambient` `cm_doctor` `cm_search` `cm_show` `cm_note` `cm_log_decision` `cm_done` `cm_keep` `cm_library` `cm_copy` `cm_move` `cm_delete` `cm_rename` `cm_import` `cm_index`. No curl / CLI-write / bootstrap.
-2. Missing tools or short grants → **connect this turn**. REFERENCE **Reach**.
+2. Missing tools or short grants → **connect this turn**. REFERENCE **Reach**. Remote/cloud is **not** “paste key only”: OAuth if this agent receives the browser login; paste Bearer only when it cannot.
 3. `cm_show` = card. `grants=["*"]` = default. Extra `mode=read` = view-only (search/show only). `ACADEMIC.md` beside this → follow it.
 
 ## 1. Classify
