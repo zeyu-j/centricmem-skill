@@ -159,8 +159,11 @@ Other agents (`mcp.json`) paste-key fallback (same rule — placeholder in share
 | Layer | Rule |
 | --- | --- |
 | Chat, git, deeplink, plugin `mcp.json` in the public repo, install-plan **snippets** | Never a raw agent-key hex. Prefer URL-only (OAuth) or `Bearer ${CENTRICMEM_API_KEY}` (host expands from env / `.env`). |
-| `centricmem connect --claim` (or equivalent off-chat claim) writing **this machine’s** private client MCP file (`.cursor/mcp.json`, `.claude.json`, Codex `config.toml`, etc.) | May write a literal `Authorization: Bearer …`. That is a completed connect. Do not copy that file into chat or git. |
+| `centricmem connect --claim` (or equivalent off-chat claim) writing **this machine’s** private client MCP file (`.cursor/mcp.json`, `.claude.json`, Codex `config.toml`, Reasonix `%APPDATA%\reasonix\config.toml`, etc.) | May write a literal `Authorization: Bearer …`. That is a completed connect. Do not copy that file into chat or git. |
+| Windows side-copy `%LOCALAPPDATA%\centricmem\centricmem.mcp.json` | Same class as claim-written private MCP: may hold a literal Bearer. It is a **duplicate** of the host’s MCP entry, not a second product. Prefer one canonical client file; if MCP already works from the host config, delete this side-copy. Do not copy into chat or git. |
 | Host install tools that **propose** headers and will probe `https://mem.centricmem.com/mcp` | Prefer `${VAR}` in the plan. If the host marks “sends auth headers” as high risk, that gate is about **sending** Authorization on apply — not a ban on claim-written local files. Confirm with the human before apply when the host requires it. Do not put a raw hex into the proposed plan. |
+
+**Redact.** Some hosts (e.g. Reasonix) **redact** `Authorization` when echoing config or when headers land in card text — you may see `Authorization=[redacted]` (with or without a value). That marker is **not** a usable key and must not be filed, searched as a secret, or treated as “the Bearer changed.” Do not paste Authorization lines into cards. Readback after redact ≠ what you wrote; trust the host’s private MCP file / Keys, not the redacted echo.
 
 `setup --install-skill` on a guest copies Skill files only (CLI >=0.21.46 also writes `~/.claude/skills/` and `~/.pi/agent/skills/`). It must not merge leftover catalog pairing tokens into Cursor `mcp.json`. Host MCP on a guest: every agent tries `/connect?device=` when `cm_*` are missing (`centricmem connect --device` when the CLI works; if the shell works but `centricmem` is missing, fetch POST `/connect/device` and send the JSON `url`). If minting that URL fails, they email zeyu@poppyg.com with the error; then OAuth only if this agent will receive the browser login (add that URL with no Bearer). If the shell is blocked and there is no receivable browser login, the human adds `https://mem.centricmem.com/mcp` in this agent’s settings with Bearer from Keys, never in chat. Local librarian hosts may still merge loopback MCP when `/health` advertises `mcp`. Never ask them to paste a token in chat. Never one-click install. Never a dashboard “connect this computer”. After they connect, retry `cm_health` in this chat; a new chat only if tools still 401. Token failure: say once; connect again (CLI or signup+settings); if still failing they email zeyu@poppyg.com (never a key); **hold the sweep** (this agent’s memory `CentricMem deferred sweep` + transcript path) until `cm_health` works. Only drop the hold if they said don't log or they stopped using this Skill.
 
@@ -214,11 +217,16 @@ Progressive disclosure:
 |-------|------|----------------|
 | L0 | `cm_search` | snippet from the Markdown **card** |
 | L1 | `cm_show` | the card **body** — agent context (style rules, SOP, literature key points) |
+| L1 section | `cm_show` `{file, shelf, heading}` | one `##` section only (same `heading=` as delete/rename). Use this to re-read a single note in `lessons.md` / a session heading without the whole file |
 | Original | human Dashboard **Download Original** | attach bytes. Not FTS. Not agent context |
 
 Never ask `cm_show` for originals. Never paste download URLs into the chat.
 
+**List a shelf.** Omit `q` (and omit tags / type filters) **and** pass `shelf=` / `library=` → `cm_search` returns that shelf’s cards (`browse: true`, default cap 200). Use this to judge empty vs populated, or inventory. Without `shelf=` / `library=`, omitting `q` is 400 — the error tells you to pass a shelf. Do not invent an empty-shelf conclusion from a failed no-`q` call.
+
 Useful query bits (in `q` / `tags` / `type`): `filter`, `tag`, `type:decision`, `#0016` / `id:0016`. Bare word `decision` is full-text, not a type filter. `all` does not leak other shelves. An extra key’s `all` is only the shelves on that key’s grants. Pass `shelf=` / `library=` / `cwd=` when the Bearer can open more than one shelf. Isolation: **one key = its grants**. The owner's agent Bearer is the **default** key (`*` = every shelf).
+
+**`heading=` on show.** Match is case-insensitive; exact `##` title wins, else the first `##` whose title **contains** the string. Duplicate / ambiguous headings → the **first** match in file order — pass a longer unique fragment if you need another. Wrong / missing heading → `Heading not found` (same as delete); it does **not** return the whole file.
 
 ## Which key / grants
 
@@ -292,7 +300,7 @@ Guests install from GitHub, not from the librarian disk. `cm_health` `min_skill`
 2. `latest` = JSON `skill_latest` if present, else `metadata.version` at `https://raw.githubusercontent.com/zeyu-j/centricmem-skill/main/skills/centricmem-agent/SKILL.md`.
 3. If `latest` is newer and the shell works: refresh **the copy this agent actually loads**, not only `~/.agents`:
    - **Cursor / agents skills dir:** if Node/npm exist, `npx --yes skills add zeyu-j/centricmem-skill --skill centricmem-agent -g -y` (omit `-g` when this agent has no user-wide skills dir).
-   - **Reasonix (plugin install):** update the plugin — re-add/reinstall `zeyu-j/centricmem-skill` in Reasonix’s plugin UI, or replace `%APPDATA%\reasonix\plugins\centricmem-skill\` (macOS/Linux: under Reasonix’s plugins dir) from GitHub so `skills/centricmem-agent/SKILL.md` matches `skill_latest`. Do **not** assume npx `-g` fixed Reasonix.
+   - **Reasonix (plugin install):** update the **whole** plugin package — re-add/reinstall `zeyu-j/centricmem-skill` in Reasonix’s plugin UI, or replace `%APPDATA%\reasonix\plugins\centricmem-skill\` (macOS/Linux: under Reasonix’s plugins dir) from GitHub so `package.json` / `plugin.json` / `install.json` / `CHANGELOG.md` **and** `skills/centricmem-agent/SKILL.md` all match `skill_latest`. Copying only `SKILL.md` leaves package metadata on the old version. Do **not** assume npx `-g` fixed Reasonix.
    - **No Node / no npm:** do not invent a CLI install — update via this client’s **plugin UI**, or copy `skills/centricmem-agent/` from `https://github.com/zeyu-j/centricmem-skill` into `<skills-root>/centricmem-agent`.
    - **DSH:** never that npx (and never `-g`); copy into `$DSH_HOME/skills/centricmem-agent` with `dsh/copy-skill.mjs`, or `dsh plugin` re-add the pinned tag then copy-skill again. Bare npx without `-g` writes `<cwd>/.agents/skills` — skip that in DSH.
    - If the shell is blocked, skip npx; tell them to update via this client’s plugin UI. If this session is a **plugin** install, also update via that client (`/plugin`, Codex plugins UI, Copilot plugin, Kiro Powers re-import, `hermes skills install zeyu-j/centricmem-skill/skills/centricmem-agent`, `pi update --extensions`, re-install `openclaw plugins install git:github.com/zeyu-j/centricmem-skill`).

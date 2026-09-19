@@ -1,4 +1,8 @@
-﻿# Changelog
+# Changelog
+
+## 0.21.83
+
+- Bearer table: `%LOCALAPPDATA%\centricmem\centricmem.mcp.json` + redact rule; Search and show: `cm_show` + `heading=` (first match); omit `q` + `shelf=` lists cards; Reasonix refresh replaces whole plugin package metadata. Librarian CLI unchanged (**0.21.76**).
 
 ## 0.21.82
 
