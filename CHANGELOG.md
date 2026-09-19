@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.21.78
+
+- Plugin `mcp.json` client `type` is **`http`** (Agent Plugins; wire remains streamable HTTP). Add another Agent Plugins client manifest that points at `./mcp.json`. REFERENCE: Writes table documents `supersedes` and **Edit a card** (delete + rewrite; no in-place edit). Skill refresh has a **no Node** path; connect mint failure prefers POST `/connect/device` before `doctor connect` when CLI is missing. `cm_health` `skill_install` mentions the no-Node alternative. Librarian CLI unchanged (**0.21.75**).
+
 ## 0.21.77
 
 - Card **writing style** is the human + this agent — CentricMem only requires summary + key points (structure). Different agents on the same shelf write differently on purpose. Librarian CLI unchanged (**0.21.75**).

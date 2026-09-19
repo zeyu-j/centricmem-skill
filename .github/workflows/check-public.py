@@ -100,6 +100,7 @@ manifest_paths = [
     Path(".workbuddy-plugin/plugin.json"),
     Path(".kimi-plugin/plugin.json"),
     Path(".grok-plugin/plugin.json"),
+    Path(".reasonix-plugin/plugin.json"),
 ]
 for path in manifest_paths:
     data = json.loads(path.read_text(encoding="utf-8"))
@@ -115,7 +116,7 @@ assert plugin["name"] == "centricmem-skill"
 assert plugin["version"] == version
 assert mcp["$schema"] == "https://agent-plugins.org/schemas/1.0.0/mcp.schema.json"
 centric = mcp["mcpServers"]["centricmem"]
-assert centric["type"] == "streamable-http"
+assert centric["type"] == "http"
 assert centric["url"] == MCP_URL
 assert "headers" not in centric
 assert "env" not in centric

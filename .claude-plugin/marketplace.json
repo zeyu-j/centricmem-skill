@@ -6,16 +6,22 @@
   },
   "metadata": {
     "description": "CentricMem hosted librarian - Agent Plugins 1.0 + SKILL.md",
-    "version": "0.21.75"
+    "version": "0.21.78"
   },
   "plugins": [
     {
       "name": "centricmem-skill",
       "description": "Hosted CentricMem librarian: organise and retrieve Markdown memory via host MCP.",
-      "version": "0.21.75",
+      "version": "0.21.78",
       "source": "./",
       "category": "productivity",
-      "keywords": ["centricmem", "mcp", "memory", "skill", "agent-plugins"]
+      "keywords": [
+        "centricmem",
+        "mcp",
+        "memory",
+        "skill",
+        "agent-plugins"
+      ]
     }
   ]
 }
