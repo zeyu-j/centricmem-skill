@@ -2,7 +2,7 @@
   "name": "centricmem-skill",
   "displayName": "CentricMem",
   "description": "Hosted CentricMem librarian: organise and retrieve Markdown memory via host MCP. After install, if cm_* are missing send https://centricmem.com/login?signup=1 and a /connect?device= URL; plugin mcp.json is not a completed connect; never paste keys in chat.",
-  "version": "1.0.25",
+  "version": "1.0.26",
   "author": {
     "name": "Dr. Z",
     "email": "zeyu@poppyg.com"

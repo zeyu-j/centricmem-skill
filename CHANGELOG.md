@@ -8,6 +8,11 @@
 
 
 
+## 1.0.26
+
+- The README is two sections lighter in spirit: the licence note is now two sentences (the history and the cross-distribution boundaries are all it has to say, and `LICENSE` itself cannot carry them), and the plugin section names all three credential variables - `CENTRICMEM_TOKEN`, `CENTRICMEM_API_KEY`, `CENTRICMEM_AGENT_KEY` - before the `api.json` fallback, keeps the two facts that answer the most common question (nothing is printed without a credential, and no hook ever exits non-zero), and sends the per-host detail to VERIFIED-OPTIMISATIONS.md instead of repeating it.
+- The Skill-copy scan now knows nanobot: `~/.nanobot/workspace/skills` joins the roots in `skill-copies.ts` and in `tools/prune-duplicate-skill.mjs`, so the copy installed there is visible to `cm_doctor` rather than invisible to it.
+
 ## 1.0.25
 
 - nanobot (v0.3.5) joins at the level its source supports. Its `agent/skills.py` reads one folder per Skill from `<workspace>/skills`, and its `agent/plugins.py` scans `<workspace>/plugins/*` for Agent Plugins packages, validates each one's `mcp.json` against the same schema this repository ships, and takes the `skills/` directory inside the package. Both shapes are installed on the author's machine; neither has been exercised in a live run, and `nanobot/README.md` says so.

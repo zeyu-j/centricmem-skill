@@ -38,7 +38,7 @@ Same GitHub repo as a plugin marketplace:
 | Hermes | `hermes skills install zeyu-j/centricmem-skill/skills/centricmem-agent --yes`. Mint `/connect?device=` first. Local `hermes mcp add --url https://mem.centricmem.com/mcp --auth oauth centricmem` only after that mint fails if this Hermes will receive the browser login.  **Verified on v0.21.4**: it fetches the tag, scans it (verdict SAFE), and lands `%LOCALAPPDATA%\hermes\skills\centricmem-agent` with `SKILL.md` byte-identical to the package; `hermes skills list` then reports `1 hub-installed`. `--yes` matters: the confirm prompt cannot be answered from a non-TTY and the install is cancelled as `Installation cancelled.` **Two things that cost time**: the reply to `pre_llm_call` must be JSON `{"context": …}` (a bare string is dropped as `parsed: <none>`), and a hook that is not allowlisted never fires (`hermes/README.md`). Hermes reads `<HERMES_HOME>/config.yaml` — on Windows `%LOCALAPPDATA%\hermes`, so a `~/.hermes/config.yaml` is ignored. **The npm names are not it**: `hermes-cli` on npm is a travel-agency search tool and `hermes-agent` is a third-party bridge package |
 | Pi | `pi install https://github.com/zeyu-j/centricmem-skill`. Then URL-only `~/.pi/agent/mcp.json` (`url` + `type: streamable-http`). MCP is not auto-wired by the package. |
 | OpenClaw | `openclaw plugins install centricmem-skill --marketplace zeyu-j/centricmem-skill` (verified: installed as a **bundle** 1.0.9). The `--marketplace` form is the one that works - a bare `openclaw plugins install git:...` is rejected with *missing `openclaw.extensions`*, because that route installs a code plugin and this repository ships no code. `openclaw skills install` also works from a clone: `openclaw skills install ./skills/centricmem-agent --global`. Not ClawHub. |
-| DSH | Cordis **funnel** only. Needs `pnpm` (`npm i -g pnpm` if missing). Pin: `dsh plugin --profile web add github:zeyu-j/centricmem-skill#v1.0.25`. Then from the profile dir run `node node_modules/centricmem-skill/dsh/copy-skill.mjs` so `$DSH_HOME/skills/centricmem-agent` exists (funnel MCP does not load Skill from `node_modules`). Overlay Bearer on the same `id` in `$DSH_HOME/profiles/<profile>/cordis.patch.yml` (restate the whole config). New chat. Tools are `mcp__centricmem__cm_*`. Skill is MIT; [`dsh/`](./dsh/) is MIT glue. GitHub topic `dsh-plugin`. |
+| DSH | Cordis **funnel** only. Needs `pnpm` (`npm i -g pnpm` if missing). Pin: `dsh plugin --profile web add github:zeyu-j/centricmem-skill#v1.0.26`. Then from the profile dir run `node node_modules/centricmem-skill/dsh/copy-skill.mjs` so `$DSH_HOME/skills/centricmem-agent` exists (funnel MCP does not load Skill from `node_modules`). Overlay Bearer on the same `id` in `$DSH_HOME/profiles/<profile>/cordis.patch.yml` (restate the whole config). New chat. Tools are `mcp__centricmem__cm_*`. Skill is MIT; [`dsh/`](./dsh/) is MIT glue. GitHub topic `dsh-plugin`. |
 | Copilot CLI | `copilot plugin marketplace add zeyu-j/centricmem-skill` then `copilot plugin install centricmem-skill` |
 | Kiro | Powers → Add Custom Power → GitHub `https://github.com/zeyu-j/centricmem-skill` |
 | SkillKit | `skillkit add https://centricmem.com` or `skillkit add zeyu-j/centricmem-skill` |
@@ -95,22 +95,21 @@ exercised) · 📄 documented (a convention, nothing claimed).
 
 ## License
 
-[MIT](./LICENSE) from 1.0.7 - attribution required, commercial use allowed. Through 1.0.6 the Skill shipped
-under PolyForm Noncommercial, and that earlier grant is not withdrawn retroactively. The `dsh/` glue is
-separately [MIT](./dsh/LICENSE); the Dify plugin is its own distribution. Neither relicenses this Skill.
+[MIT](./LICENSE) from 1.0.7 - attribution required, commercial use allowed. 1.0.6 and earlier shipped
+under PolyForm Noncommercial and that grant was not withdrawn retroactively; `dsh/` is separately
+MIT, and the Dify plugin is its own distribution.
 
 ## What the plugin does beyond the Skill
 
 Claude Code, Codex and OpenClaw install this repository as a plugin, and a plugin can carry more than
-skills. This one carries a **SessionStart hook** (`hooks/hooks.json`) that runs a small Node script: it
-looks for a credential in `CENTRICMEM_TOKEN`, `CENTRICMEM_API_KEY`, then a `centricmem/api.json` beside
-your config, and if it finds one it prints the shelf's context so the model starts the session already
-oriented. The same file adds a **SessionEnd hook** that files the unit. With no credential nothing is
-printed at all, which is the normal case on an OAuth-connected host, and neither hook ever exits
-non-zero: a network problem can only mean a quieter session, never a broken one.
+skills. This one carries a **SessionStart hook** (`hooks/hooks.json`) that runs a small Node script:
+it looks for a credential in `CENTRICMEM_TOKEN`, `CENTRICMEM_API_KEY` or `CENTRICMEM_AGENT_KEY`, then
+in a `centricmem/api.json` beside your config, and if it finds one it prints the shelf context so the
+session starts oriented. The same file adds a **SessionEnd hook** that files the session unit. With no
+credential nothing is printed at all, which is the normal case on an OAuth-connected host, and neither
+hook ever exits non-zero: a network problem can only mean a quieter session, never a broken one.
 
-OpenClaw takes the same idea as a **hook pack**: `openclaw plugins install ./openclaw` from a clone. It
-subscribes to the session event category, so it does not depend on an event name staying put, and
-`openclaw hooks info centricmem-ambient` reports it ready.
-
-goose does not use this hook - it has recipes and the MOIM file instead, in `goose/`.
+On a host that scrubs key-shaped environment variables the `api.json` file is the only channel -
+`dsh/README.md` records that one. OpenClaw takes the same idea as a hook pack (`openclaw/`) and goose
+uses recipes and the MOIM file instead (`goose/`); the per-host detail, event names and timeouts live
+in [VERIFIED-OPTIMISATIONS.md](./VERIFIED-OPTIMISATIONS.md).

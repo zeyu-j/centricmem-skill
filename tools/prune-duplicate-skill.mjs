@@ -29,6 +29,7 @@ const roots = () => {
   const roaming = process.env.APPDATA || process.env.XDG_CONFIG_HOME;
   // One host's own name is not ours to publish, so its path segment is assembled rather than spelled.
   if (roaming) list.push({ dir: path.join(roaming, Buffer.from("UmVhc29uaXg=", "base64").toString(), "plugins"), host: "desktop-app" });
+  list.push({ dir: path.join(home, ".nanobot", "workspace", "skills"), host: "nanobot" });
   return list;
 };
 
