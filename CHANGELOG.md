@@ -17,8 +17,7 @@
   from a cache file; and `session.post` receives an empty output object, so there is no
   force-another-turn hook and the sweep reminder is deferred onto the next outgoing message.
   `chat.message` runs before `session.pre` on the first turn, so ambient is read there.
-- The MiMoCode close half is written to contract but unexercised: the MiMo free tier ended, and every
-  turn now fails before reaching a completed outcome.
+- The MiMoCode close files through the hosted MCP endpoint rather than the CLI, because `centricmem done` is a local hub writer and a guest host refuses it by design - not for want of a credential. Verified: `tools/call` for `cm_done` came back ok and the librarian wrote `sessions/2026-09-23T212538Z-mcp-d30ee9.md` on the host shelf.
 
 ## 1.0.31
 
