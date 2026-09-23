@@ -28,7 +28,7 @@ jobs:
         run: |
           set -e
           failed=0
-          PATTERNS=$(printf '%s\n' cmVhc29uaXg= aWNlZ3JlZW4= YzpcY3NyY1xjZW50cmljbWVt ZDpcY2VudHJpY21lbQ== ZTpcY2VudHJpY21lbQ== | while read -r b; do echo "$b" | base64 -d; echo; done)
+          PATTERNS=$(printf '%s\n' cmVhc29uaXg= aWNlZ3JlZW4= Yzpcc3JjXGNlbnRyaWNtZW0= ZDpcY2VudHJpY21lbQ== ZTpcY2VudHJpY21lbQ== | while read -r b; do echo "$b" | base64 -d; echo; done)
           for p in $PATTERNS; do
             n=$(git log --all -i -S "$p" --oneline -- . \
                   ':(exclude).github/workflows/check-public.py' \
