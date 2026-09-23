@@ -36,7 +36,7 @@ dsh-hooks-claude-code:
 ## Installing the package itself
 
 ```sh
-npx -y @deepseek-ai/dsh plugin --profile web add github:zeyu-j/centricmem-skill#v1.0.18
+npx -y @deepseek-ai/dsh plugin --profile web add github:zeyu-j/centricmem-skill#v1.0.19
 ```
 
 This command needs a TTY: run without one it prints nothing at all, which is why it is not marked
