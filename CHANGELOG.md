@@ -7,6 +7,22 @@
 
 
 
+
+## 1.0.12
+
+- The SessionEnd hook is host-side. It calls the CLI to file the session, which on a guest stops with
+  the message that it cannot write the leftover hub, and points at import or MCP instead. So on a machine
+  talking to a hosted librarian the hook stays silent and the agent files the card, which is what the Skill
+  already asks for. The hook was not rewritten to post a card itself: a hook has not read the session, and a
+  card summary states the key points rather than a placeholder.
+- Codex caches the marketplace snapshot, so its install instructions now include refreshing that snapshot
+  after a release. An install left alone kept serving 1.0.9 after 1.0.11 was published, and nothing said so.
+- OpenClaw has no session-end event (its session events are compact, auto-reset and patch), so its pack
+  contributes context at the start of a session and nothing else, which its own HOOK.md now records.
+- Hermes stays documented rather than verified, and now says why: the npm names are a travel-agency search
+  tool and a third-party bridge, not the product. pi has no lifecycle hook surface, and Kiro CLI is not the
+  Kiro IDE; both are recorded where their rows are.
+
 ## 1.0.11
 
 - Every host-specific folder is now named from the general package. SKILL and REFERENCE carry a short table
