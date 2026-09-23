@@ -1,0 +1,34 @@
+name: History leak check
+
+# check-public.py scans the working tree. This scans what a reader can recover from the repository itself,
+# which is how the private host names and the pre-trim Skill copies stayed visible after the tree was
+# cleaned. Inline rather than in scripts/ because the usage-only rule forbids that directory here.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  history:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Scan history for private names
+        run: |
+          set -e
+          failed=0
+          for p in reasonix icegreen "c:\\src\\centricmem" "d:\\centricmem" "e:\\centricmem"; do
+            n=$(git log --all -i -S "$p" --oneline | wc -l | tr -d ' ')
+            if [ "$n" != "0" ]; then
+              echo "history leak: '$p' appears in $n commit(s)"
+              failed=1
+            fi
+          done
+          if [ "$failed" = "1" ]; then
+            echo "This is what check-public.py cannot see. Rewrite the history, or do not publish the name."
+            exit 1
+          fi
+          echo "ok history clean"
