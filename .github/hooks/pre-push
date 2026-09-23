@@ -1,0 +1,15 @@
+#!/bin/sh
+# Local leak gate, run before every push.
+#
+# Install once, from the repository root:
+#   git config core.hooksPath .github/hooks
+#
+# Then every `git push` runs both CI gates - the six-file tree scan and the
+# all-refs history scan - and refuses the push if either is dirty. Bypass with
+# `git push --no-verify` when you know why.
+set -e
+root=$(git rev-parse --show-toplevel)
+if command -v python3 >/dev/null 2>&1; then
+  exec python3 "$root/.github/workflows/check-leaks.py"
+fi
+exec python "$root/.github/workflows/check-leaks.py"

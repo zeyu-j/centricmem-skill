@@ -164,13 +164,18 @@ close mcp http=200 body={"result":{"content":[{"type":"text","text":"ok | projec
   plain `cm_*` - `tools/list` returns 17 of them (`cm_health`, `cm_ambient`, `cm_done`, ...), not
   namespaced per server. The whole close took ~355ms against a 3500ms abort budget.
 
-## Not verified
+## The compaction half is insurance, not a normal path
 
-- **`experimental.session.compacting` has never fired.** `compaction.max_context` was set to `"1K"`
-  and confirmed present in `mimo debug config`, then four turns were run into one session with
-  `mimo run -c`; `compacting` never appeared in the trace. Each `mimo run` is its own process, so no
-  single process ever accumulated enough context to overflow. Verify this one inside a real
-  long-running TUI session instead.
+MiMoCode is built around very large context windows (1M and up) and reconstructs context itself, so
+`experimental.session.compacting` is rarely reached. The handler here is insurance for a non-default
+compaction configuration - a lowered `compaction.max_context`, or a model with a small window - not
+something to expect in a trace.
+
+It was not observed firing, and that is expected rather than a gap: with
+`compaction.max_context: "1K"` confirmed present in `mimo debug config`, four turns into one session
+still produced no `compacting` event, because each `mimo run` is its own process and none of them
+accumulated enough context to overflow. A long-running TUI session is where to confirm it, if the
+question ever matters.
 
 ## Notes
 
