@@ -1,6 +1,6 @@
 {
   "name": "centricmem-skill",
-  "version": "1.0.11",
+  "version": "1.0.12",
   "description": "Hosted CentricMem librarian: organise and retrieve Markdown memory via host MCP.",
   "author": {
     "name": "Dr. Z",
