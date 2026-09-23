@@ -17,7 +17,7 @@ was run and what was only read.
 | **Claude Code** 2.1.280 | `hooks/hooks.json` - a SessionStart hook, bundled in the plugin | `claude plugin details` reports `Hooks (1) SessionStart (harness-only - no model context cost)`; the hook script prints 496 characters with a credential and 0 without |
 | **OpenClaw** 2026.6.35 | `openclaw/` - a hook pack (`HOOK.md` + `handler.js`, events: `session`) | `openclaw plugins install ./openclaw` installs it and `openclaw hooks info` reports it ready with node present; the handler returns 496 characters with a credential, 0 without |
 | **goose** 1.51.0 | `goose/*.yaml` recipes and `goose/centricmem-ambient.mjs` | the refresher writes `status=OK` with a credential and `status=NO-KEY` without one, disclaiming both |
-| **Codex** 0.156.1 | nothing - its plugin surface has no hook mechanism | verified by inspecting its plugin help; the Skill and the MCP connection are the whole integration |
+| **Codex** 0.156.1 | the same `hooks/hooks.json` in the plugin, so `SessionStart` and `SessionEnd` both apply | Codex discovers hooks as `hooks.json` or inline `[hooks]` in `config.toml`, and "installed plugins can also bundle lifecycle config through their plugin manifest or a default `hooks/hooks.json` file" - the file Claude reads. Its events include `SessionStart`, `SubagentStart`, `SessionEnd` (documented as running when the main thread ends, not for subagents), `Stop`, `UserPromptSubmit`, `PreToolUse`, `PostToolUse`, `PreCompact`, `PostCompact` and `SubagentStop`. **Not exercised**: no Codex session was run, so the wiring follows its documentation rather than a run here |
 | **Cursor** | both halves, by the client's own installer: `centricmem setup --install-hooks` | The only host with a first-class hook installer, and the only one here where both halves are wired up. Its MCP connection was already configured. The hooks it installs are real work, not reminders: `sessionStart` runs `centricmem ambient --write`, and `sessionEnd` runs `centricmem log-session --auto` followed by a reindex - so a Cursor session refreshes its own context and files its own card. Verified by reading the installed files: `.cursor/hooks/hooks.json` in the code repository and `~/.cursor/hooks/hooks.json`. **Not exercised**: no Cursor session was run - the wiring is verified, the behaviour at session end is not |
 
 All of it runs wherever Node runs - `.github/workflows/smoke.yml` proves that on Linux and macOS on every push, with no
@@ -139,10 +139,16 @@ refresher that keeps goose's per-turn context block current.
 ## License
 
 [MIT](./LICENSE) â€” attribution required, commercial use allowed. The Skill was PolyForm Noncommercial through 1.0.6 and is MIT from 1.0.7; that earlier grant is not withdrawn retroactively. The Cordis patch in [`dsh/`](./dsh/) is separately [MIT](./dsh/LICENSE) so DSH can mount the hosted MCP client. That does **not** relicense `SKILL.md`.
+**One correction worth keeping.** Codex was listed here as having no hook mechanism, on the strength of
+`codex plugin --help` not mentioning hooks. Its documentation does: hooks live in `hooks.json` or inline
+`[hooks]`, plugins may bundle a `hooks/hooks.json`, and the shape is the same one Claude uses. Absence in a
+CLI's help is not absence of the feature - the flags a client exposes on a command line and the files it reads
+at session boundaries are different surfaces, and only one of them was checked.
+
 ## What the plugin does beyond the Skill
 
 Claude Code and OpenClaw install this repository as a plugin, and a plugin can carry more than skills. This
-one carries a **SessionStart hook** (`hooks/hooks.json`) that runs a small Node script: it looks for a
+one carries a **SessionStart hook** (`hooks/hooks.json`) that runs a small Node script: it looks for a and a **SessionEnd hook**
 credential in `CENTRICMEM_TOKEN`, `CENTRICMEM_API_KEY`, then a `centricmem/api.json` beside your config, and
 if it finds one it prints the shelf's context so the model starts the session already oriented. With no
 credential it prints nothing at all, which is the normal case on an OAuth-connected host. It never exits
