@@ -48,6 +48,14 @@ jobs:
           test "$(wc -c < "$GOOSE_MOIM_MESSAGE_FILE")" -lt 2000 || { echo "file is larger than an explanation should be"; exit 1; }
           echo "ok on ${{ matrix.os }}: says no-key, disclaims, stays small"
 
+      - name: Hermes hook prints nothing and exits 0 without a credential
+        run: |
+          set -e
+          out=$(echo '{"hook_event_name":"pre_llm_call","session_id":"smoke"}' | node hermes/ambient-hook.mjs)
+          test -z "$out" || { echo "expected no output, got: $out"; exit 1; }
+          echo '{"hook_event_name":"on_session_end","session_id":"smoke"}' | node hermes/ambient-hook.mjs
+          echo "ok on ${{ matrix.os }}: silent, exit 0"
+
       - name: nothing anywhere reaches the network with no credential
         run: |
           set -e
