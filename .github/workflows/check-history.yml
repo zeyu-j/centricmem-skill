@@ -4,8 +4,13 @@ name: History leak check
 # which is how the private host names and the pre-trim Skill copies stayed visible after the tree was
 # cleaned. Inline rather than in scripts/ because the usage-only rule forbids that directory here.
 #
-# The patterns are base64 so that this file does not itself contain the names it looks for. The first
-# version listed them plainly and the gate flagged the commit that added it.
+# Two things this gate has to get right, both learned by getting them wrong:
+#
+# 1. It must not name what it looks for, or the commit that adds it counts as a leak. Patterns are base64,
+#    decoded at run time.
+# 2. It must ignore the two scanner files themselves. check-public.py has to list the private names to do
+#    its job, so a scan of history will always find them there - a gate that flags its own tooling is a
+#    gate nobody will trust. What this measures is exposure in content, not in a pattern list.
 
 on:
   push:
@@ -25,7 +30,9 @@ jobs:
           failed=0
           PATTERNS=$(printf '%s\n' cmVhc29uaXg= aWNlZ3JlZW4= YzpcY3NyY1xjZW50cmljbWVt ZDpcY2VudHJpY21lbQ== ZTpcY2VudHJpY21lbQ== | while read -r b; do echo "$b" | base64 -d; echo; done)
           for p in $PATTERNS; do
-            n=$(git log --all -i -S "$p" --oneline | wc -l | tr -d ' ')
+            n=$(git log --all -i -S "$p" --oneline -- . \
+                  ':(exclude).github/workflows/check-public.py' \
+                  ':(exclude).github/workflows/check-history.yml' | wc -l | tr -d ' ')
             if [ "$n" != "0" ]; then
               echo "history leak: '$p' appears in $n commit(s)"
               failed=1
