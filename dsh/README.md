@@ -56,6 +56,16 @@ Mount it in the **profile's own overlay** (`$DSH_HOME/profiles/<profile>/cordis.
 mistake is local, rather than in the patch this package ships: the loader resolves names against the
 profile directory, and a wrong row in a shipped bundle can stop dsh from booting.
 
+The row resolves against the profile directory, so the package has to be installed there first - and this package is
+`"private": true`, so it cannot come from npm by name. The CLI forwards to pnpm:
+
+```sh
+dsh plugin --profile web add file:/absolute/path/to/centricmem-skill
+dsh plugin --profile web add github:zeyu-j/centricmem-skill   # or from the repo
+```
+
+Then, in the profile overlay:
+
 ```yaml
 - insert:
     - id: centricmem-close
@@ -71,8 +81,8 @@ of the bundle's patch file.
 | Capability | State |
 | --- | --- |
 | Skills from `~/.agents/skills` | verified - the read path is in `dsh-skill-filesystem` and this package's copy is already installed there |
-| Ambient through the Claude Code bridge | verified wiring (`cordis.patch.yml` + `--dump-config`); depends on a credential being present in the environment dsh was started from |
-| Close half via the bridge | not possible - `SessionEnd` is unsupported; needs a native plugin on `agent/disposed` |
+| Ambient through the Claude Code bridge | verified wiring (`cordis.patch.yml` + `--dump-config`); on dsh a credential can only arrive through `api.json`, because the environment is scrubbed |
+| Close half via a native plugin | written against `agent/disposed` with a session-header filter (subagents are in the same registry and are disposed mid-session); not exercised in a live session |
 
 ## Credentials on dsh: the file is the only channel
 

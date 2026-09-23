@@ -8,6 +8,12 @@
 
 
 
+## 1.0.23
+
+- The dsh close plugin had two defects a reviewer caught by reading the harness, and both would have shown up as real damage. First, `agent/disposed` fires for **every** registered agent - subagents included, since only the `roots()` query filters on `owner === undefined` and a subagent is disposed when its turn ends, not at shutdown. A session with N subagents would have called `log-session --auto` N+1 times. It now filters on the session header (`delegationDepth`, `origin`), which is in the payload and independent of listener order.
+- Second, it used `spawnSync` with a 25s timeout on the disposal path - the live server event loop - which would have stalled every session and the UI. It now spawns detached and unref'd, so the card writer outlives the agent being torn down and never blocks it.
+- The dsh README also says how the overlay row can actually resolve: the package is `"private": true` and cannot come from npm by name, so `dsh plugin --profile web add file:<path>` (or `github:zeyu-j/centricmem-skill`) has to install it into the profile first. And the status table no longer claims a credential can arrive through the environment, which the same file already explains it cannot.
+
 ## 1.0.22
 
 - DeepSeek Harness gets its close half as a native plugin, `dsh/centricmem-close.mjs`, because the hooks bridge cannot carry it: the bridge's own event list has no `SessionEnd` (only `SessionStart`, `UserPromptSubmit`, `PreToolUse`, `PostToolUse`, `Stop`, `SubagentStart`, `SubagentStop`), so it ignores that hook silently. The plugin listens on `agent/disposed` - the seam `dsh-agent` emits once per top-level agent - shares the one credential check with the ambient half, and swallows every error because it runs during disposal.
