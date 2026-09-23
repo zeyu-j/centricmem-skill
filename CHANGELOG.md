@@ -6,6 +6,16 @@
 
 
 
+
+## 1.0.11
+
+- Every host-specific folder is now named from the general package. SKILL and REFERENCE carry a short table
+  pointing at `hooks/` (Claude Code, Codex), `goose/`, `openclaw/` and `tools/ambient.mjs`, so an agent can find
+  the optional extras for its own host instead of having to be told they exist. Codex's hooks were documented
+  here as absent: they are not. A plugin may bundle `hooks/hooks.json`, the same file Claude reads, with
+  `SessionStart` and `SessionEnd` among its events - so one file now serves both, and the pair is complete
+  (ambient at the start, session filing at the end).
+
 ## 1.0.10
 
 - The Claude Code plugin now carries a SessionStart hook: a small Node script that reads a credential

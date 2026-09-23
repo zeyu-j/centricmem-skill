@@ -379,6 +379,19 @@ Claude Code, Codex, Hermes, Pi, OpenClaw, Kiro, Kilo, Copilot, and other Agent S
 
 ## Optional host hooks
 
+Per-host extras live in folders named after the host. Check yours before assuming there is nothing here:
+
+| Folder | Who it is for | What is in it |
+|---|---|---|
+| `hooks/` | Claude Code, Codex | `hooks.json`: a SessionStart hook that puts this shelf's context in front of the model, and a SessionEnd hook that files the unit when the session ends |
+| `goose/` | goose | recipes for a preflight and a close, plus a MOIM refresher that writes the file goose injects each turn |
+| `openclaw/` | OpenClaw | a hook pack (`HOOK.md` + handler) that contributes the same context |
+| `tools/ambient.mjs` | anything with Node | the one implementation the three wrappers above call |
+
+Hosts not named here need nothing extra: the Skill plus the host MCP tools is the whole integration. Cursor is
+in that position with a twist - `centricmem setup --install-hooks` writes the equivalent pair into a code
+repository, so a Cursor session refreshes itself and files its own card.
+
 Lifecycle hooks are **optional**. The baseline is this Skill plus the MCP tools: an agent with no hooks still files normally. Ask if you need the hook design.
 
 ## Do not
