@@ -8,6 +8,12 @@
 
 
 
+## 1.0.16
+
+- Qwen Code joins the verified list. Its hooks are real - `SessionStart`, `SessionEnd`, `UserPromptSubmit`, `PreToolUse`, `Stop` and more, configured in `.qwen/settings.json` - and a `SessionStart` hook adds context by printing `{"hookSpecificOutput": {"additionalContext": …}}`. `qwen/ambient-hook.mjs` is the same shared ambient implementation the other wrappers use, in Qwen's shape, and the example settings block is in `qwen/settings-hooks.example.json`. It runs in the smoke job on Linux and macOS with the other three.
+- Devin gets a folder that says what is true and stops there: its CLI has `skills`, `plugins`, `mcp` and `doctor`, but `docs.devin.ai/cli/extensibility/*` renders only navigation without JavaScript, so no manifest is shipped and the install stays `devin mcp` plus the open skills CLI.
+- Cline's row notes the shortcut: `cline skill add …` forwards to the same open skills CLI, so its Skill install is one command.
+
 ## 1.0.15
 
 - `cm_health` and `cm_doctor` now say how the caller authenticated: `auth=oauth|bearer|missing` plus `keyFp`, the first 12 hex of the presented key - the same fingerprint the new-network notices already print. A stale environment on the host looked exactly like an unrotated key; the fix is a comparison, not a guess. The contract table keeps the 12 honest.

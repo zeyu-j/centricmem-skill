@@ -1,0 +1,30 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "name": "centricmem-ambient",
+            "description": "Print this shelf's context so the session starts oriented",
+            "command": "node __SKILL_ROOT__/qwen/ambient-hook.mjs",
+            "timeout": 20
+          }
+        ]
+      }
+    ],
+    "SessionEnd": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "name": "centricmem-close",
+            "description": "File the session unit on a host that can write",
+            "command": "node __SKILL_ROOT__/hooks/close.mjs",
+            "timeout": 25
+          }
+        ]
+      }
+    ]
+  }
+}

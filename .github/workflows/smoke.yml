@@ -48,7 +48,12 @@ jobs:
           test "$(wc -c < "$GOOSE_MOIM_MESSAGE_FILE")" -lt 2000 || { echo "file is larger than an explanation should be"; exit 1; }
           echo "ok on ${{ matrix.os }}: says no-key, disclaims, stays small"
 
-      - name: Hermes hook prints nothing and exits 0 without a credential
+      - name: Qwen hook
+      run: |
+        out="$(node qwen/ambient-hook.mjs)"
+        test -z "$out"
+
+    - name: Hermes hook prints nothing and exits 0 without a credential
         run: |
           set -e
           out=$(echo '{"hook_event_name":"pre_llm_call","session_id":"smoke"}' | node hermes/ambient-hook.mjs)
