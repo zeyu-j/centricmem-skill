@@ -100,15 +100,15 @@
 
 ## 0.21.91
 
-- Skill refresh: install morphologies (hub body / junction reuse / parallel body). Hosts outside that list must discover and remember this clientâ€™s load path and refresh only that tree â€” do not invent a shared hub or unify sibling copies. Librarian CLI unchanged (**0.21.80**).
+- Skill refresh: install morphologies (hub body / junction reuse / parallel body). Hosts outside that list must discover and remember this client’s load path and refresh only that tree — do not invent a shared hub or unify sibling copies. Librarian CLI unchanged (**0.21.80**).
 
 ## 0.21.90
 
-- Findability: SKILL.md opens with a five-line Do not summary. After a disk refresh, re-read SKILL + Do not before the next write. Â§2 and Skill refresh stress load path â‰  refresh path; optional inventory for sibling copies; the host's install tool often fails a rename while the host is running â€” file-level overwrite still works, then sync plugin-packages.json. cm_search takes q (not query). Librarian CLI unchanged (**0.21.80**).
+- Findability: SKILL.md opens with a five-line Do not summary. After a disk refresh, re-read SKILL + Do not before the next write. §2 and Skill refresh stress load path ≠ refresh path; optional inventory for sibling copies; the host's install tool often fails a rename while the host is running — file-level overwrite still works, then sync plugin-packages.json. cm_search takes q (not query). Librarian CLI unchanged (**0.21.80**).
 
 ## 0.21.89
 
-- Skill refresh: description asks agents to compare the loaded copy vs skill_latest on session start. Plugin-tree hosts prefer the host's install_source tool with the full URL https://github.com/zeyu-j/centricmem-skill (kind plugin; dry-run then apply); read version from the plugin package.json, not ~/.agents. Limits: detect, install, ask human to restart â€” this chat keeps the already-loaded Skill. Librarian CLI unchanged (**0.21.80**).
+- Skill refresh: description asks agents to compare the loaded copy vs skill_latest on session start. Plugin-tree hosts prefer the host's install_source tool with the full URL https://github.com/zeyu-j/centricmem-skill (kind plugin; dry-run then apply); read version from the plugin package.json, not ~/.agents. Limits: detect, install, ask human to restart — this chat keeps the already-loaded Skill. Librarian CLI unchanged (**0.21.80**).
 
 ## 0.21.88
 
