@@ -65,6 +65,13 @@ jobs:
           echo '{"hook_event_name":"on_session_end","session_id":"smoke"}' | node hermes/ambient-hook.mjs
           echo "ok on ${{ matrix.os }}: silent, exit 0"
 
+      - name: Close hook exits 0 and prints nothing without a credential
+        run: |
+          set -e
+          out=$(node hooks/close.mjs)
+          test -z "$out" || { echo "expected no output, got: $out"; exit 1; }
+          echo "ok on ${{ matrix.os }}: silent, exit 0"
+
       - name: nothing anywhere reaches the network with no credential
         run: |
           set -e

@@ -8,6 +8,11 @@
 
 
 
+## 1.0.29
+
+- A regression the hooks shipped with since 1.0.21 is fixed: `hooks/close.mjs` imports `credential` from `tools/ambient.mjs`, but that function was declared without `export`, so the close hook threw at import time and never ran on any host - Claude Code, Codex or dsh. Worse, nothing noticed: the smoke job asserted the ambient, OpenClaw, goose, Qwen and Hermes wrappers but never ran `hooks/close.mjs`, so a hook that could not even load passed seven releases.
+- The export is in place, both hooks are checked by hand, and the smoke job now runs the close hook too: it must print nothing and exit 0 with no credential, which is exactly the assertion that would have caught this.
+
 ## 1.0.28
 
 - The hooks were looking for a credential in the wrong place, and a reviewer proved it: on a guest machine the key lives in the host MCP config (`~/.cursor/mcp.json`, `~/.claude.json`, `~/.codex/config.toml`) - where `centricmem doctor` reports it as `token: mcp.json` - while `tools/ambient.mjs` only read the environment and `api.json`. `api.json` is written by a local hub, so on a guest it never appears, and the CLI consults it last on purpose because it is often a stale key. The hooks now follow the CLI order: environment, claimed host config, then `api.json`.
