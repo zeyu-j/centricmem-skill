@@ -10,7 +10,7 @@
 
 ## 1.0.19
 
-- A machine can end up with this Skill twice, and now it says so. `scanSkillCopies()` walks the roots we have actually seen a copy in - the hub (`~/.agents/skills`), Hermes (`%LOCALAPPDATA%\hermes\skills`) and a-private-host (`%APPDATA%\a-private-host\plugins`) - reads each copy's version, and reports duplicates and stragglers. `cm_doctor` carries it as `skill_copies`. On this machine it found three copies and two of them stale: the hub at 1.0.18, Hermes and a-private-host still at 1.0.14.
+- A machine can end up with this Skill twice, and now it says so. `scanSkillCopies()` walks the roots we have actually seen a copy in - the hub (`~/.agents/skills`), Hermes (`%LOCALAPPDATA%\hermes\skills`) and a private desktop agent of ours - reads each copy's version, and reports duplicates and stragglers. `cm_doctor` carries it as `skill_copies`. On this machine it found three copies and two of them stale: the hub at 1.0.18, Hermes and that agent still at 1.0.14.
 - `tools/prune-duplicate-skill.mjs` prints that plan and, with `--apply`, removes the copies it named - it only ever touches centricmem copies, never another Skill, and a symlink is never followed (a machine with junctions can loop).
 - REFERENCE gains "One core, one source": keep the newest copy, refresh the plugin copy your host actually loads, and treat the hub as the fallback for hosts that cannot take a plugin. The open skills CLI writes a hub copy on every install, so two copies is a normal machine state - a stale pair is not.
 

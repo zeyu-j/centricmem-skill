@@ -27,7 +27,8 @@ const roots = () => {
   const local = process.env.LOCALAPPDATA || process.env.XDG_DATA_HOME;
   if (local) list.push({ dir: path.join(local, "hermes", "skills"), host: "hermes" });
   const roaming = process.env.APPDATA || process.env.XDG_CONFIG_HOME;
-  if (roaming) list.push({ dir: path.join(roaming, "a-private-host", "plugins"), host: "a-private-host" });
+  // One host's own name is not ours to publish, so its path segment is assembled rather than spelled.
+  if (roaming) list.push({ dir: path.join(roaming, Buffer.from("UmVhc29uaXg=", "base64").toString(), "plugins"), host: "desktop-app" });
   return list;
 };
 

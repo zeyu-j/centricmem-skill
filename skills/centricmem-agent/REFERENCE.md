@@ -433,6 +433,6 @@ What we can report is now in `cm_health` and `cm_doctor`: `auth=oauth|bearer|mis
 
 ## One core, one source
 
-A machine with several agents ends up with this Skill more than once: the open skills CLI always writes a canonical copy into the shared hub (`~/.agents/skills`), while a host that installs the package as a plugin keeps its own copy. Nothing is broken by that, but a host can then show two `centricmem-agent` entries and load the stale one - ZCode did exactly that, and Codex, a-private-host and Hermes have all been seen holding a copy of their own.
+A machine with several agents ends up with this Skill more than once: the open skills CLI always writes a canonical copy into the shared hub (`~/.agents/skills`), while a host that installs the package as a plugin keeps its own copy. Nothing is broken by that, but a host can then show two `centricmem-agent` entries and load the stale one - ZCode did exactly that, and Codex, Hermes and a private desktop agent of ours have all been seen holding a copy of their own.
 
 So: **keep the newest copy and remove the older ones** - a plugin copy that your host actually loads is the one to refresh when it lags, and the hub copy is the fallback for hosts that cannot take a plugin. What matters is that one of them is current, and that a host is not left choosing between two. `cm_doctor` now reports every copy it can see (`skill_copies`), and `node tools/prune-duplicate-skill.mjs` prints the plan - it only ever removes centricmem copies, keeps the newest, and does nothing without `--apply`.
