@@ -1,5 +1,8 @@
 # DeepSeek Harness (dsh)
 
+Run every command below as `npx -y @deepseek-ai/dsh ...` if you do not have a global `dsh` - the
+web profile in this document was started that way, and `dsh` is not on PATH there.
+
 `dsh` is Cordis-based and lives in `~/.dsh` (`profiles/<name>/`, where `cordis.patch.yml` is the
 layer you edit). The web UI is `dsh web` on `127.0.0.1:3080`, gated by the token in the URL it
 prints.
@@ -97,6 +100,28 @@ credential yet, **adding this package and restarting makes dsh fail to start.** 
 One more operational note: the profile uses pnpm hoisted linking, so what gets installed is a
 **snapshot copy**, not a link to your checkout. After this package changes, re-run
 `dsh plugin --profile <profile> install` for the profile to see the new version.
+## What we measured, and what did not work
+
+- **The hook itself is verified.** With the environment stripped of every credential variable -
+  `cmd /c "set CENTRICMEM_TOKEN=& set CENTRICMEM_API_KEY=& set CENTRICMEM_AGENT_KEY=& node
+  <repo>\\hooks\\ambient.mjs"` - it prints the JSON envelope with live shelf context, because it reads
+  the claimed Bearer out of the host configs. This is the fastest way to tell a broken hook from a host
+  that did not deliver: if that command answers, the hook is fine.
+- **Delivery in the dsh web profile was not observed.** A session started after wiring reported no
+  CentricMem block in context, no plugin-sourced message in its session log, and no `cm_*` tools.
+  `SessionStart` is detached, and on this profile the injected message did not land on the session at
+  all. Treat ambient here as best effort, not as something to rely on.
+- **MCP is a separate channel and needs a Bearer.** This client has no OAuth, so the server has to be
+  added with an `Authorization: Bearer ...` header in the profile. Without it there are no `cm_*` tools,
+  and the hooks do not provide them - hooks inject text, they do not register tools.
+- **The web profile turns the skill plugins off.** `skill-filesystem`, `tool-skill`, `skill-badge` and
+  `agent-instructions` are all `disabled: true` in this profile (patched by `dsh-web-app`), so the
+  `~/.agents/skills` route and `AGENTS.md` injection do not apply here even though the package reads
+  them. On this profile the live channels are MCP and the hooks.
+- **Sandbox note for `centricmem connect`.** It writes your home directory (`.cursor/mcp.json`,
+  `.claude.json`, `.codex/config.toml`), so inside a host with a file sandbox it fails with `EPERM`.
+  Run it in a normal terminal or widen the sandbox; a rejected write does not invalidate a minted
+  connect URL, which stays valid for about ten minutes.
 ## How to verify - order matters
 
 

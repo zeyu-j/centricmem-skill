@@ -8,6 +8,12 @@
 
 
 
+## 1.0.30
+
+- The dsh README now records what was measured, including the part that did not work. The hook itself is verified - with every credential variable stripped, `hooks/ambient.mjs` still prints the JSON envelope with live context, so it reads the claimed Bearer out of the host configs as intended, and that command is now the documented way to tell a broken hook from a host that did not deliver. Delivery in the dsh web profile was not observed: a session started after wiring had no CentricMem block, no plugin-sourced message in its log and no `cm_*` tools, so ambient there is best effort rather than something to rely on.
+- Three facts about that profile are written down with it: MCP needs a Bearer header because the client has no OAuth, `skill-filesystem`/`tool-skill`/`skill-badge`/`agent-instructions` are disabled by `dsh-web-app` so the `~/.agents/skills` route does not apply, and commands are run as `npx -y @deepseek-ai/dsh ...` when there is no global `dsh` - which is how this profile was started and why the first instruction here failed.
+- A sandbox note for `centricmem connect`: it writes the home directory, so it fails with `EPERM` inside a host that sandboxes writes; run it in a normal terminal, and note that a rejected write does not invalidate a minted connect URL.
+
 ## 1.0.29
 
 - A regression the hooks shipped with since 1.0.21 is fixed: `hooks/close.mjs` imports `credential` from `tools/ambient.mjs`, but that function was declared without `export`, so the close hook threw at import time and never ran on any host - Claude Code, Codex or dsh. Worse, nothing noticed: the smoke job asserted the ambient, OpenClaw, goose, Qwen and Hermes wrappers but never ran `hooks/close.mjs`, so a hook that could not even load passed seven releases.
