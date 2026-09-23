@@ -57,7 +57,8 @@ npx --yes skills add zeyu-j/centricmem-skill --skill centricmem-agent -y
 | Kiro | Powers → Add Custom Power → GitHub `https://github.com/zeyu-j/centricmem-skill` |
 | DSH | `dsh plugin --profile web add github:zeyu-j/centricmem-skill#v1.0.31`, then `node node_modules/centricmem-skill/dsh/copy-skill.mjs` from the profile directory, then the two overlay rows in [`dsh/README.md`](./dsh/README.md). Read that file first: adding the package puts its patch into the profile bundle stack, where a missing Bearer aborts boot on purpose |
 | Dify | Its own distribution: [zeyu-j/centricmem-dify](https://github.com/zeyu-j/centricmem-dify); marketplace review pending. Any MCP client can also attach `https://mem.centricmem.com/mcp` with the same agent key |
-| Kilo / junie / Devin | Documented surfaces only: `kilo mcp add` and `junie --mcp-location` are interactive or flag-driven, and Devin's plugin docs need a browser to render. See [`devin/`](./devin/) and [VERIFIED-INSTALLS.md](./VERIFIED-INSTALLS.md) |
+| Kilo | `npx --yes skills add zeyu-j/centricmem-skill` for the Skill; the MCP half is the interactive `kilo mcp add`. See [VERIFIED-INSTALLS.md](./VERIFIED-INSTALLS.md) |
+| junie / Devin | Documented surfaces only: `junie --mcp-location` is flag-driven, and Devin's plugin docs need a browser to render. See [`devin/`](./devin/) and [VERIFIED-INSTALLS.md](./VERIFIED-INSTALLS.md) |
 | SkillKit / skills.sh | `skillkit add https://centricmem.com`, `skillkit add zeyu-j/centricmem-skill`, or the `npx skills add` line above |
 | Any other Agent Skills host | Copy `skills/centricmem-agent/` so the file lands at `<skills-root>/centricmem-agent/SKILL.md`, then point the host's MCP client at `https://mem.centricmem.com/mcp`. Claim the machine with `centricmem connect --claim --target <this-host-config.json>` (or `CENTRICMEM_MCP_TARGETS`) and confirm with `centricmem connect --verify`. Never copy a key out of another client's config |
 
