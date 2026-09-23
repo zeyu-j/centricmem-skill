@@ -29,7 +29,7 @@ Same GitHub repo as a plugin marketplace:
 
 | Client | Add this repo, then install |
 | --- | --- |
-| Cursor / Grok | Cursor: Plugins → Team Marketplaces → Import from Repo `zeyu-j/centricmem-skill`, or `npx skills add` above. Grok: paste the one-liner; the shell is blocked, so it sends signup only and you add `https://mem.centricmem.com/mcp` in that bot's MCP settings (key from Keys, never in chat). |
+| Cursor / Grok Bot| Cursor: Plugins → Team Marketplaces → Import from Repo `zeyu-j/centricmem-skill`, or `npx skills add` above. Grok: paste the one-liner; the shell is blocked, so it sends signup only and you add `https://mem.centricmem.com/mcp` in that bot's MCP settings (key from Keys, never in chat). |
 | Claude Code | `/plugin marketplace add zeyu-j/centricmem-skill` then `/plugin install centricmem-skill@centricmem` |
 | CodeBuddy / WorkBuddy | `codebuddy plugin marketplace add zeyu-j/centricmem-skill` then `/plugin install centricmem-skill@centricmem` |
 | Kimi Code | `/plugins install https://github.com/zeyu-j/centricmem-skill` (Custom). Catalog: `/plugins marketplace https://raw.githubusercontent.com/zeyu-j/centricmem-skill/main/.kimi-plugin/marketplace.json`. Set `CENTRICMEM_API_KEY` for host MCP. |
