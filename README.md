@@ -82,6 +82,24 @@ This repository is the **Skill**: how agents talk to the hosted librarian.
 
 It is not the librarian, not the CLI source, and not a self-hosted kit. One public Agent Skill: `centricmem-agent` (folder name) inside package `centricmem-skill`.
 
+
+## goose
+
+goose reads the plugin manifest at the root of this repository, so there is no host-specific folder to
+look for:
+
+```sh
+goose plugin install https://github.com/zeyu-j/centricmem-skill
+```
+
+That imports the skill (`centricmem-skill:centricmem-agent`) and drops the repository under
+`~/.agents/plugins/centricmem-skill/`. Verified against goose 1.51.0: it reports "Installed open-plugins
+plugin", so the generic manifest is what goose consumes - unlike the hosts above, which each require a
+folder named after them.
+
+`recipes/goose/` adds two optional, MCP-only extras: a preflight recipe, a close recipe, and the ambient
+refresher that keeps goose's per-turn context block current.
+
 ## License
 
 [MIT](./LICENSE) — attribution required, commercial use allowed. The Skill was PolyForm Noncommercial through 1.0.6 and is MIT from 1.0.7; that earlier grant is not withdrawn retroactively. The Cordis patch in [`dsh/`](./dsh/) is separately [MIT](./dsh/LICENSE) so DSH can mount the hosted MCP client. That does **not** relicense `SKILL.md`.

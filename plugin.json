@@ -29,6 +29,8 @@
     "hermes",
     "pi",
     "openclaw",
-    "dsh-plugin"
+    "dsh-plugin",
+    "goose",
+    "open-plugins"
   ]
 }
