@@ -52,3 +52,30 @@ the bridge does not log `hook/invoked` pairs for it - a silent failure leaves no
 | Skills from `~/.agents/skills` | verified - the read path is in `dsh-skill-filesystem` and this package's copy is already installed there |
 | Ambient through the Claude Code bridge | verified wiring (`cordis.patch.yml` + `--dump-config`); depends on a credential being present in the environment dsh was started from |
 | Close half via the bridge | not possible - `SessionEnd` is unsupported; needs a native plugin on `agent/disposed` |
+
+## Credentials on dsh: the file is the only channel
+
+This one is a hard fact about dsh rather than a preference. `dsh-subprocess` defines
+`SENSITIVE_ENV_PATTERN = /KEY|PASSWORD|SECRET|TOKEN/i` and its `scrubbedParentEnv()` removes every
+matching variable from the environment a hook is spawned with; the hooks bridge adds only
+`CLAUDE_PROJECT_DIR`. So on dsh, `CENTRICMEM_TOKEN`, `CENTRICMEM_API_KEY` **and**
+`CENTRICMEM_AGENT_KEY` are all gone before a hook starts - the environment simply cannot carry a
+credential there.
+
+What works is the file: `~/.centricmem/api.json`, `%APPDATA%\\centricmem\\api.json`, or
+`$XDG_CONFIG_HOME/centricmem/api.json`, which both halves read. Practical consequence: on a machine
+where the CLI has never been connected, this Skill's hooks stay silent on dsh no matter what is
+exported, and `centricmem setup`/`cm_health` is the prerequisite rather than the follow-up.
+
+We deliberately do **not** ship an environment name crafted to avoid that pattern (one without
+`KEY`/`TOKEN`) - a host scrubs those names on purpose, and naming a variable to slip past another
+product's control is not a fix we want to depend on. The file is the honest channel.
+
+## Bundle, and where the close half goes
+
+This package declares `dsh.bundle.patch` in its `package.json`, so the MCP funnel ships in
+`dsh/cordis.patch.yml` as an `insert` row. That is also why the guidance above stays valid: the
+**bridge** is a plugin, not a bundle, so it goes in the profile's own patch layer, while the bundle
+carries the funnel. A close plugin could ride in the same bundle as a second `insert` row, resolved
+relative to the profile directory - it is not shipped yet, because `SessionEnd` cannot carry the
+close half here and a native `agent/disposed` plugin has to be written and verified first.

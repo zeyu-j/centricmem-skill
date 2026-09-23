@@ -8,6 +8,11 @@
 
 
 
+## 1.0.21
+
+- One credential check, in one place. `hooks/close.mjs` still tested only `CENTRICMEM_TOKEN` and `CENTRICMEM_API_KEY`, so a machine key exported under the name the host docs use would leave the close half silently idle - the same lag the ambient half had. Both now call `credential()` from `tools/ambient.mjs`.
+- The dsh README records why the environment cannot carry a credential there: `dsh-subprocess` strips every variable whose name matches `/KEY|PASSWORD|SECRET|TOKEN/i` before spawning a hook, and the hooks bridge adds only `CLAUDE_PROJECT_DIR`. On dsh the `api.json` file is the channel, so connecting the CLI is the prerequisite, not the follow-up. We deliberately do not ship an env name chosen to slip past that pattern.
+
 ## 1.0.20
 
 - The SessionStart hook now answers in the JSON envelope (`hookSpecificOutput.additionalContext`, with `hookEventName`), not as bare stdout. One shape serves Claude Code and every bridge that runs a Claude Code `hooks.json`; DeepSeek Harness drops a bare string without saying so.

@@ -1,3 +1,4 @@
+import { credential } from "../tools/ambient.mjs";
 // SessionEnd / close hook: file the unit that just finished, the way Cursor's installed hooks do.
 //
 // Cursor has had this pair all along (sessionStart -> `centricmem ambient --write`, sessionEnd ->
@@ -17,7 +18,10 @@ import path from "node:path";
 const TIMEOUT_MS = 20000;
 
 const hasCredential = () => {
-  if (process.env.CENTRICMEM_TOKEN || process.env.CENTRICMEM_API_KEY) return true;
+  // The same sources the ambient half uses: env names (CENTRICMEM_TOKEN, CENTRICMEM_AGENT_KEY,
+  // CENTRICMEM_API_KEY) and the api.json files. One definition, so a name added for one host is not
+  // silently missing from the other - which is exactly how this check lagged behind.
+  if (credential().token) return true;
   const candidates = [
     path.join(os.homedir(), ".centricmem", "api.json"),
     process.env.APPDATA ? path.join(process.env.APPDATA, "centricmem", "api.json") : "",
