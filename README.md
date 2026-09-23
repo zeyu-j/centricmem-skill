@@ -18,7 +18,7 @@ was run and what was only read.
 | **OpenClaw** 2026.6.35 | `openclaw/` - a hook pack (`HOOK.md` + `handler.js`, events: `session`) | `openclaw plugins install ./openclaw` installs it and `openclaw hooks info` reports it ready with node present; the handler returns 496 characters with a credential, 0 without |
 | **goose** 1.51.0 | `goose/*.yaml` recipes and `goose/centricmem-ambient.mjs` | the refresher writes `status=OK` with a credential and `status=NO-KEY` without one, disclaiming both |
 | **Codex** 0.156.1 | nothing - its plugin surface has no hook mechanism | verified by inspecting its plugin help; the Skill and the MCP connection are the whole integration |
-| **Cursor** | nothing - already connected | `~/.cursor/mcp.json` carries `centricmem` with an Authorization header; its plugin route is a GUI flow and stays documented, not claimed |
+| **Cursor** | nothing needed for the MCP connection; its plugin route was not exercised | `~/.cursor/mcp.json` carries `centricmem` with an Authorization header pointing at `mem.centricmem.com` - **configured, not exercised**: no Cursor session was run, because that needs credits and a GUI. Its plugin install is a GUI flow (Team Marketplaces -> Import from Repo) and stays documented, not claimed |
 
 All of it runs wherever Node runs - `.github/workflows/smoke.yml` proves that on Linux and macOS on every push, with no
 credential present, asserting that each of them stays silent and exits 0. The PowerShell refresher this
@@ -36,7 +36,7 @@ These were run against real clients, not copied from documentation. The marks sa
 | **Claude Code** 2.1.280 | `claude plugin marketplace add zeyu-j/centricmem-skill` then `claude plugin install centricmem-skill@centricmem` | both succeed; `claude plugin list` shows version 1.0.9, enabled |
 | **Codex** 0.156.1 | `codex plugin marketplace add https://github.com/zeyu-j/centricmem-skill` then `codex plugin add centricmem-skill@centricmem` | marketplace accepted; plugin cached at `~/.codex/plugins/cache/centricmem/centricmem-skill/1.0.9` |
 | **OpenClaw** 2026.6.35 | `openclaw plugins install centricmem-skill --marketplace zeyu-j/centricmem-skill` | installed as a **bundle** (it consumes the Claude marketplace format); `openclaw plugins list` shows 1.0.9, enabled |
-| Cursor, Kiro, Grok, Hermes, and the private hosts whose manifests are not published here | per-host manifests in this repository | **not verified here** - these are GUI or closed clients, so their manifests follow the published convention and nothing more is claimed |
+| Cursor, Kiro, Grok, Hermes, and the private hosts whose manifests are not published here | per-host manifests in this repository | **install not verified here** - these are GUI or closed clients, so their manifests follow the published convention and nothing more is claimed. Cursor is the one exception worth noting: its MCP connection is already configured on this machine, which the row above records |
 | dsh, Pi | - | their own distribution, not on npm; install through their own tooling |
 
 If one of the unverified rows is wrong, the fix is a manifest change, not a code change: open an issue with the
