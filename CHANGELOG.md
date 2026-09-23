@@ -8,6 +8,12 @@
 
 
 
+## 1.0.31
+
+- All the prose in the public tree was rewritten for one voice and one place per fact. The README no longer repeats the connect instruction twice, no longer carries verification anecdotes inside install cells (they live in the evidence files), and gained the rows it was missing for hosts verified since: goose, Qwen Code, ZCode, nanobot, Cline, CodeBuddy, Hermes hooks, Kiro, Dify. Every command in it is either something we ran or something a client documents, and the DSH instruction now sends the reader to `dsh/README.md` before they add the package, because of the bundle trap.
+- The two evidence files now state the marks and the one-core rule once each, their rows say what was answered rather than what was hoped, and both corrections we earned the hard way are kept: Codex does have hooks even though its CLI help does not say so, and a credential is not where it looks likely - the host config, not `api.json`.
+- `dsh/README.md` was reordered around what a reader needs first (status, wiring, the close half, credentials, the bundle trap, how to verify, what the web profile disables) instead of the order the facts were discovered, and it no longer repeats the same caveat in three sections. The Skill frontmatter compatibility floor says the same things in a third fewer words.
+
 ## 1.0.30
 
 - The dsh README now records what was measured, including the part that did not work. The hook itself is verified - with every credential variable stripped, `hooks/ambient.mjs` still prints the JSON envelope with live context, so it reads the claimed Bearer out of the host configs as intended, and that command is now the documented way to tell a broken hook from a host that did not deliver. Delivery in the dsh web profile was not observed: a session started after wiring had no CentricMem block, no plugin-sourced message in its log and no `cm_*` tools, so ambient there is best effort rather than something to rely on.
