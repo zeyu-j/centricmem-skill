@@ -8,6 +8,10 @@
 
 
 
+## 1.0.18
+
+- DeepSeek Harness moves from "waiting for a session" to documented. Its `dsh-skill-filesystem` reads `<agentsHome>/skills` - `~/.agents/skills`, the hub the open skills CLI installs into - so `centricmem-agent` is picked up with nothing dsh-specific. And `dsh-hooks-claude-code` is a bridge that runs a Claude Code `hooks.json` on dsh's interception seams (`SessionStart`, prompt and tool pre/post, `Stop`, subagent) while substituting `${CLAUDE_PLUGIN_ROOT}` for its `pluginRoot` setting: this package's `hooks/hooks.json` therefore runs there unchanged. `dsh/README.md` records both, plus the fact that `dsh plugin add` needs a TTY.
+
 ## 1.0.17
 
 - ZCode (zai-org, 0.16.9) is verified the same way CodeBuddy was: it ships a CLI at `resources/glm/zcode.cjs`, and `zcode plugins marketplace add zeyu-j/centricmem-skill` followed by `zcode plugins install centricmem-skill@centricmem` installs this package. ZCode preloads the Claude Code marketplace, which is why the same repository works for it unchanged.

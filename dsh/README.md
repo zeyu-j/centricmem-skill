@@ -1,41 +1,51 @@
-# DSH Cordis funnel
+# DeepSeek Harness (dsh)
 
-This folder is **MIT**. It only mounts the in-box `@deepseek-ai/dsh-mcp-client` at `https://mem.centricmem.com/mcp`.
+`dsh` is Cordis-based and lives in `~/.dsh` (`profiles/<name>/` with `cordis.yml` and
+`cordis.patch.yml`). Its web UI is `dsh web` on `127.0.0.1:3080`, gated by a token in the URL the
+command prints.
 
-The Skill (`skills/centricmem-agent/SKILL.md`) is **MIT** from 1.0.7. It was PolyForm Noncommercial up to and including 1.0.6, and that grant is not withdrawn retroactively. Do not list this Skill on ClawHub.
+## Skills: already visible, nothing to do
 
-Needs `pnpm` on PATH (`npm i -g pnpm` if missing). `corepack enable pnpm` fails on Windows when Node lives under Program Files.
+`dsh-skill-filesystem` reads skills from `<agentsHome>/skills` - that is **`~/.agents/skills`** -
+and from `.dsh`. That is the hub this package installs into with the open skills CLI, so
+`centricmem-agent` is picked up with no dsh-specific work. (ZCode's `skills list` shows the same
+copy from the same path.)
 
-Pin the tag so the profile does not track `main`:
-
-```bash
-dsh plugin --profile web add github:zeyu-j/centricmem-skill#v0.21.72
+```sh
+npx skills add zeyu-j/centricmem-skill   # puts centricmem-agent in ~/.agents/skills
 ```
 
-Then copy the Skill into a path DSH actually scans (the funnel does **not** load `node_modules/…/skills/`):
+## Hooks: dsh ships a Claude Code bridge
 
-```bash
-node node_modules/centricmem-skill/dsh/copy-skill.mjs
-```
+`dsh-hooks-claude-code` - and `dsh-hooks-codex` - are bridge plugins whose own description reads:
+*"run a Claude Code hooks.json / settings hook config on the DeepSeek Harness interception seams"*.
+The bridge supports `SessionStart`, prompt and tool pre/post, `Stop` and subagent interception,
+and it substitutes `${CLAUDE_PLUGIN_ROOT}` with its `pluginRoot` setting (and
+`${CLAUDE_PROJECT_DIR}` with the workspace).
 
-Run that from the profile directory (`$DSH_HOME/profiles/<profile>/`). It writes `$DSH_HOME/skills/centricmem-agent/`. Never `npx skills add -g` in DSH — that writes `~/.agents/skills`, not `$DSH_HOME`.
-
-The patch is URL-only and sets `failOnStartupError: true`, so a missing Bearer aborts boot instead of registering zero tools. After the agent sends a `/connect?device=` link, overlay Bearer on the **same** `id` — restating the whole `config` block. A typo in `serverName` creates a second server, not an error. Never commit headers.
+That means **this package's `hooks/hooks.json` runs on dsh as it stands**: point `pluginRoot` at a
+checkout of this repository, and the ambient half (`hooks/ambient.mjs` on `SessionStart`) and the
+close half (`hooks/close.mjs`, which only files a unit where the machine may write) are both wired.
 
 ```yaml
-# $DSH_HOME/profiles/<profile>/cordis.patch.yml
-- insert:
-    - id: mcp-centricmem
-      name: '@deepseek-ai/dsh-mcp-client'
-      failOnStartupError: true
-      config:
-        serverName: centricmem
-        transport: streamable-http
-        url: https://mem.centricmem.com/mcp
-        headers:
-          Authorization: Bearer <key-from-the-connect-page>
+# in the profile's Cordis config, alongside the other bridge plugins
+dsh-hooks-claude-code:
+  pluginRoot: /absolute/path/to/centricmem-skill
 ```
 
-Start a **new chat**. This session’s tool catalog is frozen at boot. Tools appear as `mcp__centricmem__cm_*` (same 16 tools). DSH has no plaintext per-chat transcript — skip `cm_keep`; still file note / decision / done.
+## Installing the package itself
 
-GitHub topic `dsh-plugin` is discovery. A live CentricMem plan is still required.
+```sh
+npx -y @deepseek-ai/dsh plugin --profile web add github:zeyu-j/centricmem-skill#v1.0.18
+```
+
+This command needs a TTY: run without one it prints nothing at all, which is why it is not marked
+verified here. The pin matters - every `v0.21.x` tag points at a pre-1.0 snapshot, so pin a release.
+
+## Status
+
+| Capability | State |
+| --- | --- |
+| Skills from `~/.agents/skills` | verified - the read path is in `dsh-skill-filesystem` and this package's copy is already installed there |
+| Ambient + close through the Claude Code bridge | documented from the bridge's own package (seams, `pluginRoot`, `${CLAUDE_PLUGIN_ROOT}`); the wiring needs one interactive session |
+| `dsh plugin add` | needs a TTY; no output is not a failure |
