@@ -379,6 +379,14 @@ Claude Code, Codex, Hermes, Pi, OpenClaw, Kiro, Kilo, Copilot, and other Agent S
 
 ## Optional host hooks
 
+**Where the close half works, and where it does not.** The SessionEnd hook calls
+`centricmem log-session --auto`, which is a **host-side** command: on a guest it stops with "this command cannot
+write the leftover hub" and points at import or the MCP tools instead. So on a machine that talks to a hosted
+librarian the hook is silent, and the card is filed by the **agent**, which is what the Skill already requires
+anyway. The hook was left alone rather than making it post a card itself: a hook cannot read the session, and
+this project's own rule is that a card's summary states the key points, not a placeholder. Cursor's installed
+hooks have the same shape and the same boundary - they file on a librarian host and fall silent elsewhere.
+
 Per-host extras live in folders named after the host. Check yours before assuming there is nothing here:
 
 | Folder | Who it is for | What is in it |
