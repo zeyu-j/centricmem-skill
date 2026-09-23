@@ -128,4 +128,8 @@ if it finds one it prints the shelf's context so the model starts the session al
 credential it prints nothing at all, which is the normal case on an OAuth-connected host. It never exits
 non-zero, so a network problem can only mean a quieter session, never a broken one.
 
+OpenClaw takes the same idea as a **hook pack**: `openclaw plugins install ./openclaw` from a clone. It
+subscribes to the session event category, so it does not depend on an event name staying put, and
+`openclaw hooks info centricmem-ambient` reports it ready.
+
 goose does not use this hook - it has recipes and the MOIM file instead, in `goose/`.
