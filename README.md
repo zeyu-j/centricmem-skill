@@ -6,51 +6,17 @@ A hosted librarian for AI agents. Capture stays in the agent you already use. Ce
 
 This repository is **one package**: [Agent Skills](https://agentskills.io) `SKILL.md` plus an [Agent Plugins 1.0](https://agent-plugins.org) bundle (`plugin.json` + `skills/` + `mcp.json`). Install it once from GitHub; each client uses its own command. Do not paste keys or marketplace JSON into chat.
 
-### Verified optimisations
+## Evidence
 
-Same idea as the installs above: these were run against real clients on this machine, and the marks say what
-was run and what was only read.
+Two tables, kept apart from the instructions they describe:
 
-| Host | What was added | Evidence |
-|---|---|---|
-| **Claude Code** 2.1.280 | `hooks/hooks.json` - a SessionStart hook, bundled in the plugin | `claude plugin details` reports `Hooks (1) SessionStart (harness-only - no model context cost)`; the hook script prints 496 characters with a credential and 0 without |
-| **OpenClaw** 2026.6.35 | `openclaw/` - a hook pack (`HOOK.md` + `handler.js`, events: `session`) | `openclaw plugins install ./openclaw` installs it and `openclaw hooks info` reports it ready with node present; the handler returns 496 characters with a credential, 0 without  **No close half is possible**: its session events are `session:compact`, `session:auto-reset` and `session:patch`, and there is no session-end event at all - nor a `Stop`, which is why the pack contributes context and nothing else. `command:stop` and `gateway:shutdown` exist but neither means "this session finished" |
-| **goose** 1.51.0 | `goose/*.yaml` recipes and `goose/centricmem-ambient.mjs` | the refresher writes `status=OK` with a credential and `status=NO-KEY` without one, disclaiming both |
-| **Codex** 0.156.1 | the same `hooks/hooks.json` in the plugin, so `SessionStart` and `SessionEnd` both apply | Codex discovers hooks as `hooks.json` or inline `[hooks]` in `config.toml`, and "installed plugins can also bundle lifecycle config through their plugin manifest or a default `hooks/hooks.json` file" - the file Claude reads. Its events include `SessionStart`, `SubagentStart`, `SessionEnd` (documented as running when the main thread ends, not for subagents), `Stop`, `UserPromptSubmit`, `PreToolUse`, `PostToolUse`, `PreCompact`, `PostCompact` and `SubagentStop`. **Not exercised**: no Codex session was run, so the wiring follows its documentation rather than a run here |
-| **Cursor** | both halves, by the client's own installer: `centricmem setup --install-hooks` | The only host with a first-class hook installer, and the only one here where both halves are wired up. Its MCP connection was already configured. The hooks it installs are real work, not reminders: `sessionStart` runs `centricmem ambient --write`, and `sessionEnd` runs `centricmem log-session --auto` followed by a reindex - so a Cursor session refreshes its own context and files its own card. Verified by reading the installed files: `.cursor/hooks/hooks.json` in the code repository and `~/.cursor/hooks/hooks.json`. **Not exercised**: no Cursor session was run - the wiring is verified, the behaviour at session end is not |
-| **Hermes** v0.21.4 | `hermes/` - a shell hook pair (`pre_llm_call` + `on_session_end`), with the Skill installed from this repo | `hermes hooks test pre_llm_call --payload-file` fires the hook and prints `parsed (Hermes wire shape): {"context": …}`; `hermes hooks doctor` reports `✓ produced valid JSON on synthetic payload (exit=0, 0.109s)` for `pre_llm_call` and `✓ ran clean with empty stdout (exit=0, 0.094s) — hook is observer-only` for `on_session_end`. Both entries had to be allowlisted first - a non-TTY host cannot answer the consent prompt, so `hermes hooks doctor` reported `✗ not allowlisted — hook will NOT fire at runtime` until the allowlist carried the exact command string |
+- **[VERIFIED-INSTALLS.md](./VERIFIED-INSTALLS.md)** - every client we installed into, with the command and
+  the answer it gave.
+- **[VERIFIED-OPTIMISATIONS.md](./VERIFIED-OPTIMISATIONS.md)** - the hooks, recipes and refreshers built on
+  top, and where the close half works.
 
-**Where the close half works, and where it does not.** The SessionEnd hook calls
-`centricmem log-session --auto`, which is a **host-side** command: on a guest it stops with "this command cannot
-write the leftover hub" and points at import or the MCP tools instead. So on a machine that talks to a hosted
-librarian the hook is silent, and the card is filed by the **agent**, which is what the Skill already requires
-anyway. The hook was left alone rather than making it post a card itself: a hook cannot read the session, and
-this project's own rule is that a card's summary states the key points, not a placeholder. Cursor's installed
-hooks have the same shape and the same boundary - they file on a librarian host and fall silent elsewhere.
-
-All of it runs wherever Node runs - `.github/workflows/smoke.yml` proves that on Linux and macOS on every push, with no
-credential present, asserting that each of them stays silent and exits 0. The PowerShell refresher this
-replaced did not run outside Windows, which is why there is only one implementation now (`tools/ambient.mjs`)
-and three thin wrappers (`hermes/` carries its own copy, because Hermes runs its hook from outside the package).
-
-## Verified installs
-
-These were run against real clients, not copied from documentation. The marks say which is which.
-
-| Client | Command | What happened |
-|---|---|---|
-| **pi** 0.87.1 | `pi install https://github.com/zeyu-j/centricmem-skill` | clone lands in `~/.pi/agent/git/github.com/zeyu-j/centricmem-skill` and `pi list` reports it under user packages. Installed from `@earendil-works/pi-coding-agent` - the unscoped `pi` on npm is nothing to do with this  It has **no lifecycle hook surface** - its extension model is package resources, toggled with `pi config`, and the Skill arrives through exactly that path, so there is nothing further to add |
-| **Kiro CLI** | `kiro-cli mcp add --name centricmem --url https://mem.centricmem.com/mcp --scope default` | answers `✔ Added MCP server 'centricmem' to default config in ~/.kiro/settings/mcp.json`, and `kiro-cli mcp list` shows it under the default agent. Note the shape: this client takes flags only, so the name and url cannot be positional. Its `plugin`/marketplace manifests are for the Kiro IDE, not this CLI  The CLI and the Kiro IDE are **separate programs sharing a config directory**: the IDE is not installed here, its `.kiro/plugins/marketplace.json` is for it and not for this CLI, and the CLI's help contains no hook, plugin, marketplace or extension surface at all. So there is nothing host-specific left to test on this machine |
-| **CodeBuddy Code / WorkBuddy** 5.6.2 | `codebuddy plugin marketplace add zeyu-j/centricmem-skill` then `codebuddy plugin install centricmem-skill@centricmem` | both succeed and `codebuddy plugin list` reports it enabled. The vendor's own validator agrees: `codebuddy plugin validate .` answers `✔ Validation passed` for `.codebuddy-plugin/marketplace.json`, and its error text lists the manifest paths it accepts - `.codebuddy-plugin/`, `.workbuddy-plugin/`, `.claude-plugin/`. `codebuddy mcp list` also shows the server, awaiting a user approval rather than failing |
-| **goose** 1.51.0 | `goose plugin install https://github.com/zeyu-j/centricmem-skill` | reports "Installed open-plugins plugin"; imports `centricmem-skill:centricmem-agent`. No host-specific manifest folder is involved - goose reads the manifest at the repository root |
-| **Claude Code** 2.1.280 | `claude plugin marketplace add zeyu-j/centricmem-skill` then `claude plugin install centricmem-skill@centricmem` | both succeed; `claude plugin list` shows version 1.0.9, enabled |
-| **Codex** 0.156.1 | `codex plugin marketplace add https://github.com/zeyu-j/centricmem-skill` then `codex plugin add centricmem-skill@centricmem` | marketplace accepted; plugin cached at `~/.codex/plugins/cache/centricmem/centricmem-skill/1.0.9`  **Run `codex plugin marketplace upgrade` after a release**: Codex caches the marketplace snapshot, so re-adding is not needed but refreshing is - an install left alone kept serving 1.0.9 after 1.0.11 was published. Once refreshed, its own installer puts `hooks/hooks.json` with SessionStart and SessionEnd into the plugin cache, which is where Codex reads hooks from |
-| **OpenClaw** 2026.6.35 | `openclaw plugins install centricmem-skill --marketplace zeyu-j/centricmem-skill` | installed as a **bundle** (it consumes the Claude marketplace format); `openclaw plugins list` shows 1.0.9, enabled |
-| Cursor, Grok, Hermes, and the private clients whose manifests are not published here | per-host manifests in this repository | **install not verified here for the GUI-only ones** - these are GUI or closed clients, so their manifests follow the published convention and nothing more is claimed. A private desktop coding agent of ours was exercised through its own package tool instead, and it is left unnamed here on purpose: its tree was still carrying a 0.21.90 copy of this plugin, and `plugin install <repo> --replace --yes` refreshed it to 1.0.12 and reported `mappedCapabilities: [skills, hooks], hookCount: 2`, so it runs the shared `hooks/hooks.json` |
-| dsh, Pi | - | their own distribution, not on npm; install through their own tooling |
-
-If one of the unverified rows is wrong, the fix is a manifest change, not a code change: open an issue with the
-client's version and what its installer said.
+Marks: ✅ verified (we ran it) · ◐ same core as the CLI (the CLI was verified, this wrapper was not
+exercised) · 📄 documented (a convention, nothing claimed).
 
 ## Install
 
@@ -146,21 +112,18 @@ refresher that keeps goose's per-turn context block current.
 
 ## License
 
-[MIT](./LICENSE) — attribution required, commercial use allowed. The Skill was PolyForm Noncommercial through 1.0.6 and is MIT from 1.0.7; that earlier grant is not withdrawn retroactively. The Cordis patch in [`dsh/`](./dsh/) is separately [MIT](./dsh/LICENSE) so DSH can mount the hosted MCP client. That does **not** relicense `SKILL.md`.
-**One correction worth keeping.** Codex was listed here as having no hook mechanism, on the strength of
-`codex plugin --help` not mentioning hooks. Its documentation does: hooks live in `hooks.json` or inline
-`[hooks]`, plugins may bundle a `hooks/hooks.json`, and the shape is the same one Claude uses. Absence in a
-CLI's help is not absence of the feature - the flags a client exposes on a command line and the files it reads
-at session boundaries are different surfaces, and only one of them was checked.
+[MIT](./LICENSE) - attribution required, commercial use allowed. [What changed, and what it does not
+reach](./LICENSE-NOTES.md).
 
 ## What the plugin does beyond the Skill
 
-Claude Code and OpenClaw install this repository as a plugin, and a plugin can carry more than skills. This
-one carries a **SessionStart hook** (`hooks/hooks.json`) that runs a small Node script: it looks for a and a **SessionEnd hook**
-credential in `CENTRICMEM_TOKEN`, `CENTRICMEM_API_KEY`, then a `centricmem/api.json` beside your config, and
-if it finds one it prints the shelf's context so the model starts the session already oriented. With no
-credential it prints nothing at all, which is the normal case on an OAuth-connected host. It never exits
-non-zero, so a network problem can only mean a quieter session, never a broken one.
+Claude Code, Codex and OpenClaw install this repository as a plugin, and a plugin can carry more than
+skills. This one carries a **SessionStart hook** (`hooks/hooks.json`) that runs a small Node script: it
+looks for a credential in `CENTRICMEM_TOKEN`, `CENTRICMEM_API_KEY`, then a `centricmem/api.json` beside
+your config, and if it finds one it prints the shelf's context so the model starts the session already
+oriented. The same file adds a **SessionEnd hook** that files the unit. With no credential nothing is
+printed at all, which is the normal case on an OAuth-connected host, and neither hook ever exits
+non-zero: a network problem can only mean a quieter session, never a broken one.
 
 OpenClaw takes the same idea as a **hook pack**: `openclaw plugins install ./openclaw` from a clone. It
 subscribes to the session event category, so it does not depend on an event name staying put, and

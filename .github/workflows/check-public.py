@@ -38,6 +38,15 @@ MCP_URL = "https://mem.centricmem.com/mcp"
 
 skill = Path("skills/centricmem-agent/SKILL.md").read_text(encoding="utf-8").replace("\r\n", "\n")
 readme = Path("README.md").read_text(encoding="utf-8").replace("\r\n", "\n")
+EVIDENCE_FILES = (
+    "README.md",
+    "VERIFIED-INSTALLS.md",
+    "VERIFIED-OPTIMISATIONS.md",
+    "LICENSE-NOTES.md",
+)
+evidence = "\n".join(
+    Path(name).read_text(encoding="utf-8").replace("\r\n", "\n") for name in EVIDENCE_FILES
+)
 assert re.search(r"^name: centricmem-agent", skill, re.M)
 assert re.search(r"^description:", skill, re.M)
 assert re.search(r"^license: MIT", skill, re.M), "the Skill frontmatter must say MIT (PolyForm up to 1.0.6)"
@@ -48,13 +57,13 @@ assert re.search(r"^compatibility:", skill, re.M)
 assert re.search(r"^metadata:", skill, re.M)
 if re.search(r"^(version|compatible_cli|changelog_url):", skill, re.M):
     raise SystemExit("Agent Skills extra keys must live under metadata:")
-assert "npx --yes skills add zeyu-j/centricmem-skill" in readme
-assert "/plugin marketplace add zeyu-j/centricmem-skill" in readme
-assert "dsh plugin --profile web add github:zeyu-j/centricmem-skill" in readme
-assert "pi install https://github.com/zeyu-j/centricmem-skill" in readme
-assert "openclaw plugins install centricmem-skill --marketplace zeyu-j/centricmem-skill" in readme
-assert "hermes mcp add" in readme
-assert "clawhub:" not in readme.lower()
+assert "npx --yes skills add zeyu-j/centricmem-skill" in evidence
+assert "/plugin marketplace add zeyu-j/centricmem-skill" in evidence
+assert "dsh plugin --profile web add github:zeyu-j/centricmem-skill" in evidence
+assert "pi install https://github.com/zeyu-j/centricmem-skill" in evidence
+assert "openclaw plugins install centricmem-skill --marketplace zeyu-j/centricmem-skill" in evidence
+assert "hermes mcp add" in evidence
+assert "clawhub:" not in evidence.lower()
 assert "cm_delete" in skill and "{file" in skill and "shelf" in skill
 assert "cm_rename" in skill
 for line in skill.splitlines():
@@ -167,13 +176,9 @@ if "hashgraph-online/ai-plugin-scanner-action@" not in hol or re.search(
     raise SystemExit("HOL scanner must stay SHA-pinned")
 
 blob = "\n".join(
-    p.read_text(encoding="utf-8", errors="ignore").lower()
-    for p in [
-        Path("README.md"),
-        Path("CHANGELOG.md"),
-        Path("skills/centricmem-agent/SKILL.md"),
-        Path("skills/centricmem-agent/REFERENCE.md"),
-    ]
+    Path(name).read_text(encoding="utf-8", errors="ignore").lower()
+    for name in (*EVIDENCE_FILES, "CHANGELOG.md", "skills/centricmem-agent/SKILL.md",
+                 "skills/centricmem-agent/REFERENCE.md")
 )
 for leak in PRIVATE_LEAKS:
     if re.search(leak, blob, re.I):

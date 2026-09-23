@@ -8,6 +8,18 @@
 
 
 
+## 1.0.13
+
+- Hermes is **verified**, not documented. `hermes skills install zeyu-j/centricmem-skill/skills/centricmem-agent --yes` lands the Skill in `%LOCALAPPDATA%\hermes\skills` and `hermes skills list` reports `1 hub-installed`; without `--yes` a non-TTY host cancels it silently. Its shell hooks are verified too, and `hermes/` now carries them with a README: the reply to `pre_llm_call` must be JSON (`{"context": …}` - a bare string is dropped as `parsed: <none>`), and an entry that is not allowlisted never fires, which `hermes hooks doctor` will say.
+- Hermes keeps its config where `HERMES_HOME` points - on Windows `%LOCALAPPDATA%\hermes`, not `~/.hermes`. The docs said `~/.hermes/config.yaml`; that file is ignored on Windows, which cost an hour.
+- A private client of ours had been serving 0.21.90 since the day it was installed, with nothing to say so. Refreshed in place to this release with its own plugin tool, and its plan output turned out to be a useful second opinion: it reports which capabilities it maps and warns that it is about to register shell hooks that run during its sessions. It runs the shared `hooks/hooks.json` - `SessionStart` and `SessionEnd` both active - so it needs no folder of its own. Its name stays out of this repository on purpose; the record lives with the private host-ops notes.
+- Cursor and Grok share one row now, the way CodeBuddy Code and WorkBuddy do, because a wrapper that reads the same core does not need its own line.
+- The evidence moved out of the README. `VERIFIED-INSTALLS.md` holds every client we installed into with the command and the answer it gave; `VERIFIED-OPTIMISATIONS.md` holds the hooks, recipes and refreshers built on top. The README keeps the install instructions and points at both.
+- Marks are defined once, and one is new: ✅ verified, ◐ same core as the CLI (the CLI was verified, this wrapper was not exercised), 📄 documented. **One core, one test** - a GUI or IDE is not re-tested for the CLI's sake, except for browser and OAuth hops, session-end behaviour, and wrappers that ship their own snapshot of the core.
+- The licence history moved to `LICENSE-NOTES.md`: what changed at 1.0.7, what the grant does not reach, and why `dsh/` carries its own. `LICENSE` stays the verbatim MIT text, which is also what tools read.
+- `npm run sync:skill` now exists. The version gate has always said "run the Skill sync" when a bundled copy drifts, and there was no such command - it was done by hand, which is how the copies drifted. It copies the public `SKILL.md` into all four copies and reports the ones it changed.
+- The Skill frontmatter floors now say which numbering they use: they are 0.21.x numbers from the pre-1.0 line, and every 1.0.x satisfies them. They read as if the floors were newer than the current release, which they are not.
+
 ## 1.0.12
 
 - The SessionEnd hook is host-side. It calls the CLI to file the session, which on a guest stops with
