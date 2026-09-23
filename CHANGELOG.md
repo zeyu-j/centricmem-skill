@@ -8,6 +8,18 @@
 
 
 
+## Unreleased
+
+- MiMoCode is a verified host. `mimocode/` ships a self-contained plugin for MiMoCode 0.1.15's
+  file-hook lifecycle plus `refresh-ambient.mjs`, and the README install table gained its row. Two
+  facts read out of the shipped binary shaped it: file hooks run under a hard 5000ms timeout with
+  output rollback and a 3-failure circuit breaker, so no hook touches the network and ambient comes
+  from a cache file; and `session.post` receives an empty output object, so there is no
+  force-another-turn hook and the sweep reminder is deferred onto the next outgoing message.
+  `chat.message` runs before `session.pre` on the first turn, so ambient is read there.
+- The MiMoCode close half is written to contract but unexercised: the MiMo free tier ended, and every
+  turn now fails before reaching a completed outcome.
+
 ## 1.0.31
 
 - All the prose in the public tree was rewritten for one voice and one place per fact. The README no longer repeats the connect instruction twice, no longer carries verification anecdotes inside install cells (they live in the evidence files), and gained the rows it was missing for hosts verified since: goose, Qwen Code, ZCode, nanobot, Cline, CodeBuddy, Hermes hooks, Kiro, Dify. Every command in it is either something we ran or something a client documents, and the DSH instruction now sends the reader to `dsh/README.md` before they add the package, because of the bundle trap.
