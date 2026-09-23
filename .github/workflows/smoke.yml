@@ -1,0 +1,50 @@
+name: Host hooks smoke (Linux)
+
+# The hooks and refreshers are Node scripts, and they are developed on Windows. This runs them on a clean
+# Linux runner with no credential anywhere on it, which is the only way to show they behave on the other
+# platforms: they must say nothing, exit 0, and never invent context.
+#
+# It also proves the failure branch of the goose refresher, which is the one place a wrong answer is worse
+# than no answer: a stale file that claims success once read as healthy while its content was months old.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Claude Code hook prints nothing and exits 0 without a credential
+        run: |
+          set -e
+          out=$(node hooks/ambient.mjs)
+          test -z "$out" || { echo "expected no output, got: $out"; exit 1; }
+          echo "ok: silent, exit 0"
+
+      - name: OpenClaw handler returns empty context without a credential
+        run: |
+          set -e
+          node -e 'require("./openclaw/handler.js")().then(r => { const t = (r && r.additionalContext) || ""; if (t !== "") { console.error("expected empty, got " + t.length + " chars"); process.exit(1); } console.log("ok: empty context, no throw"); }).catch(e => { console.error("handler threw: " + e); process.exit(1); })'
+
+      - name: goose refresher writes an honest file without a credential
+        run: |
+          set -e
+          export GOOSE_MOIM_MESSAGE_FILE="$RUNNER_TEMP/ambient.md"
+          node goose/centricmem-ambient.mjs
+          test -f "$GOOSE_MOIM_MESSAGE_FILE" || { echo "no file written"; exit 1; }
+          grep -q 'status=NO-KEY' "$GOOSE_MOIM_MESSAGE_FILE" || { echo "file does not say why it is empty:"; cat "$GOOSE_MOIM_MESSAGE_FILE"; exit 1; }
+          grep -q 'Nothing below is trustworthy' "$GOOSE_MOIM_MESSAGE_FILE" || { echo "file does not disclaim its own content"; exit 1; }
+          test "$(wc -c < "$GOOSE_MOIM_MESSAGE_FILE")" -lt 2000 || { echo "file is larger than an explanation should be"; exit 1; }
+          echo "ok: says no-key, disclaims, stays small"
+
+      - name: nothing anywhere reaches the network with no credential
+        run: |
+          set -e
+          node -e 'import("./tools/ambient.mjs").then(async (m) => { const r = await m.fetchAmbient(); if (r.state !== "no-key") { console.error("expected no-key on a clean runner, got " + r.state); process.exit(1); } if (r.text !== "") { console.error("expected empty text"); process.exit(1); } console.log("ok: state=no-key, no request made"); })'

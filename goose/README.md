@@ -33,23 +33,27 @@ prefer not to set a variable.
 
 **The ambient refresher**
 
-`centricmem-ambient.ps1` writes the file named by `GOOSE_MOIM_MESSAGE_FILE`, which goose injects into every
-turn. It is optional and additive: the baseline is the Skill plus host MCP.
+`centricmem-ambient.mjs` writes the file named by `GOOSE_MOIM_MESSAGE_FILE`, which goose injects into
+every turn. It is part of the shared implementation in `../tools/ambient.mjs`, so it is the same code that
+the Claude Code hook and the OpenClaw handler use, and it runs wherever Node runs - the PowerShell version it
+replaced worked only on Windows, which is the machine it was written on.
 
-```powershell
-[Environment]::SetEnvironmentVariable("GOOSE_MOIM_MESSAGE_FILE", "$env:USERPROFILE\.goose\centricmem-ambient.md", "User")
-powershell -NoProfile -File centricmem-ambient.ps1
+```sh
+export GOOSE_MOIM_MESSAGE_FILE="$HOME/.goose/centricmem-ambient.md"
+node centricmem-ambient.mjs
 ```
 
-**Why a script and not a hook.** A goose hook is a shell command, so it can only reach the librarian over
-HTTP with a Bearer. The MCP tools need no token at all. This script is therefore the optional layer that
-puts the ambient text in front of the model before it asks, and it degrades honestly: no key is normal on
-an OAuth-connected host, a refusal is a credential problem, and no answer at all is the transport case that
-also leaves goose unable to initialise MCP.
+It is optional and additive: the baseline is the Skill plus host MCP. Three rules, the same ones the other
+host hooks follow - it never fails (a network problem means a quieter session, not a broken one), it never
+guesses a credential, and it never writes a file that claims more than it knows. When there is nothing
+trustworthy to say it says so, in the file, rather than leaving something stale in place:
 
-**It will not fall back to a local hub.** On a guest machine the CLI resolves the leftover copy of the hub,
-so an HTTP failure used to be reported as `status=OK` while carrying months-old context. If the librarian
-cannot be reached, the file says so.
+| It writes | When |
+|---|---|
+| `status=OK` plus the ambient text | a credential was found and the librarian answered |
+| `status=NO-KEY` | no credential anywhere - normal on an OAuth-connected host, where the MCP tools need none |
+| `status=REFUSED` | the key was rejected (HTTP 401/403), with the last four characters of the key and where it came from |
+| `status=NO-ANSWER` | the librarian did not answer - the transport case, and the one where cycling the goose extension is the fix |
 
-**Scheduling it.** goose ships a scheduler extension ("Create and manage scheduled recipe execution"), so a
-recipe that runs this script on a timer is enough; there is no need to wire a hook.
+**Scheduling it.** goose ships a scheduler extension, so a recipe or a timer that runs this script is enough.
+There is no need to wire a hook.

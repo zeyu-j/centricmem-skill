@@ -6,6 +6,25 @@ A hosted librarian for AI agents. Capture stays in the agent you already use. Ce
 
 This repository is **one package**: [Agent Skills](https://agentskills.io) `SKILL.md` plus an [Agent Plugins 1.0](https://agent-plugins.org) bundle (`plugin.json` + `skills/` + `mcp.json`). Install it once from GitHub; each client uses its own command. Do not paste keys or marketplace JSON into chat.
 
+
+### Verified optimisations
+
+Same idea as the installs above: these were run against real clients on this machine, and the marks say what
+was run and what was only read.
+
+| Host | What was added | Evidence |
+|---|---|---|
+| **Claude Code** 2.1.280 | `hooks/hooks.json` - a SessionStart hook, bundled in the plugin | `claude plugin details` reports `Hooks (1) SessionStart (harness-only - no model context cost)`; the hook script prints 496 characters with a credential and 0 without |
+| **OpenClaw** 2026.6.35 | `openclaw/` - a hook pack (`HOOK.md` + `handler.js`, events: `session`) | `openclaw plugins install ./openclaw` installs it and `openclaw hooks info` reports it ready with node present; the handler returns 496 characters with a credential, 0 without |
+| **goose** 1.51.0 | `goose/*.yaml` recipes and `goose/centricmem-ambient.mjs` | the refresher writes `status=OK` with a credential and `status=NO-KEY` without one, disclaiming both |
+| **Codex** 0.156.1 | nothing - its plugin surface has no hook mechanism | verified by inspecting its plugin help; the Skill and the MCP connection are the whole integration |
+| **Cursor** | nothing - already connected | `~/.cursor/mcp.json` carries `centricmem` with an Authorization header; its plugin route is a GUI flow and stays documented, not claimed |
+
+All of it runs wherever Node runs - `.github/workflows/smoke.yml` proves that on Linux on every push, with no
+credential present, asserting that each of them stays silent and exits 0. The PowerShell refresher this
+replaced did not run outside Windows, which is why there is only one implementation now (`tools/ambient.mjs`)
+and three thin wrappers.
+
 ## Verified installs
 
 These were run against real clients, not copied from documentation. The marks say which is which.
