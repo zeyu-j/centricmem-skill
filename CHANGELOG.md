@@ -8,6 +8,10 @@
 
 
 
+## 1.0.25
+
+- nanobot (v0.3.5) joins at the level its source supports. Its `agent/skills.py` reads one folder per Skill from `<workspace>/skills`, and its `agent/plugins.py` scans `<workspace>/plugins/*` for Agent Plugins packages, validates each one's `mcp.json` against the same schema this repository ships, and takes the `skills/` directory inside the package. Both shapes are installed on the author's machine; neither has been exercised in a live run, and `nanobot/README.md` says so.
+
 ## 1.0.24
 
 - The dsh close plugin gets a kill timer back: detaching the child cost the old `spawnSync` timeout, so a hung CLI would have been left running. The timer does not hold the host open and is cleared when the child exits.
