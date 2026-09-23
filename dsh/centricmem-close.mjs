@@ -28,7 +28,8 @@ function apply(ctx) {
   ctx.on("agent/disposed", ({ agent }) => {
     try {
       const header = agent?.session?.header;
-      if (header && ((header.delegationDepth ?? 0) > 0 || header.origin === "subagent")) return;
+      const depth = header?.delegationDepth ?? 0;
+      if (depth > 0 || header?.origin === "subagent") return;
       if (!credential().token) return;
       const child = spawn(process.platform === "win32" ? "centricmem.cmd" : "centricmem", ["log-session", "--auto"], {
         detached: true,
@@ -36,6 +37,16 @@ function apply(ctx) {
         shell: process.platform === "win32",
         windowsHide: true,
       });
+      child.on("error", () => {});
+      const timer = setTimeout(() => {
+        try {
+          child.kill();
+        } catch {
+          /* already gone */
+        }
+      }, 20000);
+      timer.unref?.();
+      child.on("exit", () => clearTimeout(timer));
       child.unref();
     } catch {
       /* never break disposal over a card */

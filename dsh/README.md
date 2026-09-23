@@ -48,7 +48,7 @@ the bridge does not log `hook/invoked` pairs for it - a silent failure leaves no
 ## The close half: a native plugin
 
 `dsh/centricmem-close.mjs` is a Cordis plugin (same shape as the bridge: `name`, `apply(ctx)`, and
-`ctx.on(...)`) listening on **`agent/disposed`** - the seam `dsh-agent` emits once per top-level
+`ctx.on(...)`) listening on **`agent/disposed`** - the seam `dsh-agent` emits for **every** registered agent, subagents included (only the `roots()` query filters on `owner === undefined`, and a subagent is disposed when its turn ends, not at shutdown). The filter therefore comes from the session header, and the plugin says why in its own comment.
 agent. It calls the CLI's `log-session --auto` only when a credential file exists, and swallows every
 error, because it runs during disposal.
 
@@ -76,7 +76,31 @@ Status: written against the API the bridge and `dsh-subagent` use (`ctx.on("agen
 **not yet exercised in a live session** - so it is documented, not verified, and deliberately not part
 of the bundle's patch file.
 
+
+## How to verify - order matters
+
+
+The hooks are silent by design when there is no credential, and on this host a credential can only
+arrive as a file, so **connect first**: run `centricmem setup` (or the device-connect flow) until
+`~/.centricmem/api.json` or `%APPDATA%\\centricmem\\api.json` exists with a token. Then install the
+package into the profile, add the overlay rows, and restart dsh. The other order produces "nothing
+happened", which says nothing about whether the wiring is right.
+
+
+Then look for the right signal, because the usual one does not exist here:
+
+
+- **Ambient half**: a new turn in the session log contains a `user/message` whose source is
+  `{kind:'plugin', plugin:'hooks-claude-code'}` and whose text is the shelf context; it is visible in
+  the UI too. The bridge writes no `hook/invoked` pair for `SessionStart` - detached lifecycle points
+  are deliberately not logged - so the absence of that line proves nothing.
+- **Close half**: dsh logs **nothing**, because this is a native plugin rather than a hook and there is
+  no hook event to find. The only evidence is on the CentricMem side: a session unit filed for it.
+- `SessionStart` is detached, so the context can miss the very first request of a session.
+
+
 ## Status
+
 
 | Capability | State |
 | --- | --- |

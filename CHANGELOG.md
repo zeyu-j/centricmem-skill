@@ -8,6 +8,12 @@
 
 
 
+## 1.0.24
+
+- The dsh close plugin gets a kill timer back: detaching the child cost the old `spawnSync` timeout, so a hung CLI would have been left running. The timer does not hold the host open and is cleared when the child exits.
+- Its subagent filter is written flat (`header?.delegationDepth ?? 0` / `header?.origin`) and the file now states why it does not fail closed: a missing header would mean dsh changed its session shape, and failing closed would disable the close half silently, while one extra unit is at least visible in the shelf.
+- Two dsh README corrections. The section that still described `agent/disposed` as firing once per top-level agent now says what the code does: it fires for every registered agent, and only the `roots()` query filters. And "How to verify" records the order that works - connect first, because a credential can only arrive as `api.json`, then install, overlay, restart - plus the signals that exist: an ambient `user/message` whose source is the bridge plugin, and, for the close half, nothing in the dsh logs at all.
+
 ## 1.0.23
 
 - The dsh close plugin had two defects a reviewer caught by reading the harness, and both would have shown up as real damage. First, `agent/disposed` fires for **every** registered agent - subagents included, since only the `roots()` query filters on `owner === undefined` and a subagent is disposed when its turn ends, not at shutdown. A session with N subagents would have called `log-session --auto` N+1 times. It now filters on the session header (`delegationDepth`, `origin`), which is in the payload and independent of listener order.
