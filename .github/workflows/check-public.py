@@ -42,7 +42,6 @@ EVIDENCE_FILES = (
     "README.md",
     "VERIFIED-INSTALLS.md",
     "VERIFIED-OPTIMISATIONS.md",
-    "LICENSE-NOTES.md",
 )
 evidence = "\n".join(
     Path(name).read_text(encoding="utf-8").replace("\r\n", "\n") for name in EVIDENCE_FILES

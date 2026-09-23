@@ -81,23 +81,6 @@ This repository is the **Skill**: how agents talk to the hosted librarian.
 
 It is not the librarian, not the CLI source, and not a self-hosted kit. One public Agent Skill: `centricmem-agent` (folder name) inside package `centricmem-skill`.
 
-## goose
-
-goose reads the plugin manifest at the root of this repository, so there is no host-specific folder to
-look for:
-
-```sh
-goose plugin install https://github.com/zeyu-j/centricmem-skill
-```
-
-That imports the skill (`centricmem-skill:centricmem-agent`) and drops the repository under
-`~/.agents/plugins/centricmem-skill/`. Verified against goose 1.51.0: it reports "Installed open-plugins
-plugin", so the generic manifest is what goose consumes - unlike the hosts above, which each require a
-folder named after them.
-
-`goose/` adds two optional, MCP-only extras: a preflight recipe, a close recipe, and the ambient
-refresher that keeps goose's per-turn context block current.
-
 ## Evidence
 
 Two tables, kept apart from the instructions they describe:
@@ -112,8 +95,9 @@ exercised) · 📄 documented (a convention, nothing claimed).
 
 ## License
 
-[MIT](./LICENSE) - attribution required, commercial use allowed. [What changed, and what it does not
-reach](./LICENSE-NOTES.md).
+[MIT](./LICENSE) from 1.0.7 - attribution required, commercial use allowed. Through 1.0.6 the Skill shipped
+under PolyForm Noncommercial, and that earlier grant is not withdrawn retroactively. The `dsh/` glue is
+separately [MIT](./dsh/LICENSE); the Dify plugin is its own distribution. Neither relicenses this Skill.
 
 ## What the plugin does beyond the Skill
 

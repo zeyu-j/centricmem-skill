@@ -8,6 +8,12 @@
 
 
 
+## 1.0.14
+
+- The root bundle manifest and the Grok manifest never pointed at the MCP server. `plugin.json` listed the name, version and licence and stopped there, and the Grok manifest copied that shape, so a host reading it found a Skill and no server - which is what "MCP server does not exist" means. Both now carry `"mcpServers": "./mcp.json"`, the way the Cursor, Codebuddy and Kimi manifests already did.
+- The README dropped its goose section: goose reads the root manifest, the recipe and refresher folder is documented in `VERIFIED-OPTIMISATIONS.md`, and a second telling said less than the first.
+- Licence history moved into the README licence section and `LICENSE-NOTES.md` is gone. `LICENSE` stays the verbatim MIT text on purpose - that file is what licence detectors read, and our own gate refuses the word PolyForm inside it - but a whole file for three sentences was one file too many.
+
 ## 1.0.13
 
 - Hermes is **verified**, not documented. `hermes skills install zeyu-j/centricmem-skill/skills/centricmem-agent --yes` lands the Skill in `%LOCALAPPDATA%\hermes\skills` and `hermes skills list` reports `1 hub-installed`; without `--yes` a non-TTY host cancels it silently. Its shell hooks are verified too, and `hermes/` now carries them with a README: the reply to `pre_llm_call` must be JSON (`{"context": …}` - a bare string is dropped as `parsed: <none>`), and an entry that is not allowlisted never fires, which `hermes hooks doctor` will say.
