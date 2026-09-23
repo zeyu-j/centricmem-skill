@@ -1,8 +1,8 @@
-name: Host hooks smoke (Linux)
+name: Host hooks smoke (Linux and macOS)
 
-# The hooks and refreshers are Node scripts, and they are developed on Windows. This runs them on a clean
-# Linux runner with no credential anywhere on it, which is the only way to show they behave on the other
-# platforms: they must say nothing, exit 0, and never invent context.
+# The hooks and refreshers are Node scripts, and they are developed on Windows. This runs them on clean
+# Linux and macOS runners with no credential anywhere on them, which is the only way to show they behave on
+# the other platforms: they must say nothing, exit 0, and never invent context.
 #
 # It also proves the failure branch of the goose refresher, which is the one place a wrong answer is worse
 # than no answer: a stale file that claims success once read as healthy while its content was months old.
@@ -14,7 +14,11 @@ on:
 
 jobs:
   smoke:
-    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -26,7 +30,7 @@ jobs:
           set -e
           out=$(node hooks/ambient.mjs)
           test -z "$out" || { echo "expected no output, got: $out"; exit 1; }
-          echo "ok: silent, exit 0"
+          echo "ok on ${{ matrix.os }}: silent, exit 0"
 
       - name: OpenClaw handler returns empty context without a credential
         run: |
@@ -42,7 +46,7 @@ jobs:
           grep -q 'status=NO-KEY' "$GOOSE_MOIM_MESSAGE_FILE" || { echo "file does not say why it is empty:"; cat "$GOOSE_MOIM_MESSAGE_FILE"; exit 1; }
           grep -q 'Nothing below is trustworthy' "$GOOSE_MOIM_MESSAGE_FILE" || { echo "file does not disclaim its own content"; exit 1; }
           test "$(wc -c < "$GOOSE_MOIM_MESSAGE_FILE")" -lt 2000 || { echo "file is larger than an explanation should be"; exit 1; }
-          echo "ok: says no-key, disclaims, stays small"
+          echo "ok on ${{ matrix.os }}: says no-key, disclaims, stays small"
 
       - name: nothing anywhere reaches the network with no credential
         run: |
