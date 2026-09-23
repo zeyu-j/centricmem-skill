@@ -45,6 +45,27 @@ the patch file named in the header). **Restart dsh afterwards**: the bridge read
 per process. `SessionStart` is detached, so the first request of a session can miss the context, and
 the bridge does not log `hook/invoked` pairs for it - a silent failure leaves no trace.
 
+## The close half: a native plugin
+
+`dsh/centricmem-close.mjs` is a Cordis plugin (same shape as the bridge: `name`, `apply(ctx)`, and
+`ctx.on(...)`) listening on **`agent/disposed`** - the seam `dsh-agent` emits once per top-level
+agent. It calls the CLI's `log-session --auto` only when a credential file exists, and swallows every
+error, because it runs during disposal.
+
+Mount it in the **profile's own overlay** (`$DSH_HOME/profiles/<profile>/cordis.patch.yml`), where a
+mistake is local, rather than in the patch this package ships: the loader resolves names against the
+profile directory, and a wrong row in a shipped bundle can stop dsh from booting.
+
+```yaml
+- insert:
+    - id: centricmem-close
+      name: './node_modules/centricmem-skill/dsh/centricmem-close.mjs'
+```
+
+Status: written against the API the bridge and `dsh-subagent` use (`ctx.on("agent/disposed", ({ agent }) => …)`),
+**not yet exercised in a live session** - so it is documented, not verified, and deliberately not part
+of the bundle's patch file.
+
 ## Status
 
 | Capability | State |

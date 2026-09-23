@@ -8,6 +8,11 @@
 
 
 
+## 1.0.22
+
+- DeepSeek Harness gets its close half as a native plugin, `dsh/centricmem-close.mjs`, because the hooks bridge cannot carry it: the bridge's own event list has no `SessionEnd` (only `SessionStart`, `UserPromptSubmit`, `PreToolUse`, `PostToolUse`, `Stop`, `SubagentStart`, `SubagentStop`), so it ignores that hook silently. The plugin listens on `agent/disposed` - the seam `dsh-agent` emits once per top-level agent - shares the one credential check with the ambient half, and swallows every error because it runs during disposal.
+- It ships as a file with instructions to mount it in the profile's own overlay, not as a row in the bundle patch this package ships: the loader resolves names against the profile directory, and a wrong row in a shipped bundle can stop dsh from booting. Documented, not verified - it has not run in a live session yet.
+
 ## 1.0.21
 
 - One credential check, in one place. `hooks/close.mjs` still tested only `CENTRICMEM_TOKEN` and `CENTRICMEM_API_KEY`, so a machine key exported under the name the host docs use would leave the close half silently idle - the same lag the ambient half had. Both now call `credential()` from `tools/ambient.mjs`.
