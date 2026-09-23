@@ -6,18 +6,6 @@ A hosted librarian for AI agents. Capture stays in the agent you already use. Ce
 
 This repository is **one package**: [Agent Skills](https://agentskills.io) `SKILL.md` plus an [Agent Plugins 1.0](https://agent-plugins.org) bundle (`plugin.json` + `skills/` + `mcp.json`). Install it once from GitHub; each client uses its own command. Do not paste keys or marketplace JSON into chat.
 
-## Evidence
-
-Two tables, kept apart from the instructions they describe:
-
-- **[VERIFIED-INSTALLS.md](./VERIFIED-INSTALLS.md)** - every client we installed into, with the command and
-  the answer it gave.
-- **[VERIFIED-OPTIMISATIONS.md](./VERIFIED-OPTIMISATIONS.md)** - the hooks, recipes and refreshers built on
-  top, and where the close half works.
-
-Marks: ✅ verified (we ran it) · ◐ same core as the CLI (the CLI was verified, this wrapper was not
-exercised) · 📄 documented (a convention, nothing claimed).
-
 ## Install
 
 **Names (read once):** `centricmem` = product / CLI. `centricmem-skill` = this GitHub package (plugins + marketplace). `centricmem-agent` = the Agent Skill folder inside the package (`skills/centricmem-agent/`). Humans can say “CentricMem skill”; keep `--skill centricmem-agent` and that folder name.
@@ -109,6 +97,18 @@ folder named after them.
 
 `goose/` adds two optional, MCP-only extras: a preflight recipe, a close recipe, and the ambient
 refresher that keeps goose's per-turn context block current.
+
+## Evidence
+
+Two tables, kept apart from the instructions they describe:
+
+- **[VERIFIED-INSTALLS.md](./VERIFIED-INSTALLS.md)** - every client we installed into, with the command and
+  the answer it gave.
+- **[VERIFIED-OPTIMISATIONS.md](./VERIFIED-OPTIMISATIONS.md)** - the hooks, recipes and refreshers built on
+  top, and where the close half works.
+
+Marks: ✅ verified (we ran it) · ◐ same core as the CLI (the CLI was verified, this wrapper was not
+exercised) · 📄 documented (a convention, nothing claimed).
 
 ## License
 
