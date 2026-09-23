@@ -8,6 +8,11 @@
 
 
 
+## 1.0.27
+
+- The dsh README gains a "Restarting safely" section for a trap a reviewer hit while wiring it: `dsh plugin add` silently reconciles any dependency that declares `dsh.bundle` into `dsh.profile.bundles`, and this package declares one. Since that patch carries the MCP funnel with `failOnStartupError: true`, adding the package on a machine with no credential yet and then restarting makes dsh fail to start. The section gives the two safe orders (connect first, or keep the dependency but drop it from the bundle list) and notes that the profile installs a snapshot copy, so upgrades need `dsh plugin install` again.
+- The patch file itself now says the same thing in its header, next to the instruction not to put headers in it.
+
 ## 1.0.26
 
 - The README is two sections lighter in spirit: the licence note is now two sentences (the history and the cross-distribution boundaries are all it has to say, and `LICENSE` itself cannot carry them), and the plugin section names all three credential variables - `CENTRICMEM_TOKEN`, `CENTRICMEM_API_KEY`, `CENTRICMEM_AGENT_KEY` - before the `api.json` fallback, keeps the two facts that answer the most common question (nothing is printed without a credential, and no hook ever exits non-zero), and sends the per-host detail to VERIFIED-OPTIMISATIONS.md instead of repeating it.

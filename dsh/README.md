@@ -77,6 +77,26 @@ Status: written against the API the bridge and `dsh-subagent` use (`ctx.on("agen
 of the bundle's patch file.
 
 
+## Restarting safely: the bundle trap
+
+`dsh plugin --profile <profile> add <spec>` does more than install a dependency: any package that
+declares `dsh.bundle` is reconciled into `dsh.profile.bundles` for you (the CLI prints a warning only
+for packages that declare nothing). **This package declares `dsh.bundle.patch`**, so adding it puts
+`dsh/cordis.patch.yml` into the profile layer stack.
+
+That patch carries the MCP funnel with `failOnStartupError: true` - deliberately, so a missing Bearer
+fails loudly with a named error instead of registering zero tools. Put together, on a machine with no
+credential yet, **adding this package and restarting makes dsh fail to start.** Two safe orders:
+
+1. Connect first: run `centricmem setup` (or the device-connect flow) until `api.json` holds a token,
+   then add the package, then write the `mcp-centricmem` overlay (same `id`, restating `serverName`,
+   `transport`, `url` and `headers`), then restart.
+2. Or add the package and take it back out of `dsh.profile.bundles` - keeping the *dependency* is
+   enough for the close row to resolve - until a credential exists.
+
+One more operational note: the profile uses pnpm hoisted linking, so what gets installed is a
+**snapshot copy**, not a link to your checkout. After this package changes, re-run
+`dsh plugin --profile <profile> install` for the profile to see the new version.
 ## How to verify - order matters
 
 

@@ -1,5 +1,7 @@
 # URL-only MCP funnel for DeepSeek Harness.
 # Do not put request headers in this file.
+# Installing this package with `dsh plugin add` also puts this patch into the
+# profile bundle stack: read the Restarting safely section of README.md first.
 # failOnStartupError: true so a missing Bearer aborts boot with a named
 # error instead of registering 0 tools (the MCP client has no OAuth).
 # After device-connect, overlay the SAME id in
