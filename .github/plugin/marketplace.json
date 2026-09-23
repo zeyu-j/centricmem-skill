@@ -1,0 +1,38 @@
+{
+  "name": "centricmem",
+  "owner": {
+    "name": "Dr. Z",
+    "email": "zeyu@dr.com"
+  },
+  "metadata": {
+    "description": "CentricMem hosted librarian for Copilot CLI",
+    "version": "1.0.9"
+  },
+  "plugins": [
+    {
+      "name": "centricmem-skill",
+      "description": "Hosted CentricMem librarian: organise and retrieve Markdown memory via host MCP.",
+      "version": "1.0.9",
+      "source": ".",
+      "homepage": "https://centricmem.com",
+      "repository": "https://github.com/zeyu-j/centricmem-skill",
+      "license": "MIT",
+      "keywords": [
+        "centricmem",
+        "mcp",
+        "memory",
+        "skill",
+        "agent-plugins",
+        "agent-skills"
+      ],
+      "category": "Productivity",
+      "skills": "./skills/",
+      "mcpServers": "./mcp.json",
+      "author": {
+        "name": "Dr. Z",
+        "email": "zeyu@dr.com",
+        "url": "https://github.com/zeyu-j"
+      }
+    }
+  ]
+}

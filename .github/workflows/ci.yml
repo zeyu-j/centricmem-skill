@@ -1,0 +1,51 @@
+name: Check
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  skill:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Public repo is usage-only
+        run: |
+          set -euo pipefail
+          test -f README.md
+          test -f LICENSE
+          test -f plugin.json
+          test -f mcp.json
+          test -f .codex-plugin/plugin.json
+          test -f .claude-plugin/marketplace.json
+          test -f .claude-plugin/plugin.json
+          test -f .cursor-plugin/marketplace.json
+          test -f .cursor-plugin/plugin.json
+          test -f .codebuddy-plugin/marketplace.json
+          test -f .codebuddy-plugin/plugin.json
+          test -f .workbuddy-plugin/marketplace.json
+          test -f .workbuddy-plugin/plugin.json
+          test -f .kimi-plugin/plugin.json
+          test -f .kimi-plugin/marketplace.json
+          test -f .kiro/plugins/marketplace.json
+          test -f .agents/plugins/marketplace.json
+          test -f .github/plugin/marketplace.json
+          test -f .github/workflows/hol-plugin-scanner.yml
+          test -f .codexignore
+          test -f skills/centricmem-agent/SKILL.md
+          test -f skills/centricmem-agent/REFERENCE.md
+          python3 .github/workflows/check-public.py
+          if [ -d src ] || [ -d dist ] || [ -d tests ] || [ -d desktop ] || [ -d web ]; then
+            echo "client trees must not ship" >&2
+            exit 1
+          fi
+          if [ -f PRODUCT.md ] || [ -f ARCHITECTURE.md ] || [ -f BETA.md ]; then
+            echo "design/operator docs must not ship" >&2
+            exit 1
+          fi
+          if [ -d skills/academic-db-agent ] || [ -d skills/centricmem-agent/integrations ] || [ -f skills/centricmem-agent/ACADEMIC.md ]; then
+            echo "private skill extras must not ship" >&2
+            exit 1
+          fi

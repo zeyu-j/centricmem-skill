@@ -1,0 +1,17 @@
+# URL-only MCP funnel for DeepSeek Harness.
+# Do not put request headers in this file.
+# failOnStartupError: true so a missing Bearer aborts boot with a named
+# error instead of registering 0 tools (the MCP client has no OAuth).
+# After device-connect, overlay the SAME id in
+# $DSH_HOME/profiles/<profile>/cordis.patch.yml — restate the whole
+# config (serverName + transport + url + headers). Never commit that overlay.
+# Funnel does not load SKILL.md from node_modules: run dsh/copy-skill.mjs
+# so $DSH_HOME/skills/centricmem-agent is populated.
+- insert:
+    - id: mcp-centricmem
+      name: '@deepseek-ai/dsh-mcp-client'
+      failOnStartupError: true
+      config:
+        serverName: centricmem
+        transport: streamable-http
+        url: https://mem.centricmem.com/mcp

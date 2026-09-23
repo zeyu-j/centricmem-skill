@@ -1,0 +1,40 @@
+version: "1.0.0"
+title: CentricMem close-out
+description: >
+  Turn the work just finished in this chat into CentricMem cards. Guided, not silent: the Skill's
+  rule is that Non-Micro work is filed before yield, while Micro answers and "don't log" are skipped.
+  MCP only, so a host connected by OAuth works the same as one holding a key.
+instructions: |
+  Close out this session's work in CentricMem, following the installed centricmem-agent Skill. Use
+  the MCP tools only (cm_done, cm_note, cm_log_decision). Never call the CLI, never curl, never
+  invent a hub path, and never write a leftover CENTRICMEM_HOME.
+
+  1. Decide whether this chat shipped Non-Micro work - a decision, a durable fact, or a finished
+     unit. If it was a Micro answer, or the user said not to remember it, reply "nothing filed" and
+     stop.
+  2. File what the Skill's write model calls for:
+     - cm_done for the unit: the key points of THIS unit, plus tags.
+     - cm_note for reusable operational knowledge - how to do something, or a trap to avoid.
+     - cm_log_decision for a durable architecture or host choice: title, context, decision,
+       consequences.
+  3. Pass shelf={{ shelf }} (never unclassified) and tags={{ tags }} on the cm_done card - if a
+     value is empty, omit that field. One card per distinct thing. Summarise; do not dump the
+     transcript, and never paste a key or any other secret.
+  4. Finish by naming the tools you called and the files they wrote.
+prompt: |
+  File this session's Non-Micro work in CentricMem (shelf: {{ shelf }}), or say plainly that there
+  is nothing to file.
+parameters:
+  - key: shelf
+    input_type: string
+    requirement: optional
+    default: ""
+    description: "Shelf id to file into (omit to use the shelf this chat is linked to)"
+  - key: tags
+    input_type: string
+    requirement: optional
+    default: ""
+    description: "Comma-separated tags for the cm_done card"
+activities:
+  - "File this session in CentricMem"
+  - "Close out this unit"
