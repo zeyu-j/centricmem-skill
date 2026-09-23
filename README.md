@@ -97,7 +97,7 @@ That imports the skill (`centricmem-skill:centricmem-agent`) and drops the repos
 plugin", so the generic manifest is what goose consumes - unlike the hosts above, which each require a
 folder named after them.
 
-`recipes/goose/` adds two optional, MCP-only extras: a preflight recipe, a close recipe, and the ambient
+`goose/` adds two optional, MCP-only extras: a preflight recipe, a close recipe, and the ambient
 refresher that keeps goose's per-turn context block current.
 
 ## License
