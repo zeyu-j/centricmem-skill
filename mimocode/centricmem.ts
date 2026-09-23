@@ -164,7 +164,23 @@ export const CentricMem: Plugin = async () => {
         injectAmbient();
         trace("chat.message queued=" + queued.length);
         if (!output || !Array.isArray(output.parts) || queued.length === 0) return;
-        for (const text of queued) output.parts.push({ type: "text", text });
+
+        // A part is NOT just {type, text}: MiMoCode runs AD.Part.safeParse on every
+        // element of output.parts and then persists it with updatePart, so a partial
+        // object aborts the turn with 'SyncEvent.run: "sessionID" required'.
+        // The shape below mirrors a real persisted text part.
+        const messageID = String(input?.messageID || output?.message?.id || "");
+        if (!messageID) { trace("chat.message no messageID - skipped"); return; }
+
+        for (const text of queued) {
+          output.parts.push({
+            id: "prt_" + Math.random().toString(36).slice(2, 12) + Date.now().toString(36),
+            type: "text",
+            text,
+            sessionID: id,
+            messageID,
+          });
+        }
         trace("chat.message injected=" + queued.length);
         queued = [];
       } catch (e) { trace("chat.message FAILED " + String(e)); }
@@ -188,10 +204,22 @@ export const CentricMem: Plugin = async () => {
         if (has(stampFile(id))) return; // a cm_* call already happened this session
 
         queued.push(REMINDER); // always: deterministic nudge on the next outgoing message
+        trace("session.post reminder queued");
 
         if (!L3 || DONT_LOG || has(sweepFile(id))) return;
+
+        // One attempt per session whatever the outcome: the close spawns a real Node
+        // process, and a guest host refuses the write by design, so retrying every
+        // turn would burn a process launch per turn to be told no again.
+        mark(sweepFile(id));
+
         if (DRY_RUN) {
           trace("session.post dry-run sweep shelf=" + (SHELF || "(none)"));
+          return;
+        }
+
+        if (!process.env.CENTRICMEM_TOKEN && !process.env.CENTRICMEM_API_KEY) {
+          trace("session.post close skipped: no CENTRICMEM_TOKEN / CENTRICMEM_API_KEY");
           return;
         }
         const summary =
@@ -205,8 +233,7 @@ export const CentricMem: Plugin = async () => {
           env: process.env,
           timeout: 45_000,
         });
-        if (r.status === 0) mark(sweepFile(id));
-        trace("session.post sweep status=" + String(r.status));
+        trace("session.post sweep status=" + String(r.status) + " (guest hosts refuse this by design)");
       } catch (e) { trace("session.post FAILED " + String(e)); }
     },
 
