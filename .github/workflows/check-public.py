@@ -1,4 +1,4 @@
-import json
+﻿import json
 import re
 from pathlib import Path
 
@@ -52,7 +52,7 @@ assert "npx --yes skills add zeyu-j/centricmem-skill" in readme
 assert "/plugin marketplace add zeyu-j/centricmem-skill" in readme
 assert "dsh plugin --profile web add github:zeyu-j/centricmem-skill" in readme
 assert "pi install https://github.com/zeyu-j/centricmem-skill" in readme
-assert "openclaw plugins install git:github.com/zeyu-j/centricmem-skill" in readme
+assert "openclaw plugins install centricmem-skill --marketplace zeyu-j/centricmem-skill" in readme
 assert "hermes mcp add" in readme
 assert "clawhub:" not in readme.lower()
 assert "cm_delete" in skill and "{file" in skill and "shelf" in skill
