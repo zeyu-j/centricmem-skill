@@ -119,3 +119,13 @@ refresher that keeps goose's per-turn context block current.
 ## License
 
 [MIT](./LICENSE) â€” attribution required, commercial use allowed. The Skill was PolyForm Noncommercial through 1.0.6 and is MIT from 1.0.7; that earlier grant is not withdrawn retroactively. The Cordis patch in [`dsh/`](./dsh/) is separately [MIT](./dsh/LICENSE) so DSH can mount the hosted MCP client. That does **not** relicense `SKILL.md`.
+## What the plugin does beyond the Skill
+
+Claude Code and OpenClaw install this repository as a plugin, and a plugin can carry more than skills. This
+one carries a **SessionStart hook** (`hooks/hooks.json`) that runs a small Node script: it looks for a
+credential in `CENTRICMEM_TOKEN`, `CENTRICMEM_API_KEY`, then a `centricmem/api.json` beside your config, and
+if it finds one it prints the shelf's context so the model starts the session already oriented. With no
+credential it prints nothing at all, which is the normal case on an OAuth-connected host. It never exits
+non-zero, so a network problem can only mean a quieter session, never a broken one.
+
+goose does not use this hook - it has recipes and the MOIM file instead, in `goose/`.

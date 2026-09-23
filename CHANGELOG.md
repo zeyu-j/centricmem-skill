@@ -5,6 +5,15 @@
 
 
 
+
+## 1.0.10
+
+- The Claude Code plugin now carries a SessionStart hook: a small Node script that reads a credential
+  if this machine has one and prints the shelf's context before the model answers, so a session starts
+  oriented instead of asking. With no credential it prints nothing, which is the normal case on an
+  OAuth-connected host, and it never exits non-zero, so a network problem can only mean a quieter session.
+  Plugin hooks ship in hooks/hooks.json; the plugin version has to change for a client to re-cache them.
+
 ## 1.0.9
 
 - The consent page now answers the question OAuth leaves open. OAuth covers the host and leaves no key

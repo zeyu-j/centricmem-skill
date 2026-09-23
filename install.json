@@ -1,7 +1,7 @@
 {
   "version": 1,
-  "skill": "1.0.9",
-  "cli": "1.0.9",
+  "skill": "1.0.10",
+  "cli": "1.0.10",
   "skills": [
     {
       "src": "skills/centricmem-agent",
