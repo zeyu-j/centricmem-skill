@@ -8,6 +8,14 @@
 
 
 
+## 1.0.15
+
+- `cm_health` and `cm_doctor` now say how the caller authenticated: `auth=oauth|bearer|missing` plus `keyFp`, the first 12 hex of the presented key - the same fingerprint the new-network notices already print. A stale environment on the host looked exactly like an unrotated key; the fix is a comparison, not a guess. The contract table keeps the 12 honest.
+- The Skill sends an agent to compare three fingerprints before calling a key unrotated: the card, the process environment, and whether this host is on OAuth at all. That was the wrong turn we took ourselves.
+- The Grok row now names the path that works: `grok.com/connectors` → Custom → the hosted URL, or the CLI with an explicit `-t http`. Without it Grok declares the server as **stdio** - a server that exists in the config and cannot run - which is what "MCP server does not exist" described.
+- REFERENCE gained a host-side checklist for the things only a host can fix (connected-but-not-callable, secrets that never reach the process, stale bridge tokens, per-session MCP resets), and the rule that a localhost OAuth callback cannot be moved to another machine.
+- The `dsh/` pin moved from `#v0.21.72` to the current release: every `v0.21.x` tag points at the same pre-1.0 snapshot, so that funnel was installing a 1.0.6-era copy.
+
 ## 1.0.14
 
 - The root bundle manifest and the Grok manifest never pointed at the MCP server. `plugin.json` listed the name, version and licence and stopped there, and the Grok manifest copied that shape, so a host reading it found a Skill and no server - which is what "MCP server does not exist" means. Both now carry `"mcpServers": "./mcp.json"`, the way the Cursor, Codebuddy and Kimi manifests already did.

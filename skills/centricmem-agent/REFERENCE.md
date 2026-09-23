@@ -415,3 +415,15 @@ Lifecycle hooks are **optional**. The baseline is this Skill plus the MCP tools:
 - Stop after a titled keep stub or a title-only card — every card needs a summary and key points in the body
 - Treat this git checkout as the memory disk
 - Write `unclassified` — pick or create a named shelf. Writes without one are 400 `LIBRARY_REQUIRED`.
+
+## Host-side checklist (hand this to the host, not to us)
+
+A host that reports a broken MCP connection usually has one of these, and none of them are fixable from the librarian:
+
+- **"Connected" must mean "callable".** Discovery and invocation have to share one handshake; when they disagree the state should read *degraded* with a one-click restart, not *connected*.
+- **A secret written by the host must reach the process that uses it.** After a key is stored, the current session and its MCP child processes need the new value (or the host must say "restart MCP"). A stale environment is indistinguishable from a user pasting the old key.
+- **Print three fingerprints on demand** - stored secret, process env, and which credential type the MCP call actually used (Bearer or OAuth) - prefix plus fingerprint only, never the secret.
+- **Keep `mcp-remote: Unauthorized` and "the key is wrong" apart.** The first is usually a stale local bridge token: re-authorize, clear `.mcp-auth`, or switch to HTTP.
+- **Per-session MCP bridges need to be resettable.** When an old long-running session stops answering but a fresh probe reaches the server, the fix is "reset this chat's MCP", not a machine update.
+
+What we can report is now in `cm_health` and `cm_doctor`: `auth=oauth|bearer|missing` and `keyFp` (12 hex, the same value the new-network notices show), so a host's fingerprints can be compared with ours instead of guessed. The librarian cannot report a *transport*: stdio is a client-side choice and every hosted call is HTTP.
