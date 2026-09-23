@@ -8,6 +8,11 @@
 
 
 
+## 1.0.28
+
+- The hooks were looking for a credential in the wrong place, and a reviewer proved it: on a guest machine the key lives in the host MCP config (`~/.cursor/mcp.json`, `~/.claude.json`, `~/.codex/config.toml`) - where `centricmem doctor` reports it as `token: mcp.json` - while `tools/ambient.mjs` only read the environment and `api.json`. `api.json` is written by a local hub, so on a guest it never appears, and the CLI consults it last on purpose because it is often a stale key. The hooks now follow the CLI order: environment, claimed host config, then `api.json`.
+- The dsh README corrects two things it had wrong: `api.json` is not the channel on a guest (the host config is), and the credential step is `centricmem connect`, not `centricmem setup`.
+
 ## 1.0.27
 
 - The dsh README gains a "Restarting safely" section for a trap a reviewer hit while wiring it: `dsh plugin add` silently reconciles any dependency that declares `dsh.bundle` into `dsh.profile.bundles`, and this package declares one. Since that patch carries the MCP funnel with `failOnStartupError: true`, adding the package on a machine with no credential yet and then restarting makes dsh fail to start. The section gives the two safe orders (connect first, or keep the dependency but drop it from the bundle list) and notes that the profile installs a snapshot copy, so upgrades need `dsh plugin install` again.

@@ -35,10 +35,56 @@ export function configFiles() {
 const readJson = (p) => { try { return JSON.parse(fs.readFileSync(p, "utf8")); } catch { return null; } };
 
 /** Where the credential comes from, and what that source is called - the goose refresher reports it. */
-export function credential() {
+export /**
+ * The Bearer an agent host recorded for this server, from its own MCP config.
+ *
+ * On a guest machine this is where the credential actually is. The CLI reads it this way round -
+ * env, then the claimed host config, then api.json - and api.json sits last on purpose, because it is
+ * often a stale hub key. These hooks only ever read api.json, which is why they stayed silent on a
+ * machine that had a perfectly good key in ~/.cursor/mcp.json all along. Same order here now.
+ */
+function claimedBearer() {
+  const home = os.homedir();
+  const candidates = [
+    [path.join(home, ".cursor", "mcp.json"), "json"],
+    [path.join(home, ".claude.json"), "json"],
+    [path.join(process.env.APPDATA || "", "Cursor", "User", "mcp.json"), "json"],
+    [path.join(home, ".codex", "config.toml"), "toml"],
+  ];
+  for (const [file, kind] of candidates) {
+    if (!file || !file.trim()) continue;
+    let text = "";
+    try {
+      text = fs.readFileSync(file, "utf8");
+    } catch {
+      continue;
+    }
+    try {
+      if (kind === "json") {
+        const parsed = JSON.parse(text);
+        const servers = { ...(parsed.mcpServers || {}), ...(parsed.mcp?.servers || {}) };
+        const headers = servers.centricmem?.headers || {};
+        const raw = headers.Authorization || headers.authorization || "";
+        const m = /^Bearer\s+(.+)$/i.exec(String(raw).trim());
+        if (m) return { token: m[1].trim(), source: file };
+      } else {
+        const block = /\[mcp_servers\.centricmem[\s\S]*?(?=\n\[|$)/.exec(text);
+        const m = block && /Authorization\s*=\s*["\']Bearer\s+([^"\']+)["\']/i.exec(block[0]);
+        if (m) return { token: m[1].trim(), source: file };
+      }
+    } catch {
+      /* unreadable config is not an error here */
+    }
+  }
+  return { token: "", source: "" };
+}
+
+function credential() {
   if (process.env.CENTRICMEM_TOKEN) return { token: process.env.CENTRICMEM_TOKEN.trim(), source: "env:CENTRICMEM_TOKEN" };
   if (process.env.CENTRICMEM_AGENT_KEY) return { token: process.env.CENTRICMEM_AGENT_KEY.trim(), source: "env:CENTRICMEM_AGENT_KEY" };
   if (process.env.CENTRICMEM_API_KEY) return { token: process.env.CENTRICMEM_API_KEY.trim(), source: "env:CENTRICMEM_API_KEY" };
+  const claimed = claimedBearer();
+  if (claimed.token) return claimed;
   for (const f of configFiles()) {
     const t = readJson(f)?.token;
     if (typeof t === "string" && t.trim()) return { token: t.trim(), source: f };

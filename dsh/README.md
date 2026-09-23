@@ -128,23 +128,24 @@ Then look for the right signal, because the usual one does not exist here:
 | Ambient through the Claude Code bridge | verified wiring (`cordis.patch.yml` + `--dump-config`); on dsh a credential can only arrive through `api.json`, because the environment is scrubbed |
 | Close half via a native plugin | written against `agent/disposed` with a session-header filter (subagents are in the same registry and are disposed mid-session); not exercised in a live session |
 
-## Credentials on dsh: the file is the only channel
+## Credentials on dsh: the host config, not api.json
 
-This one is a hard fact about dsh rather than a preference. `dsh-subprocess` defines
-`SENSITIVE_ENV_PATTERN = /KEY|PASSWORD|SECRET|TOKEN/i` and its `scrubbedParentEnv()` removes every
-matching variable from the environment a hook is spawned with; the hooks bridge adds only
-`CLAUDE_PROJECT_DIR`. So on dsh, `CENTRICMEM_TOKEN`, `CENTRICMEM_API_KEY` **and**
-`CENTRICMEM_AGENT_KEY` are all gone before a hook starts - the environment simply cannot carry a
-credential there.
+The environment cannot carry a credential here - `dsh-subprocess` strips every variable matching
+`/KEY|PASSWORD|SECRET|TOKEN/i` and the hooks bridge adds only `CLAUDE_PROJECT_DIR` - but `api.json` is
+not the channel either, which an earlier version of this file got wrong. `api.json` is written by a
+**local hub** (the cloud connect flow writes host MCP configs instead), so on a guest machine it never
+appears at all - and the CLI deliberately consults it last, because it is often a stale hub key that
+makes `doctor` say the token is fine while data commands 401.
 
-What works is the file: `~/.centricmem/api.json`, `%APPDATA%\\centricmem\\api.json`, or
-`$XDG_CONFIG_HOME/centricmem/api.json`, which both halves read. Practical consequence: on a machine
-where the CLI has never been connected, this Skill's hooks stay silent on dsh no matter what is
-exported, and `centricmem setup`/`cm_health` is the prerequisite rather than the follow-up.
+What the hooks do now is what the CLI does: **env, then the claimed Bearer in the host config**
+(`~/.cursor/mcp.json`, `~/.claude.json`, `~/.codex/config.toml`), then `api.json`. On a guest machine
+the host config is where the key actually lives, so this is the difference between a silent hook and a
+working one.
 
-We deliberately do **not** ship an environment name crafted to avoid that pattern (one without
-`KEY`/`TOKEN`) - a host scrubs those names on purpose, and naming a variable to slip past another
-product's control is not a fix we want to depend on. The file is the honest channel.
+The credential step is `centricmem connect` ("write MCP on this computer"), not `centricmem setup`
+(choose a library, link code, install the Skill). And we do **not** ship an environment name crafted to
+slip past the scrub pattern: a host filters those names deliberately, and the host config is the honest
+channel.
 
 ## Bundle, and where the close half goes
 
