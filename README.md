@@ -20,7 +20,7 @@ was run and what was only read.
 | **Codex** 0.156.1 | nothing - its plugin surface has no hook mechanism | verified by inspecting its plugin help; the Skill and the MCP connection are the whole integration |
 | **Cursor** | nothing - already connected | `~/.cursor/mcp.json` carries `centricmem` with an Authorization header; its plugin route is a GUI flow and stays documented, not claimed |
 
-All of it runs wherever Node runs - `.github/workflows/smoke.yml` proves that on Linux on every push, with no
+All of it runs wherever Node runs - `.github/workflows/smoke.yml` proves that on Linux and macOS on every push, with no
 credential present, asserting that each of them stays silent and exits 0. The PowerShell refresher this
 replaced did not run outside Windows, which is why there is only one implementation now (`tools/ambient.mjs`)
 and three thin wrappers.
