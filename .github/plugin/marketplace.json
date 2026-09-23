@@ -2,7 +2,7 @@
   "name": "centricmem",
   "owner": {
     "name": "Dr. Z",
-    "email": "zeyu@dr.com"
+    "email": "zeyu@poppyg.com"
   },
   "metadata": {
     "description": "CentricMem hosted librarian for Copilot CLI",
@@ -30,7 +30,7 @@
       "mcpServers": "./mcp.json",
       "author": {
         "name": "Dr. Z",
-        "email": "zeyu@dr.com",
+        "email": "zeyu@poppyg.com",
         "url": "https://github.com/zeyu-j"
       }
     }

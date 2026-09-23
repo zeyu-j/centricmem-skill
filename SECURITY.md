@@ -6,7 +6,7 @@ This repository is the public **Skill** for the hosted CentricMem librarian. It 
 
 Please do **not** open a public issue for a security report.
 
-Email **zeyu@dr.com**, or use [GitHub private vulnerability reporting](https://github.com/zeyu-j/centricmem-skill/security/advisories/new) if it is enabled.
+Email **zeyu@poppyg.com**, or use [GitHub private vulnerability reporting](https://github.com/zeyu-j/centricmem-skill/security/advisories/new) if it is enabled.
 
 We aim to acknowledge reports within 48 hours and ship a patch within 7 days for critical issues that affect the Skill, host MCP, or the connect flow.
 
