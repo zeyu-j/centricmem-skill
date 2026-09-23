@@ -8,6 +8,14 @@
 
 
 
+## 1.0.20
+
+- The SessionStart hook now answers in the JSON envelope (`hookSpecificOutput.additionalContext`, with `hookEventName`), not as bare stdout. One shape serves Claude Code and every bridge that runs a Claude Code `hooks.json`; DeepSeek Harness drops a bare string without saying so.
+- `hooks/close.mjs` no longer spawns the `.cmd` shim with `shell: false` on Windows. That threw `EINVAL`, the catch swallowed it, and the close half looked silent and healthy while doing nothing - on dsh and on Claude Code alike. The probe that found it is two lines; the fix is a platform check.
+- `tools/ambient.mjs` accepts `CENTRICMEM_AGENT_KEY`, the name the host docs use for a machine key, alongside `CENTRICMEM_TOKEN` and `CENTRICMEM_API_KEY`.
+- `tools/prune-duplicate-skill.mjs` gained `--keep <host|path>`, because which copy to keep is a choice: a host loads the copy it installed, so removing that one disables the Skill there until it is reinstalled. Newest-wins is only the default now, and the tool says so before it prints a plan.
+- `dsh/README.md` corrects two instructions that would have broken dsh: the bridge is a plugin, so it belongs in the profile patch layer with an `- insert:` shell - putting it in `dsh.profile.bundles` makes dsh refuse to start, and `pnpm add` installs a second copy the launcher already mirrors. It also records that the bridge does not support `SessionEnd`, so the close half needs a native plugin on `agent/disposed` there.
+
 ## 1.0.19
 
 - A machine can end up with this Skill twice, and now it says so. `scanSkillCopies()` walks the roots we have actually seen a copy in - the hub (`~/.agents/skills`), Hermes (`%LOCALAPPDATA%\hermes\skills`) and a private desktop agent of ours - reads each copy's version, and reports duplicates and stragglers. `cm_doctor` carries it as `skill_copies`. On this machine it found three copies and two of them stale: the hub at 1.0.18, Hermes and that agent still at 1.0.14.

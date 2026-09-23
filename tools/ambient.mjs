@@ -37,6 +37,7 @@ const readJson = (p) => { try { return JSON.parse(fs.readFileSync(p, "utf8")); }
 /** Where the credential comes from, and what that source is called - the goose refresher reports it. */
 export function credential() {
   if (process.env.CENTRICMEM_TOKEN) return { token: process.env.CENTRICMEM_TOKEN.trim(), source: "env:CENTRICMEM_TOKEN" };
+  if (process.env.CENTRICMEM_AGENT_KEY) return { token: process.env.CENTRICMEM_AGENT_KEY.trim(), source: "env:CENTRICMEM_AGENT_KEY" };
   if (process.env.CENTRICMEM_API_KEY) return { token: process.env.CENTRICMEM_API_KEY.trim(), source: "env:CENTRICMEM_API_KEY" };
   for (const f of configFiles()) {
     const t = readJson(f)?.token;

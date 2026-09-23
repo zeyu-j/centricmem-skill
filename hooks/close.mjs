@@ -35,8 +35,11 @@ const hasCredential = () => {
 const run = (args) => new Promise((resolve) => {
   let child;
   try {
+    // On Windows the CLI arrives as a .cmd shim, and a .cmd spawned with shell:false throws EINVAL -
+    // which the catch below swallows, so the hook looked silent and healthy while doing nothing (seen
+    // on dsh and on Claude Code). shell on Windows only, with a fixed argument list.
     const exe = process.platform === "win32" ? "centricmem.cmd" : "centricmem";
-    child = spawn(exe, args, { stdio: "ignore", shell: false, windowsHide: true });
+    child = spawn(exe, args, { stdio: "ignore", shell: process.platform === "win32", windowsHide: true });
   } catch { return resolve(false); }
   const timer = setTimeout(() => { try { child.kill(); } catch { /* gone */ } resolve(false); }, TIMEOUT_MS);
   child.on("error", () => { clearTimeout(timer); resolve(false); });

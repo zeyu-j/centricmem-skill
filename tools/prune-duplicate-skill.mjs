@@ -60,12 +60,21 @@ if (copies.length < 2) {
   console.log("centricmem-agent appears " + copies.length + " time(s); nothing to prune.");
   process.exit(0);
 }
+// Which copy to keep is a choice, not a rule: a host loads the copy it installed, so removing that
+// one disables the Skill there until it is reinstalled, while keeping it and removing the hub copy
+// is equally fine on a host that reads the hub. Newest-wins is only the default.
+const keepArg = (() => { const i = process.argv.indexOf("--keep"); return i > -1 ? process.argv[i + 1] : null; })();
 const newest = copies.map((c) => c.version).filter(Boolean).sort().pop() ?? null;
-const keep = copies.find((c) => c.version === newest) ?? copies[0];
+const keep = keepArg
+  ? copies.find((c) => c.host === keepArg || c.file.toLowerCase().includes(keepArg.toLowerCase()))
+  : copies.find((c) => c.version === newest) ?? copies[0];
+if (keepArg && !keep) { console.log("no copy matches --keep " + keepArg + "; nothing to do."); process.exit(1); }
 console.log(copies.length + " copies of centricmem-agent, newest is " + (newest ?? "unknown") + ":");
 for (const c of copies) console.log("  " + (c === keep ? "keep  " : "remove") + "  " + c.host + " v" + (c.version ?? "?") + "  " + c.file);
 if (!process.argv.includes("--apply")) {
   console.log("\nDry run. Re-run with --apply to remove the copies marked remove (only ever centricmem-agent).");
+console.log("Keep is the newest copy by default; pass --keep <host|path> to keep the one your host loads.");
+if (!keepArg) console.log("Careful: removing a host's own copy disables this Skill there until you reinstall it (--force, or the host's plugin update).");
   process.exit(0);
 }
 for (const c of copies) if (c !== keep) { const dir = path.dirname(c.file); fs.rmSync(dir, { recursive: true, force: true }); console.log("removed " + dir); }
