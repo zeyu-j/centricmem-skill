@@ -8,6 +8,12 @@
 
 
 
+## 1.0.17
+
+- ZCode (zai-org, 0.16.9) is verified the same way CodeBuddy was: it ships a CLI at `resources/glm/zcode.cjs`, and `zcode plugins marketplace add zeyu-j/centricmem-skill` followed by `zcode plugins install centricmem-skill@centricmem` installs this package. ZCode preloads the Claude Code marketplace, which is why the same repository works for it unchanged.
+- Kimi Code: the MCP facts are now right. Servers live in `~/.kimi-code/mcp.json` (or `$KIMI_CODE_HOME/mcp.json`) plus a project `.kimi-code/mcp.json`, with stdio, HTTP and SSE transports, and a plugin may carry Agent Skills, an auto-loaded Skill and MCP servers. Its plugin manager is `/plugins` with a Custom tab that installs from a URL.
+- Muse (`dev.meta.ai/install.sh`) refuses Windows outright (`muse: unsupported platform: MINGW64_NT`), recorded with omp.sh as a Linux/macOS-only client rather than left as an untested row.
+
 ## 1.0.16
 
 - Qwen Code joins the verified list. Its hooks are real - `SessionStart`, `SessionEnd`, `UserPromptSubmit`, `PreToolUse`, `Stop` and more, configured in `.qwen/settings.json` - and a `SessionStart` hook adds context by printing `{"hookSpecificOutput": {"additionalContext": …}}`. `qwen/ambient-hook.mjs` is the same shared ambient implementation the other wrappers use, in Qwen's shape, and the example settings block is in `qwen/settings-hooks.example.json`. It runs in the smoke job on Linux and macOS with the other three.
