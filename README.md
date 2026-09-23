@@ -6,7 +6,6 @@ A hosted librarian for AI agents. Capture stays in the agent you already use. Ce
 
 This repository is **one package**: [Agent Skills](https://agentskills.io) `SKILL.md` plus an [Agent Plugins 1.0](https://agent-plugins.org) bundle (`plugin.json` + `skills/` + `mcp.json`). Install it once from GitHub; each client uses its own command. Do not paste keys or marketplace JSON into chat.
 
-
 ### Verified optimisations
 
 Same idea as the installs above: these were run against real clients on this machine, and the marks say what
@@ -19,7 +18,6 @@ was run and what was only read.
 | **goose** 1.51.0 | `goose/*.yaml` recipes and `goose/centricmem-ambient.mjs` | the refresher writes `status=OK` with a credential and `status=NO-KEY` without one, disclaiming both |
 | **Codex** 0.156.1 | the same `hooks/hooks.json` in the plugin, so `SessionStart` and `SessionEnd` both apply | Codex discovers hooks as `hooks.json` or inline `[hooks]` in `config.toml`, and "installed plugins can also bundle lifecycle config through their plugin manifest or a default `hooks/hooks.json` file" - the file Claude reads. Its events include `SessionStart`, `SubagentStart`, `SessionEnd` (documented as running when the main thread ends, not for subagents), `Stop`, `UserPromptSubmit`, `PreToolUse`, `PostToolUse`, `PreCompact`, `PostCompact` and `SubagentStop`. **Not exercised**: no Codex session was run, so the wiring follows its documentation rather than a run here |
 | **Cursor** | both halves, by the client's own installer: `centricmem setup --install-hooks` | The only host with a first-class hook installer, and the only one here where both halves are wired up. Its MCP connection was already configured. The hooks it installs are real work, not reminders: `sessionStart` runs `centricmem ambient --write`, and `sessionEnd` runs `centricmem log-session --auto` followed by a reindex - so a Cursor session refreshes its own context and files its own card. Verified by reading the installed files: `.cursor/hooks/hooks.json` in the code repository and `~/.cursor/hooks/hooks.json`. **Not exercised**: no Cursor session was run - the wiring is verified, the behaviour at session end is not |
-
 | **Hermes** v0.21.4 | `hermes/` - a shell hook pair (`pre_llm_call` + `on_session_end`), with the Skill installed from this repo | `hermes hooks test pre_llm_call --payload-file` fires the hook and prints `parsed (Hermes wire shape): {"context": …}`; `hermes hooks doctor` reports `✓ produced valid JSON on synthetic payload (exit=0, 0.109s)` for `pre_llm_call` and `✓ ran clean with empty stdout (exit=0, 0.094s) — hook is observer-only` for `on_session_end`. Both entries had to be allowlisted first - a non-TTY host cannot answer the consent prompt, so `hermes hooks doctor` reported `✗ not allowlisted — hook will NOT fire at runtime` until the allowlist carried the exact command string |
 
 **Where the close half works, and where it does not.** The SessionEnd hook calls
@@ -48,7 +46,7 @@ These were run against real clients, not copied from documentation. The marks sa
 | **Claude Code** 2.1.280 | `claude plugin marketplace add zeyu-j/centricmem-skill` then `claude plugin install centricmem-skill@centricmem` | both succeed; `claude plugin list` shows version 1.0.9, enabled |
 | **Codex** 0.156.1 | `codex plugin marketplace add https://github.com/zeyu-j/centricmem-skill` then `codex plugin add centricmem-skill@centricmem` | marketplace accepted; plugin cached at `~/.codex/plugins/cache/centricmem/centricmem-skill/1.0.9`  **Run `codex plugin marketplace upgrade` after a release**: Codex caches the marketplace snapshot, so re-adding is not needed but refreshing is - an install left alone kept serving 1.0.9 after 1.0.11 was published. Once refreshed, its own installer puts `hooks/hooks.json` with SessionStart and SessionEnd into the plugin cache, which is where Codex reads hooks from |
 | **OpenClaw** 2026.6.35 | `openclaw plugins install centricmem-skill --marketplace zeyu-j/centricmem-skill` | installed as a **bundle** (it consumes the Claude marketplace format); `openclaw plugins list` shows 1.0.9, enabled |
-| Cursor, Grok, Hermes, and the private hosts whose manifests are not published here | per-host manifests in this repository | **install not verified here** - these are GUI or closed clients, so their manifests follow the published convention and nothing more is claimed. Cursor is worth noting: its MCP connection is already configured on this machine |
+| Cursor, Grok, Hermes, and the private clients whose manifests are not published here | per-host manifests in this repository | **install not verified here for the GUI-only ones** - these are GUI or closed clients, so their manifests follow the published convention and nothing more is claimed. A private desktop coding agent of ours was exercised through its own package tool instead, and it is left unnamed here on purpose: its tree was still carrying a 0.21.90 copy of this plugin, and `plugin install <repo> --replace --yes` refreshed it to 1.0.12 and reported `mappedCapabilities: [skills, hooks], hookCount: 2`, so it runs the shared `hooks/hooks.json` |
 | dsh, Pi | - | their own distribution, not on npm; install through their own tooling |
 
 If one of the unverified rows is wrong, the fix is a manifest change, not a code change: open an issue with the
@@ -77,7 +75,7 @@ Same GitHub repo as a plugin marketplace:
 
 | Client | Add this repo, then install |
 | --- | --- |
-| Cursor | Plugins → Team Marketplaces → Import from Repo `zeyu-j/centricmem-skill`, or `npx skills add` above |
+| Cursor / Grok | Cursor: Plugins → Team Marketplaces → Import from Repo `zeyu-j/centricmem-skill`, or `npx skills add` above. Grok: paste the one-liner; the shell is blocked, so it sends signup only and you add `https://mem.centricmem.com/mcp` in that bot's MCP settings (key from Keys, never in chat). |
 | Claude Code | `/plugin marketplace add zeyu-j/centricmem-skill` then `/plugin install centricmem-skill@centricmem` |
 | CodeBuddy / WorkBuddy | `codebuddy plugin marketplace add zeyu-j/centricmem-skill` then `/plugin install centricmem-skill@centricmem` |
 | Kimi Code | `/plugins install https://github.com/zeyu-j/centricmem-skill` (Custom). Catalog: `/plugins marketplace https://raw.githubusercontent.com/zeyu-j/centricmem-skill/main/.kimi-plugin/marketplace.json`. Set `CENTRICMEM_API_KEY` for host MCP. |
@@ -89,7 +87,6 @@ Same GitHub repo as a plugin marketplace:
 | DSH | Cordis **funnel** only. Needs `pnpm` (`npm i -g pnpm` if missing). Pin: `dsh plugin --profile web add github:zeyu-j/centricmem-skill#v0.21.72`. Then from the profile dir run `node node_modules/centricmem-skill/dsh/copy-skill.mjs` so `$DSH_HOME/skills/centricmem-agent` exists (funnel MCP does not load Skill from `node_modules`). Overlay Bearer on the same `id` in `$DSH_HOME/profiles/<profile>/cordis.patch.yml` (restate the whole config). New chat. Tools are `mcp__centricmem__cm_*`. Skill is MIT; [`dsh/`](./dsh/) is MIT glue. GitHub topic `dsh-plugin`. |
 | Copilot CLI | `copilot plugin marketplace add zeyu-j/centricmem-skill` then `copilot plugin install centricmem-skill` |
 | Kiro | Powers → Add Custom Power → GitHub `https://github.com/zeyu-j/centricmem-skill` |
-| Grok Bot | Paste the one-liner. Shell is blocked, so send signup only; add `https://mem.centricmem.com/mcp` in that bot’s MCP settings (key from Keys, never in chat). |
 | SkillKit | `skillkit add https://centricmem.com` or `skillkit add zeyu-j/centricmem-skill` |
 | Any other Agent Skills host | Copy `skills/centricmem-agent/` so the file is `<skills-root>/centricmem-agent/SKILL.md`. Host MCP is streamable-HTTP at `https://mem.centricmem.com/mcp`. After device claim: `centricmem connect --claim --target <this-host-config.json>` (or `CENTRICMEM_MCP_TARGETS`). Confirm with `centricmem connect --verify`. Do not copy a key from another client's `mcp.json`. |
 | skills.sh / SkillMD | `npx skills add` above, or `skillmd add zeyu-j/centricmem-skill` |
@@ -129,7 +126,6 @@ This repository is the **Skill**: how agents talk to the hosted librarian.
 - [`dsh/cordis.patch.yml`](./dsh/cordis.patch.yml) — DSH Cordis funnel (MIT glue, URL-only MCP, `failOnStartupError: true`). [`dsh/copy-skill.mjs`](./dsh/copy-skill.mjs) copies the Skill into `$DSH_HOME/skills/`. Skill is MIT. Not ClawHub.
 
 It is not the librarian, not the CLI source, and not a self-hosted kit. One public Agent Skill: `centricmem-agent` (folder name) inside package `centricmem-skill`.
-
 
 ## goose
 
