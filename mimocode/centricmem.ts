@@ -33,10 +33,9 @@
  *   CENTRICMEM_DONT_LOG=1
  *   CENTRICMEM_AMBIENT_FILE=<path>  default: ~/.config/mimocode/centricmem-ambient.md
  *   CENTRICMEM_AMBIENT_MAX_AGE_HOURS=<n>  default: 24
- *   CENTRICMEM_BIN=<path>
+ *   CENTRICMEM_URL=<origin>         default: https://mem.centricmem.com
  */
 import type { Plugin } from "@opencode-ai/plugin";
-import { spawnSync } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -74,10 +73,110 @@ function mark(p: string) {
 function clear(p: string) {
   try { fs.rmSync(p, { force: true }); } catch { /* ignore */ }
 }
-function findCli() {
-  const fromEnv = (process.env.CENTRICMEM_BIN || "").trim();
-  if (fromEnv) return fromEnv;
-  return process.platform === "win32" ? "centricmem.cmd" : "centricmem";
+/**
+ * The Bearer this host holds for the librarian.
+ *
+ * Env first, then the MCP config of a host that has already claimed the machine -
+ * the same order tools/ambient.mjs uses. Never guesses: an empty string means the
+ * caller stays quiet rather than inventing a credential.
+ */
+function readToken(): string {
+  const env =
+    process.env.CENTRICMEM_TOKEN || process.env.CENTRICMEM_AGENT_KEY || process.env.CENTRICMEM_API_KEY;
+  if (env && env.trim()) return env.trim();
+
+  const home = os.homedir();
+  const files = [
+    path.join(home, ".claude.json"),
+    path.join(home, ".cursor", "mcp.json"),
+    path.join(process.env.APPDATA || "", "Cursor", "User", "mcp.json"),
+  ];
+  for (const f of files) {
+    if (!f || !f.trim()) continue;
+    try {
+      const parsed = JSON.parse(fs.readFileSync(f, "utf8"));
+      const entry = parsed && parsed.mcpServers && parsed.mcpServers.centricmem;
+      const raw = entry && entry.headers && (entry.headers.Authorization || entry.headers.authorization);
+      const m = /Bearer\s+(\S+)/i.exec(String(raw || ""));
+      if (m) return m[1].trim();
+    } catch { /* unreadable config is not an error here */ }
+  }
+  return "";
+}
+
+/**
+ * File one session card through the hosted MCP server.
+ *
+ * The CLI is not an option on a guest host: `centricmem done` writes a local hub
+ * file and refuses by design, even with a token and CENTRICMEM_HOME unset. The MCP
+ * endpoint is the write path that works, and a plugin can speak it directly -
+ * initialize, initialized, tools/call.
+ *
+ * Bounded and awaited. A hook has 5000ms before MiMoCode rolls the output back and
+ * counts a failure toward the 3-strike circuit breaker, so this has to return on
+ * its own; the abort controller guarantees that even if the network stalls.
+ */
+async function closeViaMcp(shelf: string, summary: string): Promise<number> {
+  const token = readToken();
+  if (!token) { trace("close skipped: no credential"); return 0; }
+
+  const endpoint =
+    (process.env.CENTRICMEM_URL || "https://mem.centricmem.com").replace(/\/$/, "") + "/mcp";
+  const ac = new AbortController();
+  const timer = setTimeout(() => ac.abort(), 3500);
+  const headers: Record<string, string> = {
+    authorization: "Bearer " + token,
+    "content-type": "application/json",
+    accept: "application/json, text/event-stream",
+  };
+
+  try {
+    const init = await fetch(endpoint, {
+      method: "POST",
+      headers,
+      signal: ac.signal,
+      body: JSON.stringify({
+        jsonrpc: "2.0",
+        id: 1,
+        method: "initialize",
+        params: {
+          protocolVersion: "2025-06-18",
+          capabilities: {},
+          clientInfo: { name: "centricmem-mimocode", version: "1.0" },
+        },
+      }),
+    });
+    const sid = init.headers.get("mcp-session-id");
+    await init.text();
+    if (sid) headers["mcp-session-id"] = sid;
+
+    await fetch(endpoint, {
+      method: "POST",
+      headers,
+      signal: ac.signal,
+      body: JSON.stringify({ jsonrpc: "2.0", method: "notifications/initialized" }),
+    }).then((r) => r.text()).catch(() => "");
+
+    const args: Record<string, unknown> = { summary, tags: ["hook-l3", "session-sweep"] };
+    if (shelf) args.shelf = shelf;
+
+    const call = await fetch(endpoint, {
+      method: "POST",
+      headers,
+      signal: ac.signal,
+      body: JSON.stringify({
+        jsonrpc: "2.0",
+        id: 2,
+        method: "tools/call",
+        params: { name: "cm_done", arguments: args },
+      }),
+    });
+    const body = await call.text();
+    trace("close mcp http=" + call.status + " body=" + body.slice(0, 160));
+    return call.status;
+  } finally {
+    clearTimeout(timer);
+  }
 }
 
 /**
@@ -218,22 +317,14 @@ export const CentricMem: Plugin = async () => {
           return;
         }
 
-        if (!process.env.CENTRICMEM_TOKEN && !process.env.CENTRICMEM_API_KEY) {
-          trace("session.post close skipped: no CENTRICMEM_TOKEN / CENTRICMEM_API_KEY");
+        if (!readToken()) {
+          trace("session.post close skipped: no credential");
           return;
         }
         const summary =
           "Session sweep (MiMoCode L3 plugin). session=" + id.slice(0, 120) +
           ". Turn completed without a prior cm_* stamp - auto session card only.";
-        const args = ["done", summary, "--tags", "hook-l3,session-sweep"];
-        if (SHELF) args.push("-p", SHELF);
-        const r = spawnSync(findCli(), args, {
-          encoding: "utf8",
-          shell: process.platform === "win32",
-          env: process.env,
-          timeout: 45_000,
-        });
-        trace("session.post sweep status=" + String(r.status) + " (guest hosts refuse this by design)");
+        await closeViaMcp(SHELF, summary);
       } catch (e) { trace("session.post FAILED " + String(e)); }
     },
 

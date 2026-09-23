@@ -1,8 +1,8 @@
 # MiMoCode
 
 MiMoCode (`mimo`, Xiaomi's OpenCode fork) has a real plugin lifecycle, so this host gets ambient
-context at session start, a deterministic sweep reminder after a turn, and shelf context that
-survives compaction.
+context at session start, a deterministic sweep reminder after a turn, and a close that files through
+the hosted MCP server.
 
 ## What the hooks say (read out of the binary, then confirmed at runtime)
 
@@ -23,10 +23,10 @@ Events seen firing: `session.created`, `session.updated`, `session.status`, `ses
 `session.idle`, `session.error`, `message.updated`, `message.part.updated`, `actor.registered`,
 `metrics.agent_request`, `tui.instructions.loaded`.
 
-### Three constraints that shape this plugin
+### Four constraints that shape this plugin
 
-**A part must be a whole part.** `output.parts` is not a loose bag - MiMoCode runs
-`AD.Part.safeParse` over every element and then persists each one with `updatePart`:
+**A part must be a whole part.** `output.parts` is not a loose bag - MiMoCode runs `AD.Part.safeParse`
+over every element and then persists each one with `updatePart`:
 
 ```js
 r.trigger("chat.message", { sessionID, agent, model, messageID, variant }, { message: Xw, parts: G0 })
@@ -54,9 +54,14 @@ catch -> Object.assign(M, w)              // output rolled back
 ```
 
 Every file hook runs under a **5000ms timeout**, its output is **rolled back on failure**, and after
-**3 failures that hook is skipped for the life of the process**. A network call inside a hook is
-therefore not merely slow - it can permanently disable the hook. So no hook here touches the network:
-the plugin reads a **cache file** that `refresh-ambient.mjs` writes out of band.
+**3 failures that hook is skipped for the life of the process**. So no hook fetches ambient over the
+network - that comes from a cache file `refresh-ambient.mjs` writes out of band. The one network call
+the plugin does make is the close, and it is abort-bounded well inside the budget.
+
+**The SDK cannot execute a tool.** The client namespaces cover `app auth command config event file
+find formatter global instance lsp mcp part path permission project provider pty question session sync
+tool tui vcs workflow worktree` - and `tool` offers only `tool.ids` and `tool.list`. There is no
+`tool.execute`. A plugin that needs the librarian must speak MCP itself, which is what the close does.
 
 ## Install
 
@@ -90,12 +95,12 @@ injects nothing and says nothing - it does not stall a session trying to fetch o
   survives compaction instead of being summarised away. When nothing is available it says so, rather
   than injecting nothing quietly.
 - **Close (optional L3)** - with `CENTRICMEM_HOOK_L3=1`, the first completed turn of a session with no
-  `cm_*` stamp runs one `centricmem done`. **Off by default.** Read the next section before turning
-  it on.
+  `cm_*` stamp files one `cm_done` **through the hosted MCP endpoint**. Off by default.
 
-## The close half does not work on a guest host
+## Why the close speaks MCP instead of running the CLI
 
-Running the exact command this plugin spawns, on a machine that is a guest of the librarian:
+`centricmem done` is a **local hub writer** - its own help describes it as writing
+`sessions/<stamp>-<writer>-<id>.md`. On a guest machine it refuses, correctly:
 
 ```
 $ centricmem done "..." --tags hook-l3,session-sweep -p host
@@ -104,17 +109,15 @@ For CLI import/index set CENTRICMEM_TOKEN (or claim so a local mcp.json has Bear
 cm_import on host MCP. Operators write on the librarian host.
 ```
 
-That refusal is **by design, and correct** - it is the guard behind *never CLI-write a leftover hub*.
-On the test machine `CENTRICMEM_TOKEN` was set (user scope, 64 chars), `CENTRICMEM_API_KEY` was set,
-and unsetting `CENTRICMEM_HOME` changed nothing: the CLI still refused. The guest check does not hinge
-on that variable. Since the baseline contract is *agents talk to the hosted librarian only through
-host MCP*, the close cannot reasonably be a CLI spawn on a guest at all.
+That is not about the credential: `CENTRICMEM_TOKEN` was set (user scope, 64 chars),
+`CENTRICMEM_API_KEY` was set, and unsetting `CENTRICMEM_HOME` changed nothing. It is the guard behind
+*never CLI-write a leftover hub*, and it is right. The message even names the way out - `cm_import on
+host MCP`.
 
-So the close is opt-in, it pre-checks for `CENTRICMEM_TOKEN` / `CENTRICMEM_API_KEY` and skips
-silently without one, and it attempts **at most once per session** whatever the outcome - because the
-spawn is a real Node process and retrying every turn to be told no is a waste. On a guest, the
-working path for the same job is simply the `cm_*` tools over MCP, which is what the reminder half
-already drives the model to do.
+So the close does that itself: `initialize` -> `notifications/initialized` -> `tools/call` for
+`cm_done`, with an `AbortController` capping the whole exchange so the hook always returns inside the
+5000ms budget. It attempts at most once per session whatever the outcome, because retrying per turn
+would be a network round trip per turn for nothing.
 
 ## Env
 
@@ -124,23 +127,31 @@ already drives the model to do.
 | `CENTRICMEM_HOOK_DRY_RUN=1` | log the close, write nothing |
 | `CENTRICMEM_DONT_LOG=1` | skip the close half |
 | `CENTRICMEM_HOOK_L3=1` | enable the auto-file close |
-| `CENTRICMEM_HOOK_SHELF=<id>` | shelf for `done` (else `CENTRICMEM_PROJECT`) |
+| `CENTRICMEM_HOOK_SHELF=<id>` | shelf for `cm_done` (else `CENTRICMEM_PROJECT`) |
 | `CENTRICMEM_HOOK_TRACE=1` | append every hook call to `%TEMP%/centricmem-mimocode-trace.log` |
 | `CENTRICMEM_AMBIENT_FILE=<path>` | cache location (default `~/.config/mimocode/centricmem-ambient.md`) |
 | `CENTRICMEM_AMBIENT_MAX_AGE_HOURS=<n>` | treat a stale cache as absent (default 24) |
-| `CENTRICMEM_BIN=<path>` | CLI to spawn for the close |
+| `CENTRICMEM_URL=<origin>` | librarian origin (default `https://mem.centricmem.com`) |
+
+The credential is read the way `tools/ambient.mjs` reads it: `CENTRICMEM_TOKEN`, then
+`CENTRICMEM_AGENT_KEY`, then `CENTRICMEM_API_KEY`, then the Bearer recorded in a host MCP config
+(`~/.claude.json`, `~/.cursor/mcp.json`, `%APPDATA%/Cursor/User/mcp.json`). It is never guessed - no
+credential means the close stays silent.
 
 ## Verified
 
-A trace under mimocode 0.1.15 on Windows, `deepseek/deepseek-flash`, cache seeded:
+A trace under mimocode 0.1.15 on Windows, `deepseek/deepseek-flash`, cache seeded, `-L3`:
 
 ```
-new session ses_ffe5f2fdbd0d4ffeSPwE97HkgV
+new session ses_ffe5f2fd71c48ffeYchqmVWLpa
 ambient queued chars=54
 chat.message queued=1
 chat.message injected=1
-session.pre ses_ffe5f2fdbd0d4ffeSPwE97HkgV
+session.pre ses_ffe5f2fd71c48ffeYchqmVWLpa
 session.post outcome=completed
+session.post reminder queued
+close mcp http=200 body={"result":{"content":[{"type":"text","text":"ok | project=host |
+  file=sessions/2026-09-23T212538Z-mcp-d30ee9.md | heading=Session sweep (MiMoCode L3 plugin)."}]}}
 ```
 
 - The plugin loads from `~/.config/mimocode/plugins/`, and a probe plugin that logged every trigger
@@ -149,20 +160,17 @@ session.post outcome=completed
 - Ambient reaches the **first** outgoing message. An earlier version queued it from `session.pre` and
   the trace read `chat.message queued=0` then `session.pre queued ambient chars=54` - `chat.message`
   runs **before** `session.pre`, so the ambient was a turn late.
-- A turn now runs to `outcome: "completed"` with an injected part present, and the reminder is queued
-  from `session.post`.
+- The close files a real card. The endpoint was handshaked independently first, and the tool names are
+  plain `cm_*` - `tools/list` returns 17 of them (`cm_health`, `cm_ambient`, `cm_done`, ...), not
+  namespaced per server. The whole close took ~355ms against a 3500ms abort budget.
 
 ## Not verified
 
-- **The close has never succeeded.** See above: a guest host refuses the CLI write, so `session.post
-  sweep status=1` is as far as it has been observed. The MCP alternative has not been implemented.
 - **`experimental.session.compacting` has never fired.** `compaction.max_context` was set to `"1K"`
   and confirmed present in `mimo debug config`, then four turns were run into one session with
   `mimo run -c`; `compacting` never appeared in the trace. Each `mimo run` is its own process, so no
   single process ever accumulated enough context to overflow. Verify this one inside a real
   long-running TUI session instead.
-- The name MiMoCode gives an MCP tool (`cm_note` vs `centricmem_cm_note`). The stamp matches either,
-  and any name containing `centricmem`.
 
 ## Notes
 
@@ -174,3 +182,5 @@ session.post outcome=completed
   `401 Invalid API Key` and `mimo/mimo-auto` answers `MiMo free API service has ended`. Configure a
   provider before expecting MiMoCode to do anything at all. Configuring one catalog provider is
   enough - the provider then appears in `mimo models`.
+- The session `-c` flag continues the last session, so repeated `mimo run -c` calls do accumulate one
+  session even though each is its own process.
