@@ -31,11 +31,12 @@ These were run against real clients, not copied from documentation. The marks sa
 
 | Client | Command | What happened |
 |---|---|---|
+| **CodeBuddy Code / WorkBuddy** 5.6.2 | `codebuddy plugin marketplace add zeyu-j/centricmem-skill` then `codebuddy plugin install centricmem-skill@centricmem` | both succeed and `codebuddy plugin list` reports it enabled. The vendor's own validator agrees: `codebuddy plugin validate .` answers `✔ Validation passed` for `.codebuddy-plugin/marketplace.json`, and its error text lists the manifest paths it accepts - `.codebuddy-plugin/`, `.workbuddy-plugin/`, `.claude-plugin/`. `codebuddy mcp list` also shows the server, awaiting a user approval rather than failing |
 | **goose** 1.51.0 | `goose plugin install https://github.com/zeyu-j/centricmem-skill` | reports "Installed open-plugins plugin"; imports `centricmem-skill:centricmem-agent`. No host-specific manifest folder is involved - goose reads the manifest at the repository root |
 | **Claude Code** 2.1.280 | `claude plugin marketplace add zeyu-j/centricmem-skill` then `claude plugin install centricmem-skill@centricmem` | both succeed; `claude plugin list` shows version 1.0.9, enabled |
 | **Codex** 0.156.1 | `codex plugin marketplace add https://github.com/zeyu-j/centricmem-skill` then `codex plugin add centricmem-skill@centricmem` | marketplace accepted; plugin cached at `~/.codex/plugins/cache/centricmem/centricmem-skill/1.0.9` |
 | **OpenClaw** 2026.6.35 | `openclaw plugins install centricmem-skill --marketplace zeyu-j/centricmem-skill` | installed as a **bundle** (it consumes the Claude marketplace format); `openclaw plugins list` shows 1.0.9, enabled |
-| Cursor, CodeBuddy, WorkBuddy, Kiro, Grok, Hermes, and the private hosts whose manifests are not published here | per-host manifests in this repository | **not verified here** - these are GUI or closed clients, so their manifests follow the published convention and nothing more is claimed |
+| Cursor, Kiro, Grok, Hermes, and the private hosts whose manifests are not published here | per-host manifests in this repository | **not verified here** - these are GUI or closed clients, so their manifests follow the published convention and nothing more is claimed |
 | dsh, Pi | - | their own distribution, not on npm; install through their own tooling |
 
 If one of the unverified rows is wrong, the fix is a manifest change, not a code change: open an issue with the
