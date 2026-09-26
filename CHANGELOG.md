@@ -19,7 +19,7 @@
   enough: the key is ignored in `config.yaml` - measured, `goose recipe list` never saw the directory - a
   hook cannot change goose's own environment, and Goose.app launched from the dock inherits no shell
   profile, so an exported variable fails silently. The wiring is goose-only, silent on stdout, and honours
-  `CENTRICMEM_HOOK_DISABLE` and `CENTRICMEM_HOOK_DRY_RUN`.
+  `CENTRICMEM_HOOK_DISABLE` and `CENTRICMEM_HOOK_DRY_RUN`. The install row and `goose/README.md` now carry the refresh command as well, because `goose plugin install` refuses a plugin that is already installed and `--auto-update` is only recorded at install time.
 
 
 - Hermes carries the shelf you actually selected. `hermes/ambient-hook.mjs` had its own copy of the fetch, and that copy asked `/ambient` with no `?library=`, so the context injected on `pre_llm_call` could come from a different shelf than the one in use - and it went out without the `User-Agent` the librarian's edge rule expects. It now uses the shared fetch every other host uses, and the one-minute cache is keyed by shelf, so switching shelves is never served the previous one's context.

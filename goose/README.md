@@ -13,6 +13,23 @@ goose plugin install https://github.com/zeyu-j/centricmem-skill
 
 That imports the skill (`centricmem-skill:centricmem-agent`) and drops the repository under
 `~/.agents/plugins/centricmem-skill/`.
+**Updating it is a different command.** `goose plugin install <url>` refuses a plugin that is already
+installed - `Error: Plugin 'centricmem-skill' is already installed` - so the line above is for the first
+install only. After that, refresh with:
+
+```sh
+goose plugin update centricmem-skill
+```
+
+That re-fetches from the original git source, replaces the installed copy and re-imports the skill (measured
+going 1.0.31 -> 1.0.32). What it does not do is turn on `--auto-update`: the flag is recorded at install
+time and `update` preserves it, so a host that wants the automatic check has to be installed that way from
+the start - and since `install` refuses an existing plugin, the old copy is cleared first:
+
+```sh
+rm -rf ~/.agents/plugins/centricmem-skill
+goose plugin install --auto-update https://github.com/zeyu-j/centricmem-skill
+```
 
 goose reads **`.goose-plugin/plugin.json`**, and that file is load-bearing rather than cosmetic: the root
 `plugin.json` declares `mcpServers`, goose's plugin MCP parser is stdio-only, and a remote (`http`) entry
