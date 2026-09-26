@@ -1,8 +1,9 @@
 # goose
 
-Everything goose-specific lives here. goose reads the plugin manifest at the repository root - it reports
-"open-plugins plugin" and imports the skill itself - so there is no host-named manifest directory for it,
-unlike the vendors that each require one.
+Everything goose-specific lives here. goose reads `.goose-plugin/plugin.json` - a host-named directory, like
+the vendors that each require one. It does *not* read the root `plugin.json`: the root manifest carries an
+`mcpServers` entry, and goose's plugin MCP parser is stdio-only, so reading it would abort the install. The
+two manifests are kept deliberately different, and CI asserts that the goose one stays free of `mcpServers`.
 
 **Install the plugin**
 

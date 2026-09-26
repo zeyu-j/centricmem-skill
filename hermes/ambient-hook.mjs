@@ -19,7 +19,7 @@ import os from "node:os";
 import path from "node:path";
 import https from "node:https";
 import http from "node:http";
-import { credential as sharedCredential } from "../tools/ambient.mjs";
+import { credential as sharedCredential, dontLog, hooksDisabled } from "../tools/ambient.mjs";
 
 const DEFAULT_LIBRARIAN = "https://mem.centricmem.com";
 const DEFAULT_TTL_MS = 60000;
@@ -73,9 +73,10 @@ const main = async () => {
   try { payload = JSON.parse(await readStdin() || "{}"); } catch { payload = {}; }
   const event = payload.hook_event_name || process.argv[2] || "";
 
-  // the close side: same command the other hosts use, silent where it cannot write
+  // the close side: same command the other hosts use, silent where it cannot write, and honouring the same
+  // switches the shared close hook does - a user who sets one expects the same answer on every host.
   if (event === "on_session_end") {
-    if (credential()) {
+    if (!hooksDisabled() && !dontLog() && credential()) {
       const { spawn } = await import("node:child_process");
       const exe = process.platform === "win32" ? "centricmem.cmd" : "centricmem";
       try {

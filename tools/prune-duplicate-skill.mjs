@@ -65,7 +65,18 @@ if (copies.length < 2) {
 // one disables the Skill there until it is reinstalled, while keeping it and removing the hub copy
 // is equally fine on a host that reads the hub. Newest-wins is only the default.
 const keepArg = (() => { const i = process.argv.indexOf("--keep"); return i > -1 ? process.argv[i + 1] : null; })();
-const newest = copies.map((c) => c.version).filter(Boolean).sort().pop() ?? null;
+// Numeric compare, not the default lexical one: as strings "1.0.9" sorts above "1.0.10", so the default
+// would keep the older copy on exactly the release that made the two disagree.
+const byVersion = (a, b) => {
+  const pa = String(a).split(".").map((n) => parseInt(n, 10) || 0);
+  const pb = String(b).split(".").map((n) => parseInt(n, 10) || 0);
+  for (let i = 0; i < Math.max(pa.length, pb.length); i += 1) {
+    const d = (pa[i] || 0) - (pb[i] || 0);
+    if (d !== 0) return d;
+  }
+  return 0;
+};
+const newest = copies.map((c) => c.version).filter(Boolean).sort(byVersion).pop() ?? null;
 const keep = keepArg
   ? copies.find((c) => c.host === keepArg || c.file.toLowerCase().includes(keepArg.toLowerCase()))
   : copies.find((c) => c.version === newest) ?? copies[0];

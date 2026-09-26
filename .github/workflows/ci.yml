@@ -67,8 +67,16 @@ jobs:
           # goose substitutes ${PLUGIN_ROOT} and knows nothing about ${CLAUDE_PLUGIN_ROOT}, which would
           # expand to nothing and fail the hook - silently, because hook failures are fail-open.
           grep -qF '${CLAUDE_PLUGIN_ROOT:-$PLUGIN_ROOT}' hooks/hooks.json
-          if grep -qE '\$\{CLAUDE_PLUGIN_ROOT\}[^:]' hooks/hooks.json; then
-            echo 'bare ${CLAUDE_PLUGIN_ROOT} in hooks/hooks.json: goose would expand it to nothing' >&2
+          # Count rather than pattern-match a trailing character: a bare ${CLAUDE_PLUGIN_ROOT} at the end
+          # of a line has nothing after it for a `[^:]` test to find, which is how the first version of
+          # this check missed exactly the case it was written for.
+          # Match the prefix, not the closed token: in the portable form the character after ROOT is ":",
+          # so searching for a closing brace finds only the bare ones and the comparison fails on a
+          # correct file. Counting the prefix is what makes the two numbers comparable.
+          total=$(grep -o '\${CLAUDE_PLUGIN_ROOT' hooks/hooks.json | wc -l | tr -d ' ')
+          portable=$(grep -o '\${CLAUDE_PLUGIN_ROOT:-' hooks/hooks.json | wc -l | tr -d ' ')
+          if [ "$total" -ne "$portable" ]; then
+            echo "a bare \${CLAUDE_PLUGIN_ROOT} is in hooks/hooks.json: goose would expand it to nothing" >&2
             exit 1
           fi
 

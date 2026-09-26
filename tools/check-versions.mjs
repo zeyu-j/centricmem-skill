@@ -8,8 +8,11 @@
 
 import fs from "node:fs";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 
-const root = path.resolve(new URL("..", import.meta.url).pathname);
+// fileURLToPath, never URL.pathname: on Windows the latter yields "/C:/..." and every read then misses,
+// which would make this check pass by finding nothing. This repository is developed on Windows.
+const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const json = (rel) => JSON.parse(fs.readFileSync(path.join(root, rel), "utf8"));
 const present = (rel) => fs.existsSync(path.join(root, rel));
 

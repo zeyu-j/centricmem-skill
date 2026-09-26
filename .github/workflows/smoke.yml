@@ -101,3 +101,128 @@ jobs:
           set -euo pipefail
           export PATH="$HOME/.local/bin:$PATH"
           goose skills list | grep -q 'centricmem-skill:centricmem-agent'
+
+  # The job above proves every wrapper stays QUIET with no credential. Nothing proved they SPEAK with one,
+  # which is the half that matters: a reply in the wrong shape is dropped by the host and looks exactly like
+  # a host with nothing to say. This points every wrapper at a stub librarian on 127.0.0.1 and asserts what
+  # actually comes out, in each host's own shape.
+  library-stub:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: every wrapper speaks when a credential is present
+        run: |
+          set -euo pipefail
+          node - <<'JS' &
+          const http = require("node:http");
+          http
+            .createServer((req, res) => {
+              res.writeHead(200, { "content-type": "application/json" });
+              res.end(JSON.stringify({ text: "STUB-AMBIENT-CONTEXT" }));
+            })
+            .listen(8731, "127.0.0.1");
+          JS
+          sleep 1
+
+          export CENTRICMEM_URL=http://127.0.0.1:8731
+          export CENTRICMEM_TOKEN=ci-stub-token
+          export GOOSE_MOIM_MESSAGE_FILE="$RUNNER_TEMP/moim.md"
+
+          fail() { echo "$1" >&2; exit 1; }
+
+          # Hermes caches its answer in tmpdir; on a fresh runner it is empty anyway, but be explicit.
+          node -e 'const fs=require("node:fs"),os=require("node:os"),p=require("node:path");try{fs.unlinkSync(p.join(os.tmpdir(),"centricmem-hermes-ambient.json"))}catch{}'
+
+          # Claude Code's shape, which the dsh bridge also accepts.
+          out=$(node hooks/ambient.mjs)
+          case "$out" in *hookSpecificOutput*STUB-AMBIENT-CONTEXT*) ;; *) fail "hooks/ambient.mjs did not emit the envelope with the text: $out" ;; esac
+          echo "ok: hooks/ambient.mjs (Claude/dsh shape) emits the envelope"
+
+          # Qwen's shape: same intent, no hookEventName.
+          out=$(node qwen/ambient-hook.mjs)
+          case "$out" in *additionalContext*STUB-AMBIENT-CONTEXT*) ;; *) fail "qwen wrapper did not emit additionalContext with the text: $out" ;; esac
+          echo "ok: qwen/ambient-hook.mjs emits additionalContext"
+
+          # OpenClaw returns the context instead of printing it.
+          node -e 'require("./openclaw/handler.js")().then(r => { const t = (r && r.additionalContext) || ""; if (!t.includes("STUB-AMBIENT-CONTEXT")) { console.error("openclaw handler carried no context: " + JSON.stringify(r).slice(0,120)); process.exit(1); } console.log("ok: openclaw handler returns the context"); })'
+
+          # goose has no context channel on stdout - a hook reply there is read as a decision - so the
+          # ambient half writes the file Top Of Mind injects, and must stay silent.
+          rm -f "$GOOSE_MOIM_MESSAGE_FILE"
+          out=$(PLUGIN_ROOT="$PWD" node hooks/ambient.mjs)
+          test -z "$out" || fail "goose mode must leave stdout empty, got: $out"
+          grep -q 'status=OK' "$GOOSE_MOIM_MESSAGE_FILE" || fail "goose mode did not write status=OK"
+          grep -q 'STUB-AMBIENT-CONTEXT' "$GOOSE_MOIM_MESSAGE_FILE" || fail "the MOIM file carried no context"
+          echo "ok: hooks/ambient.mjs (goose mode) writes the MOIM file and stays silent"
+
+          rm -f "$GOOSE_MOIM_MESSAGE_FILE"
+          node goose/centricmem-ambient.mjs
+          grep -q 'status=OK' "$GOOSE_MOIM_MESSAGE_FILE" || fail "the goose refresher did not write status=OK"
+          echo "ok: goose/centricmem-ambient.mjs writes status=OK"
+
+          # Hermes needs a host payload from stdin.
+          out=$(echo '{"hook_event_name":"pre_llm_call","session_id":"ci-stub"}' | node hermes/ambient-hook.mjs)
+          case "$out" in *STUB-AMBIENT-CONTEXT*) ;; *) fail "hermes wrapper carried no context: $out" ;; esac
+          echo "ok: hermes/ambient-hook.mjs carries the text in its wire shape"
+
+          echo "positive path asserted for every wrapper"
+
+  # The close half shells out to the local `centricmem` CLI. Nothing exercised that path: the job above only
+  # proves the hook is silent with no credential, and that is the branch which never spawns. A shim on PATH
+  # records whether the child was actually launched, and the switches have to beat a present credential.
+  close-spawn:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: the close hook spawns the CLI exactly when it should
+        run: |
+          set -euo pipefail
+          shimdir="$(mktemp -d)"
+          cat > "$shimdir/centricmem" <<'SH'
+          #!/bin/sh
+          echo "called $*" >> "${CENTRICMEM_SPAWN_LOG:?}"
+          SH
+          chmod +x "$shimdir/centricmem"
+          export PATH="$shimdir:$PATH"
+          export CENTRICMEM_SPAWN_LOG="$RUNNER_TEMP/spawns.log"
+
+          fail() { echo "$1" >&2; exit 1; }
+          wait_for_log() { for _ in 1 2 3 4 5 6 7 8 9 10; do test -f "$CENTRICMEM_SPAWN_LOG" && return 0; sleep 1; done; return 1; }
+
+          # No credential: the CLI must not be launched at all.
+          rm -f "$CENTRICMEM_SPAWN_LOG"
+          node hooks/close.mjs
+          test ! -f "$CENTRICMEM_SPAWN_LOG" || fail "the close hook spawned the CLI with no credential"
+          echo "ok: no credential, no spawn"
+
+          # A credential: it must be launched, with the one command the close half exists for. The child is
+          # detached and unref'd, so the hook returns before the shim has finished - hence the wait.
+          export CENTRICMEM_TOKEN=ci-stub-token
+          node hooks/close.mjs
+          wait_for_log || fail "the close hook never spawned the CLI despite a credential"
+          grep -q 'log-session --auto' "$CENTRICMEM_SPAWN_LOG" || fail "the close hook ran the wrong command: $(cat "$CENTRICMEM_SPAWN_LOG")"
+          echo "ok: credential present, log-session --auto spawned"
+
+          # The switches beat a present credential.
+          rm -f "$CENTRICMEM_SPAWN_LOG"
+          CENTRICMEM_DONT_LOG=1 node hooks/close.mjs
+          test ! -f "$CENTRICMEM_SPAWN_LOG" || fail "CENTRICMEM_DONT_LOG=1 did not stop the close hook"
+          echo "ok: CENTRICMEM_DONT_LOG=1 wins"
+
+          rm -f "$CENTRICMEM_SPAWN_LOG"
+          CENTRICMEM_HOOK_DISABLE=1 node hooks/close.mjs
+          test ! -f "$CENTRICMEM_SPAWN_LOG" || fail "CENTRICMEM_HOOK_DISABLE=1 did not stop the close hook"
+          echo "ok: CENTRICMEM_HOOK_DISABLE=1 wins"
+
+          rm -f "$CENTRICMEM_SPAWN_LOG"
+          CENTRICMEM_HOOK_DRY_RUN=1 node hooks/close.mjs
+          test ! -f "$CENTRICMEM_SPAWN_LOG" || fail "CENTRICMEM_HOOK_DRY_RUN=1 did not stop the close hook"
+          echo "ok: CENTRICMEM_HOOK_DRY_RUN=1 wins"
