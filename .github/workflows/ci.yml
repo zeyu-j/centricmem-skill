@@ -80,5 +80,23 @@ jobs:
             exit 1
           fi
 
+      - name: goose recipes are marked, and something installs them
+        run: |
+          set -euo pipefail
+          # goose/wire-recipes.mjs replaces a recipe only when line one marks it as this package's, and it
+          # treats anything else as the user's file. A recipe that lost that line would be installed once and
+          # never updated again - silently, which is the failure this check exists to catch.
+          for f in goose/*.yaml; do
+            head -1 "$f" | grep -q '^# managed by centricmem-skill' || {
+              echo "$f does not carry the managed marker on line one" >&2
+              exit 1
+            }
+          done
+          # The marker is only worth anything if something runs the wiring.
+          grep -q 'goose/wire-recipes.mjs' hooks/hooks.json || {
+            echo "hooks/hooks.json does not run goose/wire-recipes.mjs, so the recipes are never installed" >&2
+            exit 1
+          }
+
       - name: manifest versions agree
         run: node tools/check-versions.mjs

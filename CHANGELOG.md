@@ -10,6 +10,18 @@
 
 ## Unreleased
 
+- goose's recipes are installed, not merely shipped. `goose plugin install` copies skills and hooks and
+  nothing else - the Agent Plugins manifest has no recipes field and goose's discovery never looks inside
+  `~/.agents/plugins/` - so the two recipes in `goose/` were inert from the moment they arrived, and
+  nothing said so, because a missing recipe blocks nothing and an agent has no reason to raise it. The
+  plugin's `SessionStart` hook now runs `goose/wire-recipes.mjs`, which writes them into
+  `~/.config/goose/recipes/` and never replaces a file it did not write. `GOOSE_RECIPE_PATH` was not good
+  enough: the key is ignored in `config.yaml` - measured, `goose recipe list` never saw the directory - a
+  hook cannot change goose's own environment, and Goose.app launched from the dock inherits no shell
+  profile, so an exported variable fails silently. The wiring is goose-only, silent on stdout, and honours
+  `CENTRICMEM_HOOK_DISABLE` and `CENTRICMEM_HOOK_DRY_RUN`.
+
+
 - Hermes carries the shelf you actually selected. `hermes/ambient-hook.mjs` had its own copy of the fetch, and that copy asked `/ambient` with no `?library=`, so the context injected on `pre_llm_call` could come from a different shelf than the one in use - and it went out without the `User-Agent` the librarian's edge rule expects. It now uses the shared fetch every other host uses, and the one-minute cache is keyed by shelf, so switching shelves is never served the previous one's context.
 
 ## 1.0.32

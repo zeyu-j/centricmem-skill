@@ -48,18 +48,30 @@ Recipes make a goose session a well-behaved CentricMem client without shelling o
 on OAuth-connected hosts where there is no key to give a script.
 
 ```sh
-# put this directory on goose's recipe path once
-export GOOSE_RECIPE_PATH=/path/to/centricmem-skill/goose
-
 goose run --recipe centricmem-preflight                      # health, doctor, ambient (read only)
 goose run --recipe centricmem-preflight --params shelf=host
 goose run --recipe centricmem-close --params shelf=centricmem --params tags=cli,release
 ```
 
+**They install themselves.** `goose plugin install` still imports skills and hooks and never recipes -
+goose's plugin format has no recipes field, and its discovery never descends into `~/.agents/plugins/`, so
+the YAML here is inert until something puts it where goose looks. The plugin's `SessionStart` entry does
+that: `goose/wire-recipes.mjs` runs on goose and only on goose, and copies these two files into
+`~/.config/goose/recipes/`. Measured on 1.52.0: that library is searched, and so is `~/.agents/recipes/`,
+which goose does not document. What does *not* work is `GOOSE_RECIPE_PATH`: the key is ignored in
+`~/.config/goose/config.yaml`, a hook cannot change goose's own environment because it runs as goose's
+child, and Goose.app launched from the dock inherits no shell profile - so an exported variable fails
+silently. The global library needs no variable at all. The wiring never replaces a file it did not write:
+a recipe without `# managed by centricmem-skill` on line one is left alone, and it says so.
+
+Running from a checkout rather than an installed plugin, point goose at this directory once:
+
+```sh
+export GOOSE_RECIPE_PATH=/path/to/centricmem-skill/goose
+```
+
 goose discovers recipes in the current directory, then `GOOSE_RECIPE_PATH`, then `~/.config/goose/recipes/`,
-then `./.goose/recipes/`. Nothing installs these for you - `goose plugin install` imports skills and hooks, never recipes.
-Copying the two YAML files into the global library works just as well if you
-prefer not to set a variable.
+then `./.goose/recipes/`. Any of those works - the plugin uses the third.
 
 **The ambient refresher**
 

@@ -102,6 +102,22 @@ jobs:
           export PATH="$HOME/.local/bin:$PATH"
           goose skills list | grep -q 'centricmem-skill:centricmem-agent'
 
+      - name: the wiring installs the recipes, and a real goose lists them
+        run: |
+          set -euo pipefail
+          export PATH="$HOME/.local/bin:$PATH"
+          plugin="$HOME/.agents/plugins/centricmem-skill"
+          test -d "$plugin/goose" || { echo "the installed plugin has no goose directory at $plugin"; exit 1; }
+          # The wiring's second signal is goose's own state directory, which the steps above made goose
+          # create. If that ever stops happening the recipes would never install, so this fails loudly
+          # instead of passing on a skip.
+          test -d "$HOME/.config/goose" || { echo "goose did not create its state directory; the wiring needs a second signal"; exit 1; }
+          out=$(PLUGIN_ROOT="$plugin" node "$plugin/goose/wire-recipes.mjs")
+          test -z "$out" || { echo "the wiring must keep stdout empty, got: $out"; exit 1; }
+          goose recipe list | grep -q 'centricmem-preflight' || { echo "goose does not list the preflight recipe:"; goose recipe list; exit 1; }
+          goose recipe list | grep -q 'centricmem-close' || { echo "goose does not list the close recipe"; exit 1; }
+          echo "ok: the wiring installed both recipes and goose discovers them"
+
   # The job above proves every wrapper stays QUIET with no credential. Nothing proved they SPEAK with one,
   # which is the half that matters: a reply in the wrong shape is dropped by the host and looks exactly like
   # a host with nothing to say. This points every wrapper at a stub librarian on 127.0.0.1 and asserts what
@@ -226,3 +242,70 @@ jobs:
           CENTRICMEM_HOOK_DRY_RUN=1 node hooks/close.mjs
           test ! -f "$CENTRICMEM_SPAWN_LOG" || fail "CENTRICMEM_HOOK_DRY_RUN=1 did not stop the close hook"
           echo "ok: CENTRICMEM_HOOK_DRY_RUN=1 wins"
+
+  # The recipes in goose/ are inert until they land where goose searches, and no part of the plugin format
+  # puts them there: `goose plugin install` copies skills and hooks only. This job proves both halves of the
+  # wiring on a fake home - a goose gets the files, and a host that merely sets PLUGIN_ROOT gets nothing -
+  # plus the two rules that make it safe to run at every session start: it is idempotent, and it will not
+  # replace a recipe the user wrote. The goose-install job above proves the other end of it.
+  goose-recipe-wiring:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: the wiring installs the recipes on goose, and only there
+        run: |
+          set -euo pipefail
+          fail() { echo "$1" >&2; exit 1; }
+          export HOME="$RUNNER_TEMP/home"
+          mkdir -p "$HOME/.config/goose"   # a machine with goose on it: the wiring's second signal
+
+          # Not goose: goose's directory is there, but nothing says this host is goose.
+          out=$(node goose/wire-recipes.mjs)
+          test -z "$out" || fail "stdout was not empty: $out"
+          test ! -d "$HOME/.config/goose/recipes" || fail "recipes were installed without PLUGIN_ROOT"
+          echo "ok: no PLUGIN_ROOT, nothing written"
+
+          # goose: PLUGIN_ROOT without CLAUDE_PLUGIN_ROOT, the same pair the ambient hook keys on.
+          out=$(PLUGIN_ROOT="$PWD" node goose/wire-recipes.mjs)
+          test -z "$out" || fail "stdout was not empty: $out"
+          for r in centricmem-preflight centricmem-close; do
+            test -f "$HOME/.config/goose/recipes/$r.yaml" || fail "$r was not installed"
+          done
+          head -1 "$HOME/.config/goose/recipes/centricmem-close.yaml" | grep -q '^# managed by centricmem-skill' || fail "the installed recipe lost its marker"
+          echo "ok: both recipes installed, marker intact"
+
+          # Idempotent: the next session start must not rewrite anything.
+          before=$(md5sum "$HOME/.config/goose/recipes"/*.yaml | md5sum)
+          PLUGIN_ROOT="$PWD" node goose/wire-recipes.mjs >/dev/null 2>&1
+          after=$(md5sum "$HOME/.config/goose/recipes"/*.yaml | md5sum)
+          test "$before" = "$after" || fail "the second run changed the installed recipes"
+          echo "ok: idempotent"
+
+          # A recipe the user wrote is not ours: it survives, and the wiring says so.
+          printf 'version: "1.0.0"\ntitle: mine\n' > "$HOME/.config/goose/recipes/centricmem-close.yaml"
+          err=$(PLUGIN_ROOT="$PWD" node goose/wire-recipes.mjs 2>&1 >/dev/null)
+          grep -q 'title: mine' "$HOME/.config/goose/recipes/centricmem-close.yaml" || fail "the wiring replaced a file the user wrote"
+          echo "$err" | grep -q 'centricmem-close' || fail "the wiring did not say it left the user's file alone: $err"
+          echo "ok: a user's file is left alone, and said so"
+
+          # The switches every other hook honours.
+          rm -rf "$HOME/.config/goose/recipes"
+          CENTRICMEM_HOOK_DISABLE=1 PLUGIN_ROOT="$PWD" node goose/wire-recipes.mjs >/dev/null 2>&1
+          test ! -d "$HOME/.config/goose/recipes" || fail "CENTRICMEM_HOOK_DISABLE=1 did not stop the wiring"
+          echo "ok: CENTRICMEM_HOOK_DISABLE=1 wins"
+
+          CENTRICMEM_HOOK_DRY_RUN=1 PLUGIN_ROOT="$PWD" node goose/wire-recipes.mjs >/dev/null 2>&1
+          test ! -d "$HOME/.config/goose/recipes" || fail "CENTRICMEM_HOOK_DRY_RUN=1 wrote anyway"
+          echo "ok: CENTRICMEM_HOOK_DRY_RUN=1 wins"
+
+          # A host that sets PLUGIN_ROOT for its own reasons, with no goose on the machine, must not have
+          # directories created in goose's name.
+          export HOME="$RUNNER_TEMP/other-home"
+          mkdir -p "$HOME"
+          PLUGIN_ROOT="$PWD" node goose/wire-recipes.mjs >/dev/null 2>&1
+          test ! -d "$HOME/.config/goose" || fail "a non-goose host had goose directories created for it"
+          echo "ok: PLUGIN_ROOT alone does not make a host goose"
