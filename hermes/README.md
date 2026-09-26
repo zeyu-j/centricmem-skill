@@ -90,7 +90,10 @@ confirmed.
 ## What it does, and what it refuses to do
 
 - **Injects the shelf's context** on `pre_llm_call`, cached for a minute. It fires on the hot path, and the
-  shelf does not change fast enough to justify a request per turn.
+  shelf does not change fast enough to justify a request per turn. The fetch is the shared
+  `tools/ambient.mjs` one every other host uses - it is what resolves the shelf and sets the `User-Agent` the
+  librarian's edge rule expects - and the shelf is part of the cache key, so switching shelves is never served
+  the previous one's context.
 - **Files the session** on `on_session_end` by way of `centricmem log-session --auto` — the same call the
   Cursor, Claude Code and Codex hooks make. That command writes on a librarian host: on a machine talking to a
   hosted librarian it stops, so the close is silent there and the agent files the card. Same boundary as

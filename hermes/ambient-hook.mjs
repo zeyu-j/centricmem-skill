@@ -12,16 +12,14 @@
 // session), and say nothing when there is nothing to say (no credential means no context, not a guess).
 //
 // A TTL cache sits in front of the fetch because this hook is on the hot path - it fires for every turn - and
-// the shelf does not change fast enough to justify a request per turn.
+// the shelf does not change fast enough to justify a request per turn. The shelf is part of the cache key, so
+// switching shelves is not served the previous one's context.
 
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import https from "node:https";
-import http from "node:http";
-import { credential as sharedCredential, dontLog, hooksDisabled } from "../tools/ambient.mjs";
+import { credential as sharedCredential, dontLog, fetchAmbient, hooksDisabled, shelf } from "../tools/ambient.mjs";
 
-const DEFAULT_LIBRARIAN = "https://mem.centricmem.com";
 const DEFAULT_TTL_MS = 60000;
 const TIMEOUT_MS = 6000;
 
@@ -36,28 +34,28 @@ const cacheFile = path.join(os.tmpdir(), "centricmem-hermes-ambient.json");
 
 const cached = () => {
   try {
-    const { at, text } = JSON.parse(fs.readFileSync(cacheFile, "utf8"));
-    if (typeof text === "string" && Date.now() - at < DEFAULT_TTL_MS) return text;
+    const { at, text, lib } = JSON.parse(fs.readFileSync(cacheFile, "utf8"));
+    if (typeof text === "string" && typeof at === "number" && Date.now() - at < DEFAULT_TTL_MS && (lib || "") === shelf()) {
+      return text;
+    }
   } catch { /* no cache */ }
   return "";
 };
 
-const get = (url, token) => new Promise((resolve) => {
-  const lib = url.startsWith("https:") ? https : http;
-  const req = lib.get(url + "/ambient", { headers: { authorization: "Bearer " + token, accept: "application/json" }, timeout: TIMEOUT_MS }, (r) => {
-    if (r.statusCode !== 200) { r.resume(); return resolve(""); }
-    let d = "";
-    r.on("data", (c) => (d += c));
-    r.on("end", () => {
-      try {
-        const j = JSON.parse(d);
-        resolve(typeof j.text === "string" ? j.text : typeof j.ambient === "string" ? j.ambient : "");
-      } catch { resolve(""); }
-    });
-  });
-  req.on("error", () => resolve(""));
-  req.on("timeout", () => { req.destroy(); resolve(""); });
-});
+// The fetch is the shared one (../tools/ambient.mjs), like every other host. This file used to carry its own
+// copy, which is how it ended up requesting /ambient with no `?library=` while this host's README promised the
+// shelf's context - and without the User-Agent the librarian's edge rule expects. The shared function resolves
+// the shelf, sets that header, and applies the same text limit everywhere.
+const ambientText = async () => {
+  const hit = cached();
+  if (hit) return hit;
+  const r = await fetchAmbient({ timeoutMs: TIMEOUT_MS });
+  const text = r.state === "ok" ? r.text : "";
+  if (text) {
+    try { fs.writeFileSync(cacheFile, JSON.stringify({ at: Date.now(), text, lib: shelf() }), "utf8"); } catch { /* cache is optional */ }
+  }
+  return text;
+};
 
 const readStdin = () => new Promise((resolve) => {
   let d = "";
@@ -88,14 +86,8 @@ const main = async () => {
   }
 
   // the ambient side
-  const token = credential();
-  if (!token) { process.exit(0); }
-  let text = cached();
-  if (!text) {
-    const librarian = (process.env.CENTRICMEM_URL || DEFAULT_LIBRARIAN).replace(/\/+$/, "");
-    text = await get(librarian, token);
-    if (text) { try { fs.writeFileSync(cacheFile, JSON.stringify({ at: Date.now(), text }), "utf8"); } catch { /* cache is optional */ } }
-  }
+  if (!credential()) { process.exit(0); }
+  const text = await ambientText();
   if (text) process.stdout.write(JSON.stringify({ context: text }));
 };
 
