@@ -61,7 +61,7 @@ Decision **#0180**. Mechanism is fixed for every agent; content lives on each sh
 
 ## Reach
 
-MCP tools must be present: `cm_health` `cm_ambient` `cm_doctor` `cm_search` `cm_show` `cm_note` `cm_log_decision` `cm_done` `cm_keep` `cm_library` `cm_copy` `cm_move` `cm_delete` `cm_rename` `cm_import` `cm_index`.
+MCP tools must be present: `cm_health` `cm_ambient` `cm_doctor` `cm_search` `cm_show` `cm_note` `cm_log_decision` `cm_done` `cm_keep` `cm_library` `cm_copy` `cm_move` `cm_delete` `cm_rename` `cm_import` `cm_index` `cm_ops`.
 
 If they are missing: **Already added** a Bearer or finished OAuth login in this agent → new chat, do not strip Bearer (Typical Workflows). URL-only MCP → first connect this turn. Never paste the key in chat. Never copy JSON into chat. Do not curl card/search APIs. Do not CLI-write. Do not bootstrap. Do not send a loopback `/connect` or a bare `/connect` with no `device=`.
 
@@ -324,7 +324,7 @@ A hosted library is not a directory on this machine. Ask if you need the detail.
 2. If it is older, refresh the way **this host** was installed, then tell the human to restart the host or open a new chat so the new copy loads.
 3. After a disk refresh, re-read this file and SKILL.md before the next write - installing newer is not the same as acting on it.
 
-Host-specific install, refresh and failure detail is **not** shipped in this public copy. Ask zeyu@poppyg.com if you need it.
+Host-specific install, refresh and failure detail is **not** shipped in this public copy. Read `cm_ops` when a host detail actually blocks you (librarian >=1.0.6 - it is served on request); ask zeyu@poppyg.com if that does not answer it.
 
 ## Writes (card shapes; trigger is SKILL §4)
 
@@ -398,7 +398,7 @@ Per-host extras live in folders named after the host. Check yours before assumin
 | `goose/` | goose | recipes for a preflight and a close, plus a MOIM refresher that writes the file goose injects each turn |
 | `openclaw/` | OpenClaw | a hook pack (`HOOK.md` + handler) that contributes the same context |
 | `hermes/` | Hermes | a shell hook that injects the shelf's context on `pre_llm_call` and files the unit on `on_session_end`. It carries its own copy of the fetch: Hermes runs it from `<HERMES_HOME>/agent-hooks`, outside this package |
-| `tools/ambient.mjs` | anything with Node | the one implementation the three wrappers above call — `hermes/` is the exception, and says why |
+| `tools/ambient.mjs` | anything with Node | the one implementation every wrapper calls for the credential and for composing the ambient text. `hermes/` is the exception on the HTTP call itself, and says why |
 
 Hosts not named here need nothing extra: the Skill plus the host MCP tools is the whole integration. Cursor is
 in that position with a twist - `centricmem setup --install-hooks` writes the equivalent pair into a code

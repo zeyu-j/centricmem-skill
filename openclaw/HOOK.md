@@ -19,9 +19,11 @@ The rules, all learned from the two implementations that came before this one:
 
 - **Never fail.** Every path exits 0. A hook that exits non-zero can break somebody else's session, and a
   network problem must only ever mean a quieter session.
-- **Never guess a credential.** It looks in `CENTRICMEM_TOKEN`, then `CENTRICMEM_API_KEY`, then a
-  `centricmem/api.json` beside the user's config, and prints nothing when it finds none - which is the
-  normal case on an OAuth-connected host, where the CLI has no key either.
+- **Never guess a credential.** It reads the shared `tools/ambient.mjs` lookup: `CENTRICMEM_TOKEN`,
+  `CENTRICMEM_AGENT_KEY`, `CENTRICMEM_API_KEY`, then the Bearer a host already recorded for `centricmem` in
+  `~/.cursor/mcp.json`, `~/.claude.json` or `~/.codex/config.toml`, and last an `api.json` beside the user's
+  config. It prints nothing when it finds none - the normal case on an OAuth-connected host, where no
+  copyable key exists.
 - **Never print the wrong thing.** The endpoint answers `{ok, state, text, ...}`; the hook prints `text`.
 
 Set `CENTRICMEM_SHELF` to name a shelf, otherwise it uses the library recorded in `api.json`. Set
