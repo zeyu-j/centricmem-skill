@@ -8,7 +8,10 @@
 
 
 
-## Unreleased
+## 1.0.32
+
+- MCP tool results stopped hiding their payload. Since 0.21.78 a tool result sent a one-line digest as the visible text and left the payload only in `structuredContent`, so a host that renders nothing but text could not read a card: `cm_show` came back cut at 280 characters, `cm_search` and `cm_library` came back with no rows at all, and shelf charters were nowhere to be found - while `cm_health` and `cm_doctor` looked perfect, because their payload is short enough that the digest is the whole answer. That is why nobody caught it. `content` now carries the payload, capped at 8000 characters and saying what it cut, and `structuredContent` still carries all of it.
+
 
 - MiMoCode is a verified host. `mimocode/` ships a self-contained plugin for MiMoCode 0.1.15's
   file-hook lifecycle plus `refresh-ambient.mjs`, and the README install table gained its row. Two
