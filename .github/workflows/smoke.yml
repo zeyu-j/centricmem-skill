@@ -76,3 +76,28 @@ jobs:
         run: |
           set -e
           node -e 'import("./tools/ambient.mjs").then(async (m) => { const r = await m.fetchAmbient(); if (r.state !== "no-key") { console.error("expected no-key on a clean runner, got " + r.state); process.exit(1); } if (r.text !== "") { console.error("expected empty text"); process.exit(1); } console.log("ok: state=no-key, no request made"); })'
+
+  # Installing is a separate contract from the host hooks above, and it broke once: goose 1.52.0 refused to
+  # install the plugin at all (`missing field command`) because the root manifest declares a remote
+  # mcpServers entry and goose's plugin MCP parser is stdio-only. Nothing in the hook smoke tests above
+  # could have caught that, so the install gets its own job against a real goose.
+  goose-install:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install the goose CLI
+        run: curl -fsSL https://github.com/aaif-goose/goose/releases/download/stable/download_cli.sh | CONFIGURE=false bash
+
+      - name: goose installs this plugin
+        run: |
+          set -euo pipefail
+          export PATH="$HOME/.local/bin:$PATH"
+          goose --version
+          goose plugin install "$GITHUB_WORKSPACE"
+
+      - name: the Skill is discoverable as a plugin skill
+        run: |
+          set -euo pipefail
+          export PATH="$HOME/.local/bin:$PATH"
+          goose skills list | grep -q 'centricmem-skill:centricmem-agent'

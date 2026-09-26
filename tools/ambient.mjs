@@ -149,3 +149,92 @@ export function fetchAmbient({ timeoutMs = 6000, limit = TEXT_LIMIT } = {}) {
 export function tokenTail(token) {
   return token ? "…" + token.slice(-4) : "(none)";
 }
+
+/**
+ * Whether this machine holds anything worth using as a credential. `credential()` already reads the env
+ * names and the api.json files, so this is the one definition - a source added for one host is not
+ * silently missing from another.
+ */
+export function hasCredential() {
+  return credential().token !== "";
+}
+
+/**
+ * The switches mimocode documents. The shared hooks are where every other host honours them, so a user
+ * who set one does not get a different answer on the next host along.
+ */
+export const hooksDisabled = () => process.env.CENTRICMEM_HOOK_DISABLE === "1";
+export const hooksDryRun = () => process.env.CENTRICMEM_HOOK_DRY_RUN === "1";
+export const dontLog = () => process.env.CENTRICMEM_DONT_LOG === "1";
+
+/** Where goose's Top Of Mind extension reads the context it injects into every turn. */
+export function moimPath() {
+  return process.env.GOOSE_MOIM_MESSAGE_FILE || path.join(os.homedir(), ".goose", "centricmem-ambient.md");
+}
+
+const moimHeader = (status, extra = "") =>
+  `<!-- CentricMem ambient refresh: ${status} | ${new Date().toISOString()} | librarian=${librarian()}${extra} -->`;
+
+// Each failure says which failure it is. Conflating them is how a stale leftover hub once read as healthy.
+const MOIM_EXPLAIN = {
+  "no-key": [
+    "CentricMem: no key on this machine, so the shelf could not be read.",
+    "",
+    "If this agent is connected by OAuth, that is normal: OAuth covers the MCP tools, and no copyable key",
+    "exists. Use the cm_* tools and ignore this file. If you expected a key here, mint one with",
+    "`centricmem connect --device` (or /connect?device=) rather than creating a hub.",
+  ],
+  refused: (r) => [
+    `CentricMem: the librarian refused this machine's key (HTTP ${r.status}).`,
+    `  key: ${tokenTail(r.token)} from ${r.source || "(unknown source)"}`,
+    "",
+    "That is a credential problem, not a connection problem: rotate the key in Manager, then refresh this file.",
+    "Nothing below is trustworthy.",
+  ],
+  "no-answer": [
+    "CentricMem: the librarian did not answer, so there is no fresh context.",
+    "",
+    "This is the transport case. Check the service first with `centricmem doctor` or a plain GET /status - the",
+    "CLI makes its own request, so it still works when this agent's MCP session is dead. If the service is",
+    "fine, the MCP session is the problem: cycling the extension (disable, then enable) re-handshakes it.",
+    "Nothing below is trustworthy.",
+  ],
+  empty: [
+    "CentricMem: the librarian answered with no context for this shelf.",
+    "",
+    "Usually that means no shelf was named and the CLI has not been pointed at one. Name it with shelf= on a",
+    "tool call, or pass CENTRICMEM_SHELF when refreshing this file.",
+  ],
+};
+
+/**
+ * The MOIM file's contents. Composed here so the refresher and the goose SessionStart hook cannot drift
+ * apart on what an honest file says: a stale file that claims success is worse than one that says why it
+ * is empty. The text is read by the model as-is.
+ */
+export function moimText(r) {
+  if (r.state === "ok") {
+    return [moimHeader("status=OK", ` | source=http | token=${tokenTail(r.token)}`), "", r.text, ""].join("\n");
+  }
+  const explain = typeof MOIM_EXPLAIN[r.state] === "function" ? MOIM_EXPLAIN[r.state](r) : MOIM_EXPLAIN[r.state] || MOIM_EXPLAIN["no-answer"];
+  return [
+    moimHeader("status=" + r.state.toUpperCase(), ` | token=${tokenTail(r.token)}`),
+    "",
+    ...explain,
+    "",
+    "Nothing below is trustworthy.",
+    "",
+  ].join("\n");
+}
+
+/** Write the MOIM file, returning what was written so the caller can report it. */
+export function writeMoim(r, out = moimPath()) {
+  const body = moimText(r);
+  try {
+    fs.mkdirSync(path.dirname(out), { recursive: true });
+  } catch {
+    /* exists */
+  }
+  fs.writeFileSync(out, body, "utf8");
+  return { out, body };
+}

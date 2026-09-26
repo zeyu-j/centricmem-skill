@@ -19,33 +19,18 @@ import os from "node:os";
 import path from "node:path";
 import https from "node:https";
 import http from "node:http";
+import { credential as sharedCredential } from "../tools/ambient.mjs";
 
 const DEFAULT_LIBRARIAN = "https://mem.centricmem.com";
 const DEFAULT_TTL_MS = 60000;
 const TIMEOUT_MS = 6000;
 
-const configFiles = () => {
-  const home = os.homedir();
-  return [
-    path.join(home, ".centricmem", "api.json"),
-    process.env.APPDATA ? path.join(process.env.APPDATA, "centricmem", "api.json") : "",
-    path.join(process.env.XDG_CONFIG_HOME || path.join(home, ".config"), "centricmem", "api.json"),
-  ].filter(Boolean);
-};
-
-const credential = () => {
-  for (const name of ["CENTRICMEM_API_KEY", "CENTRICMEM_TOKEN"]) {
-    const v = process.env[name];
-    if (v && v.trim()) return v.trim();
-  }
-  for (const f of configFiles()) {
-    try {
-      const j = JSON.parse(fs.readFileSync(f, "utf8"));
-      if (typeof j.token === "string" && j.token.trim()) return j.token.trim();
-    } catch { /* next */ }
-  }
-  return "";
-};
+// The credential and its sources live in ../tools/ambient.mjs: one definition, so an env name or a config
+// location added for one host is not silently missing from another. This host wanted the bare token, so the
+// call sites keep that shape. Two things widen as a result - CENTRICMEM_AGENT_KEY, and the Bearer a host
+// already recorded in its own MCP config - which is the point: the same machine answers the same way on
+// every host. Precedence is the shared one (TOKEN, AGENT_KEY, API_KEY, host config, api.json).
+const credential = () => sharedCredential().token;
 
 const cacheFile = path.join(os.tmpdir(), "centricmem-hermes-ambient.json");
 

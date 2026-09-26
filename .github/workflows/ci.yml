@@ -49,3 +49,28 @@ jobs:
             echo "private skill extras must not ship" >&2
             exit 1
           fi
+
+      - name: goose manifest is the one goose can parse
+        run: |
+          set -euo pipefail
+          test -f .goose-plugin/plugin.json
+          # goose's plugin MCP parser is stdio-only, so a remote (http) entry aborts the whole install
+          # with `missing field command`. The root manifest may declare one; this manifest may not.
+          if grep -q '"mcpServers"' .goose-plugin/plugin.json; then
+            echo "mcpServers in .goose-plugin/plugin.json makes goose unable to install the plugin" >&2
+            exit 1
+          fi
+
+      - name: hooks resolve their plugin root on goose too
+        run: |
+          set -euo pipefail
+          # goose substitutes ${PLUGIN_ROOT} and knows nothing about ${CLAUDE_PLUGIN_ROOT}, which would
+          # expand to nothing and fail the hook - silently, because hook failures are fail-open.
+          grep -qF '${CLAUDE_PLUGIN_ROOT:-$PLUGIN_ROOT}' hooks/hooks.json
+          if grep -qE '\$\{CLAUDE_PLUGIN_ROOT\}[^:]' hooks/hooks.json; then
+            echo 'bare ${CLAUDE_PLUGIN_ROOT} in hooks/hooks.json: goose would expand it to nothing' >&2
+            exit 1
+          fi
+
+      - name: manifest versions agree
+        run: node tools/check-versions.mjs
