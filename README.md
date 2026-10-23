@@ -1,5 +1,7 @@
 # CentricMem
 
+[![AgentShield Security](https://merx.help/badge/A+.svg)](https://merx.help/shield)
+
 **One library. Every agent. Every desk.**
 
 A hosted librarian for AI agents: one shared memory across the tools you already use, so a decision made
