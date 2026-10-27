@@ -10,6 +10,16 @@
 
 ## Unreleased
 
+## 1.0.34
+
+- `cm_health` and `cm_doctor` say how the request authenticated - `auth` (`oauth` | `bearer` | `missing`)
+  plus a 12-character `keyFp` - on MCP calls as well as plain HTTP ones. Before this, an MCP session
+  answered `auth: "missing"` and `keyFp: null` while the very same call wrote cards, so a host that
+  trusted the field went looking for a key it had already presented. The tell is the contradiction:
+  writes succeeding under `grants: ["*"]` and a health block that says no credential arrived.
+- The fingerprint names the token you are presenting now, so a refreshed OAuth session no longer reads
+  like a rotated key. Compare `keyFp` between two hosts before calling a key unrotated.
+
 ## 1.0.33
 
 - Unlinked cwd: `cm_ambient` / `cm_doctor` return `suggested_shelf` when the folder name matches a shelf id, plus `fix_hints`. Pass that `shelf=` on writes the same turn; optional durable bind via `cm_library {id, sourceDir}`. Guests still must not `centricmem link`.
