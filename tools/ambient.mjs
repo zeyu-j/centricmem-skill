@@ -79,10 +79,70 @@ function claimedBearer() {
   return { token: "", source: "" };
 }
 
+/**
+ * A `.env` file, because that is where a person will actually keep a key. Two places, nearest wins:
+ * the working directory upwards (a project's own .env), then `~/.centricmem/.env` for the machine.
+ * Read here rather than by a dotenv dependency: this file is copied into other people's plugins, and
+ * it should stay one file with no install step. Values already in the environment always win.
+ */
+const ENV_KEYS = ["CENTRICMEM_TOKEN", "CENTRICMEM_AGENT_KEY", "CENTRICMEM_API_KEY", "CENTRICMEM_URL", "CENTRICMEM_SHELF"];
+
+function parseEnvFile(text) {
+  const out = {};
+  for (const line of String(text).split(/\r?\n/)) {
+    const m = /^\s*(?:export\s+)?(CENTRICMEM_[A-Z_]+)\s*=\s*(.*)$/.exec(line);
+    if (!m) continue;
+    let value = m[2].trim();
+    if ((value.startsWith('"') && value.endsWith('"')) || (value.startsWith("'") && value.endsWith("'"))) {
+      value = value.slice(1, -1);
+    }
+    if (value && !value.startsWith("#")) out[m[1]] = value;
+  }
+  return out;
+}
+
+let envFile = null;
+
+function dotenv() {
+  if (envFile) return envFile;
+  envFile = {};
+  const seen = new Set();
+  const home = process.env.HOME || process.env.USERPROFILE || "";
+  const places = [];
+  let dir = process.cwd();
+  for (let i = 0; i < 6 && dir; i++) {
+    places.push(dir + "/.env");
+    const parent = dir.replace(/[\\/][^\\/]+$/, "");
+    if (parent === dir) break;
+    dir = parent;
+  }
+  if (home) places.push(home + "/.centricmem/.env");
+  for (const file of places) {
+    if (seen.has(file)) continue;
+    seen.add(file);
+    try {
+      const parsed = parseEnvFile(fs.readFileSync(file, "utf8"));
+      for (const k of ENV_KEYS) if (parsed[k] && !envFile[k]) envFile[k] = parsed[k];
+    } catch {
+      /* no file here */
+    }
+  }
+  return envFile;
+}
+
+/** Both shapes of the same lookup: the process environment first, then the .env files. */
+function setting(name) {
+  const direct = process.env[name];
+  if (direct && direct.trim()) return direct.trim();
+  const fromFile = dotenv()[name];
+  return fromFile ? String(fromFile).trim() : "";
+}
+
 export function credential() {
-  if (process.env.CENTRICMEM_TOKEN) return { token: process.env.CENTRICMEM_TOKEN.trim(), source: "env:CENTRICMEM_TOKEN" };
-  if (process.env.CENTRICMEM_AGENT_KEY) return { token: process.env.CENTRICMEM_AGENT_KEY.trim(), source: "env:CENTRICMEM_AGENT_KEY" };
-  if (process.env.CENTRICMEM_API_KEY) return { token: process.env.CENTRICMEM_API_KEY.trim(), source: "env:CENTRICMEM_API_KEY" };
+  for (const name of ["CENTRICMEM_TOKEN", "CENTRICMEM_AGENT_KEY", "CENTRICMEM_API_KEY"]) {
+    const token = setting(name);
+    if (token) return { token, source: process.env[name] === token ? `env:${name}` : `.env:${name}` };
+  }
   const claimed = claimedBearer();
   if (claimed.token) return claimed;
   for (const f of configFiles()) {
@@ -94,7 +154,8 @@ export function credential() {
 
 /** The shelf to ask about: explicitly named, else whatever the CLI last used. */
 export function shelf() {
-  if (process.env.CENTRICMEM_SHELF) return process.env.CENTRICMEM_SHELF.trim();
+  const named = setting("CENTRICMEM_SHELF");
+  if (named) return named;
   for (const f of configFiles()) {
     const lib = readJson(f)?.library;
     if (typeof lib === "string" && lib.trim()) return lib.trim();
