@@ -19,17 +19,10 @@ Handover (when / loop). Schemas win. Branches: [REFERENCE.md](REFERENCE.md).
 **Library** → **Shelf** → **Card** (summary + key points). No Inbox / `unclassified`. One key = grants. Never paste keys in chat (REFERENCE **Bearer: where plaintext is OK vs not** — claim may write a private local MCP file; docs/plans use `${VAR}` or URL-only). **Where the key lives:** the process environment first, then the nearest `.env` walking up from the working directory, then `~/.centricmem/.env` - hooks and local wrappers read all three. So the honest thing to tell a human whose hook is not working while MCP is: put `CENTRICMEM_TOKEN=` in `.env`, never in a prompt.
 **Style** of a card (voice, length, evidence density) is yours + this agent's — not a CentricMem house voice. Structure only: REFERENCE **Card contract**.
 
-## Quick path (read this first — everything else can wait)
-
-Minimum viable session — three calls, about thirty seconds:
-
-1. `cm_health` — is the librarian reachable? If not, stop and say so; never fake a card.
-2. `cm_ambient` **with `shelf=`** — it carries grants, mode, skill_latest, Recent, Session, Curate.
-3. `cm_note` / `cm_log_decision` with the **same `shelf=`** as soon as a durable decision exists.
-
-Everything below is detail for when those three are blocked, or when the work is big enough to need §4 (sweep).
-
-**Choosing the shelf — the one place agents get it wrong.** `suggested_shelf=` is derived from the **cwd basename** and is only a hint. If the session content does not match that shelf's charter, use the shelf whose charter matches the content, and say in one line which you chose and why. Example: an agent whose cwd is `/var/lib/centricmem` but which is helping a human choose tooling belongs on the human's own shelf (`host` / Personal), not on the product shelf.
+## Quick path
+`cm_health` → `cm_ambient` **with `shelf=`** → `cm_note` / `cm_log_decision` with the same `shelf=`. The rest of this file is for when those three are blocked.
+**Shelf:** `suggested_shelf=` is a cwd heuristic, not authority. If the session is not about that shelf, use the one whose charter matches and say which you chose.
+**Wrap-up:** decision unlogged? friction unlogged? stale card cited (>90d, volatile fact)? If all three are no, stop.
 
 ## Do not (full list: REFERENCE)
 
@@ -101,12 +94,3 @@ MCP down: hold **CentricMem deferred sweep**; connect (REFERENCE); file after he
 ## Typical Workflows
 
 Connect: REFERENCE. **Daily:** §2 → work → §4 before yield. Empty shelf: REFERENCE Existing memory.
-## Wrap-up — three questions before you yield
-
-Ask these once, silently, before ending a session:
-
-1. **Decision unlogged?** A choice was made that a future agent would otherwise re-litigate → `cm_log_decision`.
-2. **Friction unlogged?** Something blocked you or the human (bad instruction, ambiguous tool, missing capability) → write it down. Friction is the product's only real input.
-3. **Stale card cited?** You used a card older than roughly 90 days for a volatile fact (price, version, UI path) → say so when you cite it, and re-verify if it matters.
-
-If all three are "no", stop. Do not write filler to look productive.
