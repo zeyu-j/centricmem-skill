@@ -10,6 +10,16 @@
 
 ## Unreleased
 
+## 1.0.36
+
+- **Quick path ahead of the rules.** The Skill opens with the three-call loop (`cm_health` →
+  `cm_ambient` with `shelf=` → `cm_note` / `cm_log_decision` with the same `shelf=`) so an agent can
+  act before reading the full reference.
+- **Shelf-choice guard.** `suggested_shelf=` is a cwd basename heuristic, not authority: when the session
+  is not about that shelf, pick the shelf whose charter matches and state which you chose.
+- **Wrap-up three questions.** Before yielding, check once whether a decision went unlogged, whether
+  friction went unlogged, or whether a stale volatile card (>90 days) was cited without saying so.
+
 ## 1.0.35
 
 - **Host parity before the first card.** The Skill now says what to do with what `centricmem doctor` reports:
