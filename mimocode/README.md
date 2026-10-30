@@ -85,6 +85,13 @@ node refresh-ambient.mjs        # writes ~/.config/mimocode/centricmem-ambient.m
 Run that on a schedule (Task Scheduler, a shell profile, or by hand). With no cache file the plugin
 injects nothing and says nothing - it does not stall a session trying to fetch one.
 
+Run it where it lives, for the same reason as the goose copy: `refresh-ambient.mjs` imports
+`../tools/ambient.mjs`, so a copy taken out of the tree exits `ERR_MODULE_NOT_FOUND` and writes nothing. The
+plugin file above is the self-contained one; the refresher is not.
+
+On Windows, nothing that has a console may start it: Task Scheduler launching `node` directly flashes a black
+window on every run, and `Hidden` hides the task, not the window.
+
 ## What it does
 
 - **Ambient** - `chat.message` reads the cache and appends it to the outgoing message, once per
