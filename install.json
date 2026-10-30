@@ -12,6 +12,18 @@
     "url": "https://mem.centricmem.com/mcp",
     "transport": "streamable-http"
   },
+  "hooks": {
+    "declaredIn": "hooks/hooks.json",
+    "installedBy": "a plugin install only - copying skills/centricmem-agent/ runs no hook",
+    "events": {
+      "SessionStart": ["hooks/ambient.mjs", "goose/wire-recipes.mjs"],
+      "SessionEnd": ["hooks/close.mjs"]
+    },
+    "network": "one request to CENTRICMEM_URL (default https://mem.centricmem.com); no other host",
+    "sendsMail": false,
+    "disable": ["CENTRICMEM_HOOK_DISABLE=1", "CENTRICMEM_DONT_LOG=1", "CENTRICMEM_HOOK_DRY_RUN=1"],
+    "readme": "hooks/README.md"
+  },
   "connect": {
     "signup": "https://centricmem.com/login?signup=1",
     "devicePage": "https://centricmem.com/connect",

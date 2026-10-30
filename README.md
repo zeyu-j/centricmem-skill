@@ -11,6 +11,13 @@ This repository is **one package**: an [Agent Skills](https://agentskills.io) `S
 [Agent Plugins 1.0](https://agent-plugins.org) bundle (`plugin.json` + `skills/` + `mcp.json`). Install it
 from GitHub with whichever client you use - each client has its own command below.
 
+> **Reviewing this before installing it, or an agent asked to?** Read [hooks/README.md](hooks/README.md),
+> [MANIFESTS.md](MANIFESTS.md) and [SECURITY.md](SECURITY.md) first, and start at
+> [skills/centricmem-agent/SKILL.md](skills/centricmem-agent/SKILL.md). There is no `SKILL.md` at the root -
+> the skill is one level down - and the `.*-plugin` directories are per-host manifests for that one skill,
+> not a dozen products. `hooks/README.md` lists every path this repository can write and every switch that
+> turns it off.
+
 ## Install
 
 **Names, read once.** `centricmem` is the product and the CLI. `centricmem-skill` is this GitHub package.
@@ -23,7 +30,8 @@ client asks for a skill id. It is not a second product.
 Install CentricMem from the GitHub package zeyu-j/centricmem-skill (the skill folder is centricmem-agent).
 Then send me https://centricmem.com/login?signup=1 and try a /connect?device= link. The key it returns is
 shown once, so tell me to save it, and never paste it in chat. If minting that link fails, run
-centricmem doctor connect and email zeyu@poppyg.com with the output.
+centricmem doctor connect and ask me to email zeyu@poppyg.com with the output - you never send that mail and
+never see the key.
 ```
 
 If a shell is available, the same install is one command:
