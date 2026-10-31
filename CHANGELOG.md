@@ -28,6 +28,15 @@
 - **`README.md` says who emails.** The install prompt read "run doctor connect and email zeyu@poppyg.com",
   which an agent can take as an instruction to itself. It now says to ask the human to send it.
 
+- **Kiro hosts are three separate surfaces.** The README, reviewer manifest map, verified-install evidence and
+  agent reference now distinguish Kiro CLI (MCP-only), Kiro IDE (Powers manifest), and Kiro Crew (separate
+  Skill import plus per-agent MCP connection). Kiro Crew guidance names the cold-session requirement and
+  explains that another member's connection does not attach MCP to the current agent.
+- **Unbound health is healthy.** `library:null` with valid auth and grants now means connected with no shelf
+  selected, not an empty account. The Skill sends the agent to `cm_ambient` to choose from `libraries=`.
+- **Kiro documentation has a CI gate.** `tools/check-kiro-docs.mjs` keeps the three host names, IDE manifest
+  ownership, per-agent scope, cold-session step and `library:null` guidance from drifting apart.
+
 ## 1.0.36
 
 - **Quick path ahead of the rules.** The Skill opens with the three-call loop (`cm_health` →

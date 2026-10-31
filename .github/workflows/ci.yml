@@ -98,5 +98,8 @@ jobs:
             exit 1
           }
 
+      - name: Kiro host guidance agrees
+        run: npm run check:kiro
+
       - name: manifest versions agree
-        run: node tools/check-versions.mjs
+        run: npm run check:versions

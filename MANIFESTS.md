@@ -28,7 +28,7 @@ bundle, and the hosts disagree about how much of it they can parse:
 | `.codebuddy-plugin/` | CodeBuddy Code | verified, 5.6.2 |
 | `.workbuddy-plugin/` | WorkBuddy | verified with CodeBuddy - they share one CLI and one plugin registry |
 | `.goose-plugin/` | goose | verified, 1.52.0 - see the version story above |
-| `.kiro/plugins/` | Kiro CLI | verified |
+| `.kiro/plugins/` | Kiro IDE | documented manifest; not Kiro CLI or Kiro Crew |
 | `.cursor-plugin/` | Cursor | covered by the collective row in `VERIFIED-INSTALLS.md` |
 | `.grok-plugin/` | Grok | covered by the collective row in `VERIFIED-INSTALLS.md` |
 | `.agents/plugins/` | Agent Plugins marketplaces | convention; nothing claimed |
