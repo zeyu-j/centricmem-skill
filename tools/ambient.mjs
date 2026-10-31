@@ -278,12 +278,13 @@ export function moimText(r) {
     return [moimHeader("status=OK", ` | source=http | token=${tokenTail(r.token)}`), "", r.text, ""].join("\n");
   }
   const explain = typeof MOIM_EXPLAIN[r.state] === "function" ? MOIM_EXPLAIN[r.state](r) : MOIM_EXPLAIN[r.state] || MOIM_EXPLAIN["no-answer"];
+  // refused and no-answer already end with this line; appending it again put it in the prompt twice.
+  const closer = explain.some((line) => line.trim() === "Nothing below is trustworthy.") ? [] : ["", "Nothing below is trustworthy."];
   return [
     moimHeader("status=" + r.state.toUpperCase(), ` | token=${tokenTail(r.token)}`),
     "",
     ...explain,
-    "",
-    "Nothing below is trustworthy.",
+    ...closer,
     "",
   ].join("\n");
 }

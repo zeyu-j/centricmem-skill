@@ -10,6 +10,14 @@
 
 ## Unreleased
 
+- **One closer, not two.** `moimText()` appended "Nothing below is trustworthy." after an explain text that
+  already ended with that line, so a `REFUSED` or `NO-ANSWER` MOIM carried it twice - in the file the host
+  injects into every turn, on exactly the two states where the model has to read it carefully. Composed once.
+- **Where a timer may run the refresher from.** `goose/README.md` and `mimocode/README.md` now say the
+  refresher only runs from inside the tree (both import `../tools/ambient.mjs`), and that on Windows the
+  thing which starts `node` must have no console of its own - Task Scheduler's `Hidden` hides the task, not
+  the window.
+
 ## 1.0.36
 
 - **Quick path ahead of the rules.** The Skill opens with the three-call loop (`cm_health` →

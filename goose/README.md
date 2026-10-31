@@ -116,7 +116,21 @@ trustworthy to say it says so, in the file, rather than leaving something stale 
 
 **Scheduling it.** The plugin's `hooks/ambient.mjs` already does this at session start on goose, so the
 normal case needs nothing wired. If you would rather refresh on a timer, goose ships a scheduler extension,
-so a recipe or a timer that runs this script is enough.
+so a recipe or a timer that runs this script is enough - subject to two constraints that cost an afternoon
+each when missed.
+
+**Run it where it lives.** `goose/centricmem-ambient.mjs` imports `../tools/ambient.mjs`, so the file copied
+out of the tree - into `~/.goose/`, next to a hand-written helper, anywhere - exits `ERR_MODULE_NOT_FOUND`
+and refreshes nothing, silently, from a scheduler nobody watches. Point the timer at the installed plugin's
+`goose/centricmem-ambient.mjs`. `goose plugin update` then keeps the timer's copy and the hook's copy the
+same file, which is the reason 8329ca1 moved the composing into `tools/ambient.mjs` in the first place.
+
+**On Windows, nothing that has a console may start it.** Task Scheduler launching `node` directly shows a
+black window every time the timer fires. The task's `Hidden` setting hides the task in the list, not the
+window; it is not a setting that can be flipped to fix this. The launcher itself has to create no console -
+a wrapper script, or a task set to run whether the user is logged on or not (which gives up the user
+profile's environment, and with it whatever credential lookup depends on). No Windows command is recorded
+here yet: this note is the constraint, not a recipe.
 
 **Enable Top Of Mind.** The file is only read while goose's built-in **Top Of Mind** extension is on - that is
 the extension that injects `GOOSE_MOIM_MESSAGE_FILE` into every turn. With it off, the file is written and
