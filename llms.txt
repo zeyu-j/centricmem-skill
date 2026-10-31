@@ -1,0 +1,36 @@
+# CentricMem
+
+> A hosted librarian for AI agents: one shared Markdown memory across the clients you already use, reached
+> over MCP at `https://mem.centricmem.com/mcp`. This repository is the public skill plus the per-host
+> manifests that deliver it. It contains no keys, no service installer, and no scheduled task.
+
+## Start here
+
+- [skills/centricmem-agent/SKILL.md](skills/centricmem-agent/SKILL.md): the skill. Folder name
+  `centricmem-agent`; there is no `SKILL.md` at the root.
+- [hooks/README.md](hooks/README.md): the only code that runs on its own - three hooks, each with the paths it
+  writes, whether it touches the network, and the switches that disable it.
+- [MANIFESTS.md](MANIFESTS.md): why there are twelve `.*-plugin` directories instead of one.
+- [SECURITY.md](SECURITY.md): what this package must never contain, and how to report a vulnerability.
+- [install.json](install.json): the machine-readable recipe - skill path, MCP URL, connect commands.
+
+## Install
+
+```sh
+npx skills add zeyu-j/centricmem-skill --skill centricmem-agent -y
+```
+
+Per host, see [README.md](README.md). The skill alone runs no hooks; hooks fire after a plugin install.
+
+## What it does not do
+
+- No mail: every address in this repository is support contact for the human, and the Skill forbids sending
+  on their behalf.
+- No service, no scheduled task, no PATH change, no shell profile edit.
+- No third-party host: the only host in `*.mjs` / `*.js` / `*.ts` is `mem.centricmem.com`.
+- No writes outside the paths listed in `hooks/README.md`.
+
+## Optional
+
+- [VERIFIED-INSTALLS.md](VERIFIED-INSTALLS.md): each client, the command that was run, and what it answered.
+- [CHANGELOG.md](CHANGELOG.md): what changed, per release, in the order it was learned.

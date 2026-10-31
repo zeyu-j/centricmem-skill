@@ -17,6 +17,25 @@
   refresher only runs from inside the tree (both import `../tools/ambient.mjs`), and that on Windows the
   thing which starts `node` must have no console of its own - Task Scheduler's `Hidden` hides the task, not
   the window.
+- **Reviewer entry points.** `hooks/README.md`, `MANIFESTS.md`, root `AGENTS.md` and `llms.txt` now answer, in
+  one read each, the three questions a cautious agent asks of this repository before installing it: what runs
+  by itself, why there are twelve `.*-plugin` directories for one skill, and where the skill actually is. They
+  exist because a reviewing agent looked at the root, saw manifests and a `hooks/` directory, found no
+  `SKILL.md` beside them, and reached for the worst explanation - a shape that reads as a supply-chain risk
+  until someone says otherwise in the place it looks.
+- **`install.json` declares its hooks.** Events, scripts, the single host they reach, and the three switches
+  that disable them, so a manifest reader does not have to read code to find out what will run.
+- **`README.md` says who emails.** The install prompt read "run doctor connect and email zeyu@poppyg.com",
+  which an agent can take as an instruction to itself. It now says to ask the human to send it.
+
+- **Kiro hosts are three separate surfaces.** The README, reviewer manifest map, verified-install evidence and
+  agent reference now distinguish Kiro CLI (MCP-only), Kiro IDE (Powers manifest), and Kiro Crew (separate
+  Skill import plus per-agent MCP connection). Kiro Crew guidance names the cold-session requirement and
+  explains that another member's connection does not attach MCP to the current agent.
+- **Unbound health is healthy.** `library:null` with valid auth and grants now means connected with no shelf
+  selected, not an empty account. The Skill sends the agent to `cm_ambient` to choose from `libraries=`.
+- **Kiro documentation has a CI gate.** `tools/check-kiro-docs.mjs` keeps the three host names, IDE manifest
+  ownership, per-agent scope, cold-session step and `library:null` guidance from drifting apart.
 
 ## 1.0.36
 
