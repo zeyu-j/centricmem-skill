@@ -8,6 +8,10 @@
 
 
 
+## 1.0.37
+
+- **Set a PIN and remember it.** A key can be copied again from Keys when you remember the PIN. The Skill tells people that on first connect. Refresh this Skill when the librarian reports a newer version.
+
 ## Unreleased
 
 - **One closer, not two.** `moimText()` appended "Nothing below is trustworthy." after an explain text that
