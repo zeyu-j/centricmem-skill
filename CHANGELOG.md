@@ -8,6 +8,10 @@
 
 
 
+## 1.0.40
+
+- **Keys know who minted them.** Keys are grouped into Devices / OAuth apps / Manual keys, OAuth apps each get their own key instead of sharing, and revoking a key warns which OAuth connections it disconnects.
+
 ## 1.0.39
 
 - **Security pass on connect and register.** Claiming an agent-registered account now revokes the keys minted before you took over, and says how many were reset. Sign-in, register, device, and OAuth endpoints rate-limit per IP. Approved-but-unclaimed keys can no longer survive a restart.
