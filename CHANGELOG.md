@@ -8,6 +8,10 @@
 
 
 
+## 1.0.39
+
+- **Security pass on connect and register.** Claiming an agent-registered account now revokes the keys minted before you took over, and says how many were reset. Sign-in, register, device, and OAuth endpoints rate-limit per IP. Approved-but-unclaimed keys can no longer survive a restart.
+
 ## 1.0.38
 
 - **Set a PIN and remember it.** A key can be copied again from Keys when you remember the PIN. The Skill tells people that on first connect. Refresh this Skill when the librarian reports a newer version.
