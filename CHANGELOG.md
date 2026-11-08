@@ -8,9 +8,12 @@
 
 
 
-## 1.0.37
+## 1.0.38
 
 - **Set a PIN and remember it.** A key can be copied again from Keys when you remember the PIN. The Skill tells people that on first connect. Refresh this Skill when the librarian reports a newer version.
+- **Connect is approve-a-code, not paste-a-key.** The agent sends the connect link plus an 8-digit code; you sign in, confirm the code, pick access, and Approve. No key is ever shown on the page. A manual paste-key path stays for headless machines, vaults, and old clients.
+- **Agents can register the account.** `POST /connect/register` gives the agent a live key and emails you a claim link — the agent never sees your login.
+- **The "default key" is gone.** `*` is an ordinary full-access grant: several keys may open every shelf and each is revocable. Only the owner sign-in manages keys.
 
 ## Unreleased
 
