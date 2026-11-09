@@ -8,6 +8,12 @@
 
 
 
+## 1.0.41
+
+- **The account page is Connections.** Rotate, mint, and the PIN are there, and the Skill says Connections. The credentials are still called keys.
+- **A revoked key stays revoked.** Changing its grants, its name, or the shelves on it is refused, including a rename that also names a shelf.
+- **Connect is approve-a-code.** You confirm the 8-digit code and Approve. The secret never reaches that page. A full-access key is an ordinary `*` grant.
+
 ## 1.0.40
 
 - **Keys know who minted them.** Keys are grouped into Devices / OAuth apps / Manual keys, OAuth apps each get their own key instead of sharing, and revoking a key warns which OAuth connections it disconnects.
