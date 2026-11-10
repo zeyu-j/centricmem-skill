@@ -157,6 +157,16 @@ Skill folder name is always `centricmem-agent` (Agent Skills `name` = directory)
 
 Per-client install and connect recipes — Pi, OpenClaw, DSH, Codex, Hermes, Cursor, ChatGPT Apps, OAuth callback mechanics — live in `cm_ops` → Client connect recipes.
 
+### Kiro surfaces
+
+- **Kiro CLI** is MCP-only. Add `https://mem.centricmem.com/mcp` with `kiro-cli mcp add --name centricmem --url https://mem.centricmem.com/mcp --scope default`. The scope names the owning agent. This CLI has no Skill or hook surface.
+- **Kiro IDE** reads `.kiro/plugins/marketplace.json` through Powers. That manifest does not install anything into Kiro CLI or Kiro Crew.
+- **Kiro Crew** installs the Skill and MCP separately. Import `zeyu-j/centricmem-skill:skills/centricmem-agent` from Settings → Skills → Discover. Add the remote MCP under Customize → Connections, and attach it to the **current agent** that will run the chat. Complete the device claim first. Use the OAuth banner only when minting the device URL fails and this agent will receive the browser callback. Then drain the warm pool or restart before opening a **cold session**; a merely new chat may reuse an old process whose tool list was frozen before the MCP was added. Kiro Crew has no plugin hook surface for this package, so the Skill drives `cm_ambient` and the sweep itself.
+
+A connection shown under another Kiro Crew member is not a connection for the current agent. Do not hand-edit agent JSON as the normal install path. A URL-only entry is still waiting for OAuth or a device claim.
+
+**Health binding state.** `cm_health` with valid `auth` / `grants` and `library:null` is healthy: the agent is connected but no shelf is bound to this session. It does **not** mean the account has no shelves. Call `cm_ambient` with `cwd=` or a named `shelf=`; use `suggested_shelf` only when its charter matches the task, otherwise choose from `libraries=`.
+
 ## Search and show
 
 Progressive disclosure:
