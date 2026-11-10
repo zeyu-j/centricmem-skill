@@ -70,7 +70,7 @@ Search/show/ambient while working; hold half-finished. **Chunk done → sweep be
 
 ## 4. Sweep — single source
 
-No wrap-up wait; agent close does not run this; Don't log / Skill done → skip. **Gate:** Non-Micro chunk this reply, zero `cm_*` this session, no Don't log → **sweep before you yield**.
+No wrap-up wait; Agent close does not run this; Don't log / Skill done → skip. **Gate:** Non-Micro chunk this reply, zero `cm_*` this session, no Don't log → **sweep before you yield**.
 
 | File now | File at wrap-up |
 |---|---|
