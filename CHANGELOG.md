@@ -8,6 +8,12 @@
 
 
 
+## 1.0.42
+
+- **Every session opens with the memory rule.** The librarian's MCP now carries the session-start directive — ambient first, file notes and decisions, never file a secret — and the most-used tools repeat it, so a resumed agent sees it even without reading this Skill.
+- **Client install recipes moved server-side.** Cursor, Codex, Hermes, Pi, OpenClaw, DSH and ChatGPT Apps detail now comes from `cm_ops` on request; a recipe fix ships with a librarian deploy instead of a Skill release. The Skill keeps the connect decision tree.
+- **Leaner files.** SKILL.md is 86 lines and REFERENCE.md is slimmer, with the Kiro CLI / IDE / Crew guidance kept where the Kiro check expects it.
+
 ## 1.0.41
 
 - **The account page is Connections.** Rotate, mint, and the PIN are there, and the Skill says Connections. The credentials are still called keys.
