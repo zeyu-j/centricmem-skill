@@ -16,6 +16,7 @@ import os from "node:os";
 import path from "node:path";
 import https from "node:https";
 import http from "node:http";
+import { createHash } from "node:crypto";
 
 export const DEFAULT_LIBRARIAN = "https://mem.centricmem.com";
 export const TEXT_LIMIT = 8000;
@@ -50,6 +51,7 @@ function claimedBearer() {
     [path.join(home, ".claude.json"), "json"],
     [path.join(process.env.APPDATA || "", "Cursor", "User", "mcp.json"), "json"],
     [path.join(home, ".codex", "config.toml"), "toml"],
+    [path.join(home, ".config", "opencode", "opencode.json"), "json"],
   ];
   for (const [file, kind] of candidates) {
     if (!file || !file.trim()) continue;
@@ -95,6 +97,9 @@ function parseEnvFile(text) {
     let value = m[2].trim();
     if ((value.startsWith('"') && value.endsWith('"')) || (value.startsWith("'") && value.endsWith("'"))) {
       value = value.slice(1, -1);
+    } else {
+      // Unquoted values end at whitespace before "#": KEY=abc # laptop means "abc".
+      value = value.replace(/\s+#.*$/, "");
     }
     if (value && !value.startsWith("#")) out[m[1]] = value;
   }
@@ -111,12 +116,12 @@ function dotenv() {
   const places = [];
   let dir = process.cwd();
   for (let i = 0; i < 6 && dir; i++) {
-    places.push(dir + "/.env");
-    const parent = dir.replace(/[\\/][^\\/]+$/, "");
+    places.push(path.join(dir, ".env"));
+    const parent = path.dirname(dir);
     if (parent === dir) break;
     dir = parent;
   }
-  if (home) places.push(home + "/.centricmem/.env");
+  if (home) places.push(path.join(home, ".centricmem", ".env"));
   for (const file of places) {
     if (seen.has(file)) continue;
     seen.add(file);
@@ -181,34 +186,48 @@ export function textOf(body) {
  * Ask the librarian for the ambient text.
  * Never rejects: the result says what happened, so callers can decide whether to stay quiet.
  */
+function ambientRequest(url, token, { timeoutMs, limit }) {
+  const mod = url.startsWith("https:") ? https : http;
+  return new Promise((resolve) => {
+    const req = mod.get(url, { headers: { authorization: "Bearer " + token, "user-agent": "centricmem-host-hook" }, timeout: timeoutMs }, (r) => {
+      let d = "";
+      r.on("data", (c) => (d += c));
+      r.on("end", () => {
+        if (r.statusCode !== 200) return resolve({ state: "refused", text: "", status: r.statusCode });
+        const t = textOf(d).trim();
+        return resolve({ state: t ? "ok" : "empty", text: t ? t.slice(0, limit) : "", status: r.statusCode });
+      });
+    });
+    req.on("timeout", () => { req.destroy(); resolve({ state: "no-answer", text: "", status: 0 }); });
+    req.on("error", () => resolve({ state: "no-answer", text: "", status: 0 }));
+  });
+}
+
 export function fetchAmbient({ timeoutMs = 6000, limit = TEXT_LIMIT } = {}) {
   const { token, source } = credential();
   if (!token) return Promise.resolve({ state: "no-key", token: "", source: "", text: "", status: 0 });
   const lib = shelf();
   const url = librarian() + "/ambient" + (lib ? "?library=" + encodeURIComponent(lib) : "");
-  const mod = url.startsWith("https:") ? https : http;
 
-  return new Promise((resolve) => {
-    const done = (r) => resolve(r);
-    let settled = false;
-    const finish = (r) => { if (!settled) { settled = true; done(r); } };
-    const req = mod.get(url, { headers: { authorization: "Bearer " + token, "user-agent": "centricmem-host-hook" }, timeout: timeoutMs }, (r) => {
-      let d = "";
-      r.on("data", (c) => (d += c));
-      r.on("end", () => {
-        if (r.statusCode !== 200) return finish({ state: "refused", token, source, text: "", status: r.statusCode });
-        const t = textOf(d).trim();
-        return finish({ state: t ? "ok" : "empty", token, source, text: t ? t.slice(0, limit) : "", status: r.statusCode });
-      });
-    });
-    req.on("timeout", () => { req.destroy(); finish({ state: "no-answer", token, source, text: "", status: 0 }); });
-    req.on("error", () => finish({ state: "no-answer", token, source, text: "", status: 0 }));
+  return ambientRequest(url, token, { timeoutMs, limit }).then(async (r) => {
+    // A stale env var shadows the claimed host config because env wins the lookup;
+    // a refused env token is the one case where another credential may still answer.
+    if (r.state === "refused" && (r.status === 401 || r.status === 403) && /^(env|\.env):/.test(source)) {
+      const claimed = claimedBearer();
+      if (claimed.token && claimed.token !== token) {
+        const retry = await ambientRequest(url, claimed.token, { timeoutMs, limit });
+        if (retry.state !== "refused") {
+          return { ...retry, token: claimed.token, source: claimed.source, shadowedBy: source };
+        }
+      }
+    }
+    return { ...r, token, source };
   });
 }
 
-/** A short, non-secret way to refer to a credential in diagnostics: the last four characters. */
+/** A short, non-secret way to refer to a credential in diagnostics: 12-hex SHA-256 prefix. */
 export function tokenTail(token) {
-  return token ? "…" + token.slice(-4) : "(none)";
+  return token ? "sha256:" + createHash("sha256").update(String(token), "utf8").digest("hex").slice(0, 12) : "(none)";
 }
 
 /**

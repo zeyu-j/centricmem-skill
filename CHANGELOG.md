@@ -8,6 +8,15 @@
 
 
 
+## 1.0.43
+
+- **Cards that looked gone are back on their own.** Shelves whose search index was missing or empty (restores, schema resets) used to read as "no cards" until an agent touched the shelf first — the librarian now rebuilds them at boot and whenever a read finds an empty index.
+- **Picking shelves on the connect page says what it means.** A key limited to selected shelves reads and writes them but cannot delete, move, or rename — the page says so up front, same as OAuth consent.
+- **Connect answers reach older agents sooner.** The device endpoint and status page now advertise the newest Skill version even before you sign in, and `centricmem skill status` checks the librarian instead of only its own bundle.
+- **OpenCode works.** Connect writes the `mcp.servers.centricmem` entry OpenCode V2 expects (`type:"remote"`, `oauth:false`, `codemode:false`), and doctor warns when a project `opencode.json` shadows it.
+- **Stale env keys stop shadowing good ones.** Doctor and the ambient hook detect a `CENTRICMEM_TOKEN` that differs from the key your host config actually holds — env wins silently before this.
+- **Requires CLI >=1.0.38** so older clients do not mishandle the 8-digit approval code.
+
 ## 1.0.42
 
 - **Every session opens with the memory rule.** The librarian's MCP now carries the session-start directive — ambient first, file notes and decisions, never file a secret — and the most-used tools repeat it, so a resumed agent sees it even without reading this Skill.
