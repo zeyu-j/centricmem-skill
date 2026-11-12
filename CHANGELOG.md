@@ -8,6 +8,13 @@
 
 
 
+## 1.0.46
+
+- **"Did we already …" checks memory first.** Mid-session questions — did we queue it, was it approved, is it still pending — now go to `cm_search` before the agent digs through old transcripts and history files, which go stale.
+- **Resumed chats load memory too.** A summary-resume or a handoff continuation counts as a new session: ambient loads first, same as a fresh chat or a context compress.
+- **No shelf picked yet? You can still search.** `cm_search` with no `shelf=` already searches every shelf the credential can see — and ambient now says so when nothing is resolved, so an unlinked folder no longer reads as "nothing to search".
+- **Durable events get carded on sight.** Quota approvals, plan or policy changes, channel activation or exhaustion, credential and infra readiness — these land as cards when they happen, not at wrap-up.
+
 ## 1.0.45
 
 - **"Key" is now "credential" on every surface you read.** Skill docs, the connect page, Connections and the rest of the app, MCP tool descriptions, guest and doctor messages, and the new-network notice email all say one word — what was "agent key" or "full-access key" is now "agent credential" / "full-access credential". Nothing you type changes: `/connect?device=`, `key_id` fields, `CENTRICMEM_*_KEY` env vars, and `key=` syntax stay exactly as they were.
