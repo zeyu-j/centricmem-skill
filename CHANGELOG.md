@@ -8,6 +8,13 @@
 
 
 
+## 1.0.50
+
+- **Big imports no longer pass through your context.** `cm_import bundle_path=` reads a bundle, an items file, or a zip straight off the librarian's disk (loopback only — remote credentials can't name host paths), and `POST /import` accepts a raw `application/octet-stream` zip or JSON upload. A folder of hundreds of cards is a path or an upload, not a paste.
+- **`centricmem relocate <new-home>` moves the library in one step** — hub files, `api.json`/`manager.json` home fields, and the `CENTRICMEM_HOME` pointer all land together; `--retire-old` cleans a hub that lived inside the client folder.
+- **Skill copies know which one is canonical.** SKILL/REFERENCE name `github.com/zeyu-j/centricmem-skill` as source of truth, and `centricmem doctor` lists every installed copy with its version and a `STALE` flag against the bundled release.
+- **Connect help is indexed by host.** REFERENCE's Reach section opens with a per-host table — Cursor/Codex, cloud agents, headless CI, sandboxes, Kiro — pointing at the right connect rule instead of one wall of prose.
+
 ## 1.0.49
 
 - **Ambient says which lines are for the owner.** `Curate:` / `health_deltas=` / conflict overflow now carry an `[ops]` prefix — grooming prompts, not your task. `compact=1` on `cm_ambient` returns just routing + `Cued:` + `Warnings:` for phase-close re-checks.
