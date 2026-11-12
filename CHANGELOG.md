@@ -8,6 +8,15 @@
 
 
 
+## 1.0.47
+
+- **Fix a card instead of rewriting it.** `cm_update {file, shelf, body}` rewrites a card's key points in place — `heading=` targets one `##` section (a new heading appends), `title=` renames in the same call, and the card's `task=`/`outcome=`/`status=` survive. No more delete-and-rewrite when a card goes stale.
+- **Search says when it's guessing.** Hits now carry a `confidence` band — `low` means the match is mostly query noise — and a response flag (`low_relevance`) fires when nothing cleared the bar, so "no such memory" reads as *no such memory* instead of unrelated cards that look authoritative.
+- **Copies stop eating the results page.** Byte-identical cards copied across shelves fold behind one hit — but two cards in one shelf with the same body (checkpoint series) stay separate, and an unverified card is never hidden behind its verified copy.
+- **Ambient picks the right shelf first.** An unlinked cwd now gets ranked candidates — a shelf that already claims the directory wins over a basename guess — and `fix_hints` lead with binding to it rather than minting a near-dup shelf.
+- **"Why is health 70" is answered.** Ambient names its top deductions (`health_deltas`/`health_reasons`), and `skill_latest` rides inside the text block so a loaded Skill can check itself for staleness.
+- **The Micro contradiction is gone.** Server instructions now say ambient is for sessions doing real work — a quick Q&A doesn't have to preflight. SKILL.md gains a four-word glossary and a small table for which write tool does what.
+
 ## 1.0.46
 
 - **"Did we already …" checks memory first.** Mid-session questions — did we queue it, was it approved, is it still pending — now go to `cm_search` before the agent digs through old transcripts and history files, which go stale.
