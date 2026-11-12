@@ -23,10 +23,10 @@
 ## 1.0.43
 
 - **Cards that looked gone are back on their own.** Shelves whose search index was missing or empty (restores, schema resets) used to read as "no cards" until an agent touched the shelf first — the librarian now rebuilds them at boot and whenever a read finds an empty index.
-- **Picking shelves on the connect page says what it means.** A key limited to selected shelves reads and writes them but cannot delete, move, or rename — the page says so up front, same as OAuth consent.
+- **Picking shelves on the connect page says what it means.** A credential limited to selected shelves reads and writes them but cannot delete, move, or rename — the page says so up front, same as OAuth consent.
 - **Connect answers reach older agents sooner.** The device endpoint and status page now advertise the newest Skill version even before you sign in, and `centricmem skill status` checks the librarian instead of only its own bundle.
 - **OpenCode works.** Connect writes the `mcp.servers.centricmem` entry OpenCode V2 expects (`type:"remote"`, `oauth:false`, `codemode:false`), and doctor warns when a project `opencode.json` shadows it.
-- **Stale env keys stop shadowing good ones.** Doctor and the ambient hook detect a `CENTRICMEM_TOKEN` that differs from the key your host config actually holds — env wins silently before this.
+- **Stale env credentials stop shadowing good ones.** Doctor and the ambient hook detect a `CENTRICMEM_TOKEN` that differs from the credential your host config actually holds — env wins silently before this.
 - **Requires CLI >=1.0.38** so older clients do not mishandle the 8-digit approval code.
 
 ## 1.0.42
@@ -38,23 +38,23 @@
 ## 1.0.41
 
 - **The account page is Connections.** Rotate, mint, and the PIN are there, and the Skill says Connections. The credentials are still called keys.
-- **A revoked key stays revoked.** Changing its grants, its name, or the shelves on it is refused, including a rename that also names a shelf.
-- **Connect is approve-a-code.** You confirm the 8-digit code and Approve. The secret never reaches that page. A full-access key is an ordinary `*` grant.
+- **A revoked credential stays revoked.** Changing its grants, its name, or the shelves on it is refused, including a rename that also names a shelf.
+- **Connect is approve-a-code.** You confirm the 8-digit code and Approve. The secret never reaches that page. A full-access credential is an ordinary `*` grant.
 
 ## 1.0.40
 
-- **Keys know who minted them.** Keys are grouped into Devices / OAuth apps / Manual keys, OAuth apps each get their own key instead of sharing, and revoking a key warns which OAuth connections it disconnects.
+- **Credentials know who minted them.** Credentials are grouped into Devices / OAuth apps / Manual credentials, OAuth apps each get their own credential instead of sharing, and revoking a credential warns which OAuth connections it disconnects.
 
 ## 1.0.39
 
-- **Security pass on connect and register.** Claiming an agent-registered account now revokes the keys minted before you took over, and says how many were reset. Sign-in, register, device, and OAuth endpoints rate-limit per IP. Approved-but-unclaimed keys can no longer survive a restart.
+- **Security pass on connect and register.** Claiming an agent-registered account now revokes the credentials minted before you took over, and says how many were reset. Sign-in, register, device, and OAuth endpoints rate-limit per IP. Approved-but-unclaimed credentials can no longer survive a restart.
 
 ## 1.0.38
 
-- **Set a PIN and remember it.** A key can be copied again from Keys when you remember the PIN. The Skill tells people that on first connect. Refresh this Skill when the librarian reports a newer version.
-- **Connect is approve-a-code, not paste-a-key.** The agent sends the connect link plus an 8-digit code; you sign in, confirm the code, pick access, and Approve. No key is ever shown on the page. A manual paste-key path stays for headless machines, vaults, and old clients.
-- **Agents can register the account.** `POST /connect/register` gives the agent a live key and emails you a claim link — the agent never sees your login.
-- **The "default key" is gone.** `*` is an ordinary full-access grant: several keys may open every shelf and each is revocable. Only the owner sign-in manages keys.
+- **Set a PIN and remember it.** A credential can be copied again from Connections when you remember the PIN. The Skill tells people that on first connect. Refresh this Skill when the librarian reports a newer version.
+- **Connect is approve-a-code, not paste-a-credential.** The agent sends the connect link plus an 8-digit code; you sign in, confirm the code, pick access, and Approve. No credential is ever shown on the page. A manual paste-credential path stays for headless machines, vaults, and old clients.
+- **Agents can register the account.** `POST /connect/register` gives the agent a live credential and emails you a claim link — the agent never sees your login.
+- **The "default key" is gone.** `*` is an ordinary full-access grant: several credentials may open every shelf and each is revocable. Only the owner sign-in manages credentials.
 
 ## Unreleased
 
@@ -103,7 +103,7 @@
   `cm_doctor` cannot answer this - the librarian cannot read a local host's config - so the Skill stops
   implying that it can.
 
-- **The key has somewhere to live that is not a prompt.** `tools/ambient.mjs` reads a `.env` after the
+- **The credential has somewhere to live that is not a prompt.** `tools/ambient.mjs` reads a `.env` after the
   process environment and before the host's own MCP config: the nearest one walking up from the working
   directory, then `~/.centricmem/.env`. Values already in the environment still win, and parsing stays
   inline, because this file is copied into other people's plugins.
@@ -113,10 +113,10 @@
 - `cm_health` and `cm_doctor` say how the request authenticated - `auth` (`oauth` | `bearer` | `missing`)
   plus a 12-character `keyFp` - on MCP calls as well as plain HTTP ones. Before this, an MCP session
   answered `auth: "missing"` and `keyFp: null` while the very same call wrote cards, so a host that
-  trusted the field went looking for a key it had already presented. The tell is the contradiction:
+  trusted the field went looking for a credential it had already presented. The tell is the contradiction:
   writes succeeding under `grants: ["*"]` and a health block that says no credential arrived.
 - The fingerprint names the token you are presenting now, so a refreshed OAuth session no longer reads
-  like a rotated key. Compare `keyFp` between two hosts before calling a key unrotated.
+  like a rotated credential. Compare `keyFp` between two hosts before calling a credential unrotated.
 
 ## 1.0.33
 
@@ -129,7 +129,7 @@
   nothing said so, because a missing recipe blocks nothing and an agent has no reason to raise it. The
   plugin's `SessionStart` hook now runs `goose/wire-recipes.mjs`, which writes them into
   `~/.config/goose/recipes/` and never replaces a file it did not write. `GOOSE_RECIPE_PATH` was not good
-  enough: the key is ignored in `config.yaml` - measured, `goose recipe list` never saw the directory - a
+  enough: the credential is ignored in `config.yaml` - measured, `goose recipe list` never saw the directory - a
   hook cannot change goose's own environment, and Goose.app launched from the dock inherits no shell
   profile, so an exported variable fails silently. The wiring is goose-only, silent on stdout, and honours
   `CENTRICMEM_HOOK_DISABLE` and `CENTRICMEM_HOOK_DRY_RUN`. The install row and `goose/README.md` now carry the refresh command as well, because `goose plugin install` refuses a plugin that is already installed and `--auto-update` is only recorded at install time.
@@ -170,7 +170,7 @@
 
 ## 1.0.28
 
-- The hooks were looking for a credential in the wrong place, and a reviewer proved it: on a guest machine the key lives in the host MCP config (`~/.cursor/mcp.json`, `~/.claude.json`, `~/.codex/config.toml`) - where `centricmem doctor` reports it as `token: mcp.json` - while `tools/ambient.mjs` only read the environment and `api.json`. `api.json` is written by a local hub, so on a guest it never appears, and the CLI consults it last on purpose because it is often a stale key. The hooks now follow the CLI order: environment, claimed host config, then `api.json`.
+- The hooks were looking for a credential in the wrong place, and a reviewer proved it: on a guest machine the credential lives in the host MCP config (`~/.cursor/mcp.json`, `~/.claude.json`, `~/.codex/config.toml`) - where `centricmem doctor` reports it as `token: mcp.json` - while `tools/ambient.mjs` only read the environment and `api.json`. `api.json` is written by a local hub, so on a guest it never appears, and the CLI consults it last on purpose because it is often a stale credential. The hooks now follow the CLI order: environment, claimed host config, then `api.json`.
 - The dsh README corrects two things it had wrong: `api.json` is not the channel on a guest (the host config is), and the credential step is `centricmem connect`, not `centricmem setup`.
 
 ## 1.0.27
@@ -206,14 +206,14 @@
 
 ## 1.0.21
 
-- One credential check, in one place. `hooks/close.mjs` still tested only `CENTRICMEM_TOKEN` and `CENTRICMEM_API_KEY`, so a machine key exported under the name the host docs use would leave the close half silently idle - the same lag the ambient half had. Both now call `credential()` from `tools/ambient.mjs`.
+- One credential check, in one place. `hooks/close.mjs` still tested only `CENTRICMEM_TOKEN` and `CENTRICMEM_API_KEY`, so a machine credential exported under the name the host docs use would leave the close half silently idle - the same lag the ambient half had. Both now call `credential()` from `tools/ambient.mjs`.
 - The dsh README records why the environment cannot carry a credential there: `dsh-subprocess` strips every variable whose name matches `/KEY|PASSWORD|SECRET|TOKEN/i` before spawning a hook, and the hooks bridge adds only `CLAUDE_PROJECT_DIR`. On dsh the `api.json` file is the channel, so connecting the CLI is the prerequisite, not the follow-up. We deliberately do not ship an env name chosen to slip past that pattern.
 
 ## 1.0.20
 
 - The SessionStart hook now answers in the JSON envelope (`hookSpecificOutput.additionalContext`, with `hookEventName`), not as bare stdout. One shape serves Claude Code and every bridge that runs a Claude Code `hooks.json`; DeepSeek Harness drops a bare string without saying so.
 - `hooks/close.mjs` no longer spawns the `.cmd` shim with `shell: false` on Windows. That threw `EINVAL`, the catch swallowed it, and the close half looked silent and healthy while doing nothing - on dsh and on Claude Code alike. The probe that found it is two lines; the fix is a platform check.
-- `tools/ambient.mjs` accepts `CENTRICMEM_AGENT_KEY`, the name the host docs use for a machine key, alongside `CENTRICMEM_TOKEN` and `CENTRICMEM_API_KEY`.
+- `tools/ambient.mjs` accepts `CENTRICMEM_AGENT_KEY`, the name the host docs use for a machine credential, alongside `CENTRICMEM_TOKEN` and `CENTRICMEM_API_KEY`.
 - `tools/prune-duplicate-skill.mjs` gained `--keep <host|path>`, because which copy to keep is a choice: a host loads the copy it installed, so removing that one disables the Skill there until it is reinstalled. Newest-wins is only the default now, and the tool says so before it prints a plan.
 - `dsh/README.md` corrects two instructions that would have broken dsh: the bridge is a plugin, so it belongs in the profile patch layer with an `- insert:` shell - putting it in `dsh.profile.bundles` makes dsh refuse to start, and `pnpm add` installs a second copy the launcher already mirrors. It also records that the bridge does not support `SessionEnd`, so the close half needs a native plugin on `agent/disposed` there.
 
@@ -241,8 +241,8 @@
 
 ## 1.0.15
 
-- `cm_health` and `cm_doctor` now say how the caller authenticated: `auth=oauth|bearer|missing` plus `keyFp`, the first 12 hex of the presented key - the same fingerprint the new-network notices already print. A stale environment on the host looked exactly like an unrotated key; the fix is a comparison, not a guess. The contract table keeps the 12 honest.
-- The Skill sends an agent to compare three fingerprints before calling a key unrotated: the card, the process environment, and whether this host is on OAuth at all. That was the wrong turn we took ourselves.
+- `cm_health` and `cm_doctor` now say how the caller authenticated: `auth=oauth|bearer|missing` plus `keyFp`, the first 12 hex of the presented credential - the same fingerprint the new-network notices already print. A stale environment on the host looked exactly like an unrotated credential; the fix is a comparison, not a guess. The contract table keeps the 12 honest.
+- The Skill sends an agent to compare three fingerprints before calling a credential unrotated: the card, the process environment, and whether this host is on OAuth at all. That was the wrong turn we took ourselves.
 - The Grok row now names the path that works: `grok.com/connectors` ? Custom ? the hosted URL, or the CLI with an explicit `-t http`. Without it Grok declares the server as **stdio** - a server that exists in the config and cannot run - which is what "MCP server does not exist" described.
 - REFERENCE gained a host-side checklist for the things only a host can fix (connected-but-not-callable, secrets that never reach the process, stale bridge tokens, per-session MCP resets), and the rule that a localhost OAuth callback cannot be moved to another machine.
 - The `dsh/` pin moved from `#v0.21.72` to the current release: every `v0.21.x` tag points at the same pre-1.0 snapshot, so that funnel was installing a 1.0.6-era copy.
@@ -299,9 +299,9 @@
 
 ## 1.0.9
 
-- The consent page now answers the question OAuth leaves open. OAuth covers the host and leaves no key
+- The consent page now answers the question OAuth leaves open. OAuth covers the host and leaves no credential
   to copy, so after approving, the page says what covers the CLI, a hook or another machine, and links to
-  where an agent key is made.
+  where an agent credential is made.
 - `centricmem oauth clients` (operator, read-only) lists the OAuth registrations and marks which callbacks
   are already allowed. "Which host still needs allowing" is now a command rather than a support email,
   and it says a guest machine is not the librarian host instead of printing an empty table.
@@ -320,19 +320,19 @@
 - The public Skill is **MIT** from 1.0.7: commercial use allowed, copyright notice kept. It was PolyForm Noncommercial through 1.0.6 and that grant is not withdrawn retroactively. The CentricMem name and the hosted librarian are not part of the grant.
 - Host-specific operational detail is served on request (`cm_ops`, 15.3 KB) rather than shipped in every copy; the canonical MCP object is written once instead of four times.
 - New-IP notices name the calling agent (registered OAuth client first, then the writer header), and the operator log carries it too.
-- A dead MCP session is named as such - probe, re-handshake, retry - instead of looking like a bad key; unreachable memory says so and never falls back to a local hub.
+- A dead MCP session is named as such - probe, re-handshake, retry - instead of looking like a bad credential; unreachable memory says so and never falls back to a local hub.
 - The verb gate now compares the app routes, the origin snippet and the MCP gateway table, which is how `cm_ops` was caught answering "Unknown librarian path".
 
 ## 1.0.6
 
-- A dead MCP session is now named as such (probe, re-handshake, retry) instead of being mistaken for a bad key, and unreachable memory has an explicit contract: say so, keep working, never fabricate.
+- A dead MCP session is now named as such (probe, re-handshake, retry) instead of being mistaken for a bad credential, and unreachable memory has an explicit contract: say so, keep working, never fabricate.
 - Host-specific install, refresh and failure detail is served on request (cm_ops) rather than shipped in the public copy. The canonical MCP object is written once instead of four times.
 - The ambient refresh stops at the librarian instead of falling back to the local hub, where a stale reading could arrive labelled healthy.
 - The Skill title no longer carries a version number (it had drifted three releases behind the metadata).
 
 ## 1.0.5
 
-- guest HTTP: the shelf travels as `?library=` on reads (a guest `search -p` returned every shelf before), and a host with no key is told so instead of being told the librarian is unreachable.
+- guest HTTP: the shelf travels as `?library=` on reads (a guest `search -p` returned every shelf before), and a host with no credential is told so instead of being told the librarian is unreachable.
 - `GET /distill`: a guest can read distill suggestions over HTTP; rewriting AGENTS.md Global Rules still needs the host.
 - OAuth: a callback mismatch is now actionable and logged, loopback paths get the slack hosts need (trailing slash, one extra segment), and the consent page offers the device flow when a request is rejected.
 - Redaction: the auth-scheme rule requires a 20+ character value, so it stops eating the word after "Bearer" in prose.
@@ -341,12 +341,12 @@
 
 ## 1.0.4
 
-- **Skill 1.0.4 / CLI 1.0.4** (one number). No Skill body change: the fixes are on the CLI and the librarian, not in how an agent files. Guest HTTP now resolves the key in the order the Skill already documents (env -> claimed `mcp.json` -> catalog/`api.json`), `-p` / `--library` actually scopes guest reads, and the credential redactor no longer eats the word after the auth scheme.
+- **Skill 1.0.4 / CLI 1.0.4** (one number). No Skill body change: the fixes are on the CLI and the librarian, not in how an agent files. Guest HTTP now resolves the credential in the order the Skill already documents (env -> claimed `mcp.json` -> catalog/`api.json`), `-p` / `--library` actually scopes guest reads, and the credential redactor no longer eats the word after the auth scheme.
 - The librarian ships the matching read path: `GET /distill`, so a guest can read the distill suggestions its ambient recommends (`centricmem promote --from-distill`) instead of being told to run a host-only command. Rewriting `AGENTS.md` still belongs to the host that owns the file.
 
 ## 1.0.3
 
-- **Skill 1.0.3 / CLI 1.0.3** (one number). The Skill body now says what the API actually writes: `cm_import` `items=` adds cards under `imported/kept/`, while `cm_import` `bundle: {version: 1, ...}` is the full ImportBundle and also writes **library files** - `context` -> `active_context.md` (the shelf current focus), `rules` -> `AGENTS.md` Global Rules - plus `decisions` / `lessons` / `sessions` / `imported` / `research`. A key that can open a shelf can write those; it was never host-only.
+- **Skill 1.0.3 / CLI 1.0.3** (one number). The Skill body now says what the API actually writes: `cm_import` `items=` adds cards under `imported/kept/`, while `cm_import` `bundle: {version: 1, ...}` is the full ImportBundle and also writes **library files** - `context` -> `active_context.md` (the shelf current focus), `rules` -> `AGENTS.md` Global Rules - plus `decisions` / `lessons` / `sessions` / `imported` / `research`. A credential that can open a shelf can write those; it was never host-only.
 - The CLI ships the matching hardening: an unknown top-level bundle slot is a `400 BAD_IMPORT_BUNDLE` naming the slot and the allowed list, instead of being dropped silently.
 
 ## 1.0.2
@@ -358,14 +358,14 @@
 - **One number again: Skill 1.0.1 / CLI 1.0.1.** No Skill body change; the CLI shipped two fixes (see the CLI CHANGELOG). The Skill is renumbered because the Skill and the CLI carry one number per release.
 
 - **One number for the Skill and the CLI.** From here on the Skill and the CLI ship the same version, and this repo is the truth source for it (`install.json` `skill`/`cli`, `package.json`, the SKILL.md frontmatter, and the plugin manifests all say `1.0.0`). This is package bookkeeping only - it is not a statement about hosted-service availability.
-- Credential handling (folded in from 0.21.93): never echo a key value. Confirm a key with a fingerprint (`9352... len=64 fp=5E4ED29C`), never by dumping `mcp.json` / `config.toml` / `*.env` whole, and never redact by length threshold (short keys slip through). If a key reaches the transcript, say so in that turn and rotate it.
-- New-network notice (CLI 1.0.0): a key used from a network we have not recorded for it emails its owner once - source IP, coarse edge location from our edge provider, and the client name the caller reported, never the key. IPv4 groups by `/24`, IPv6 by `/64`, at most 5 notices per key per hour, and `CENTRICMEM_IP_ALERT=off` disables them. A shared shelf key notifies the shelf owner.
+- Credential handling (folded in from 0.21.93): never echo a credential value. Confirm a credential with a fingerprint (`9352... len=64 fp=5E4ED29C`), never by dumping `mcp.json` / `config.toml` / `*.env` whole, and never redact by length threshold (short credentials slip through). If a credential reaches the transcript, say so in that turn and rotate it.
+- New-network notice (CLI 1.0.0): a credential used from a network we have not recorded for it emails its owner once - source IP, coarse edge location from our edge provider, and the client name the caller reported, never the credential. IPv4 groups by `/24`, IPv6 by `/64`, at most 5 notices per credential per hour, and `CENTRICMEM_IP_ALERT=off` disables them. A shared shelf credential notifies the shelf owner.
 
 ## 1.0.0
 
 ## 0.21.93
 
-- Credential handling hardened (agent side): **never echo a key value.** Confirm a key with a fingerprint (`9352... len=64 fp=5E4ED29C`), never by dumping `mcp.json` / `config.toml` / `*.env`, and never by redacting on a length threshold - short keys slip through it. Adds fingerprint idioms and blast-radius + rotation steps. Librarian CLI unchanged (**0.21.80**).
+- Credential handling hardened (agent side): **never echo a credential value.** Confirm a credential with a fingerprint (`9352... len=64 fp=5E4ED29C`), never by dumping `mcp.json` / `config.toml` / `*.env`, and never by redacting on a length threshold - short credentials slip through it. Adds fingerprint idioms and blast-radius + rotation steps. Librarian CLI unchanged (**0.21.80**).
 
 ## 0.21.92
 
@@ -417,11 +417,11 @@
 
 ## 0.21.80
 
-- Reach clarifies **remote/cloud is not paste-key-only**: OAuth when this agent receives the browser login; Bearer only when it cannot; sandbox claim EPERM ??? human claim outside / OAuth / paste in settings. Librarian CLI unchanged (**0.21.76**).
+- Reach clarifies **remote/cloud is not paste-credential-only**: OAuth when this agent receives the browser login; Bearer only when it cannot; sandbox claim EPERM ??? human claim outside / OAuth / paste in settings. Librarian CLI unchanged (**0.21.76**).
 
 ## 0.21.79
 
-- Extra agent keys may be **View only** (`mode: read`): search/show/list only; writes return 403. Mint or change on Keys / `account key --mode`. `cm_health` / `cm_ambient` surface `mode`. Default `*` and `share:` unchanged. Librarian **>=0.21.76**.
+- Extra agent credentials may be **View only** (`mode: read`): search/show/list only; writes return 403. Mint or change on Connections / `account credential --mode`. `cm_health` / `cm_ambient` surface `mode`. Default `*` and `share:` unchanged. Librarian **>=0.21.76**.
 
 ## 0.21.78
 
@@ -433,7 +433,7 @@
 
 ## 0.21.76
 
-- Per-shelf **charter** is live on the librarian: `cm_library` list/mint, `cm_ambient` `libraries` rows, Keys + Library desk. Routing #0180 matches charter (fallback displayName). Max 280 characters; empty clears. Librarian **>=0.21.75**.
+- Per-shelf **charter** is live on the librarian: `cm_library` list/mint, `cm_ambient` `libraries` rows, Connections + Library desk. Routing #0180 matches charter (fallback displayName). Max 280 characters; empty clears. Librarian **>=0.21.75**.
 
 ## 0.21.75
 
@@ -441,14 +441,14 @@
 
 ## 0.21.74
 
-- Audit follow-up: browse-by-card / per-section writers, MCP 25MB keep binary, supersedes validation, drop legacy `centricmem-mcp`, MCP sessions re-check revoked keys. Librarian **>=0.21.74**.
+- Audit follow-up: browse-by-card / per-section writers, MCP 25MB keep binary, supersedes validation, drop legacy `centricmem-mcp`, MCP sessions re-check revoked credentials. Librarian **>=0.21.74**.
 Skill-facing notes for [centricmem-skill](https://github.com/zeyu-j/centricmem-skill). This repo is how to use the hosted librarian.
 
 ## 0.21.73
 
 - Shelf routing (#0180): user explicit ???????? charter/displayName match ???????? path tiebreak only ???????? mint with human-supplied name. Cite the matched line before write. Per-shelf charter shipped in Skill **0.21.76** / librarian **>=0.21.75**.
 
-- Unknown Agent Skills hosts: copy `skills/centricmem-agent/` to `<skills-root>/centricmem-agent/SKILL.md`. After `centricmem connect --device --url-only`, finish with `connect --claim --target <that-host-config.json>` (or `CENTRICMEM_MCP_TARGETS`). Confirm with `connect --verify`. `doctor connect` prints a paste-ready block for zeyu@poppyg.com (never a key). Repo-root `install.json` is the machine-readable recipe. Do not scrape another client's `mcp.json` for a Bearer.
+- Unknown Agent Skills hosts: copy `skills/centricmem-agent/` to `<skills-root>/centricmem-agent/SKILL.md`. After `centricmem connect --device --url-only`, finish with `connect --claim --target <that-host-config.json>` (or `CENTRICMEM_MCP_TARGETS`). Confirm with `connect --verify`. `doctor connect` prints a paste-ready block for zeyu@poppyg.com (never a credential). Repo-root `install.json` is the machine-readable recipe. Do not scrape another client's `mcp.json` for a Bearer.
 - Skill frontmatter `description` is trigger-only. Wording is "this agent (and each client you install into)".
 
 ## 0.21.72
@@ -457,7 +457,7 @@ Skill-facing notes for [centricmem-skill](https://github.com/zeyu-j/centricmem-s
 
 ## 0.21.71
 
-- After Approve, ChatGPT / Codex still waiting ???????? they click **Open the agent callback**. Sign-in is not the grant; they pick which existing agent key (or mint a new extra) then Approve. Librarian **>=0.21.56**.
+- After Approve, ChatGPT / Codex still waiting ???????? they click **Open the agent callback**. Sign-in is not the grant; they pick which existing agent credential (or mint a new extra) then Approve. Librarian **>=0.21.56**.
 - ChatGPT Apps directory Skill is a Scan Tools snapshot of this folder from host MCP (`skills/list`), not a live GitHub pull. After a Skill bump: origin librarian **>=0.21.59**, then Scan Tools, then a new plugin version. Do not `npx skills add` inside ChatGPT to refresh the listed plugin.
 - ChatGPT directory starter prompts (at most three, no `@mention`) are served from host MCP `prompts/list` on librarian **>=0.21.61**. If the portal Prompts tab stays empty after Scan Tools, paste those three lines; ChatGPT adds the plugin mention when it displays them.
 
@@ -467,11 +467,11 @@ Skill-facing notes for [centricmem-skill](https://github.com/zeyu-j/centricmem-s
 
 ## 0.21.69
 
-- Codex / ChatGPT Mixed is not ???????OAuth plus paste a key??????. Mixed tries unauthenticated `initialize` / `tools/list`; we 401 that. Pick OAuth for the browser, or Bearer in `http_headers` instead of OAuth.
+- Codex / ChatGPT Mixed is not ???????OAuth plus paste a credential??????. Mixed tries unauthenticated `initialize` / `tools/list`; we 401 that. Pick OAuth for the browser, or Bearer in `http_headers` instead of OAuth.
 
 ## 0.21.68
 
-- Every agent tries `/connect?device=` first. If minting that URL fails, they email zeyu@poppyg.com with the error (never a key); then MCP OAuth only if this agent will receive the browser login (Grok Bot / Manus may). A Loopback `127.0.0.1` callback does not count when this agent is not listening there.
+- Every agent tries `/connect?device=` first. If minting that URL fails, they email zeyu@poppyg.com with the error (never a credential); then MCP OAuth only if this agent will receive the browser login (Grok Bot / Manus may). A Loopback `127.0.0.1` callback does not count when this agent is not listening there.
 - Librarian **>=0.21.51**. CLI **>=0.21.50**.
 
 ## 0.21.67
@@ -503,12 +503,12 @@ Skill-facing notes for [centricmem-skill](https://github.com/zeyu-j/centricmem-s
 
 ## 0.21.62
 
-- If they already added a key or MCP URL in this agent, `cm_*` missing means a **new chat** ???????? do not mint `/connect?device=` and do not tell them to add the URL with no Bearer (that drops the key). Ignore leftover `centricmem` on PATH when `connect --device` is missing (npm 0.14.x). First connect is unchanged.
+- If they already added a credential or MCP URL in this agent, `cm_*` missing means a **new chat** ???????? do not mint `/connect?device=` and do not tell them to add the URL with no Bearer (that drops the credential). Ignore leftover `centricmem` on PATH when `connect --device` is missing (npm 0.14.x). First connect is unchanged.
 - CLI **>=0.21.36**.
 
 ## 0.21.61
 
-- If connect still fails after signup + `/connect?device=` / OAuth, or they have a usage problem the Skill cannot fix: tell them to email zeyu@poppyg.com (which agent + what they saw; never a key or token). Do not send that mail for them. Website legal/privacy mail stays poppy@poppyg.com.
+- If connect still fails after signup + `/connect?device=` / OAuth, or they have a usage problem the Skill cannot fix: tell them to email zeyu@poppyg.com (which agent + what they saw; never a credential or token). Do not send that mail for them. Website legal/privacy mail stays poppy@poppyg.com.
 - CLI **>=0.21.36**.
 
 ## 0.21.60
@@ -522,18 +522,18 @@ Skill-facing notes for [centricmem-skill](https://github.com/zeyu-j/centricmem-s
 ## 0.21.59
 
 - SKILL.md is the handover: When to Use plus three Typical Workflows (first connect, daily cite-and-file, empty shelf). REFERENCE holds client connect branches.
-- Official 1Password Environments MCP never returns secret values. It cannot replace `/connect?device=` or OAuth, and must not reveal the agent key into chat. The human may store the Keys backup in a vault; the agent never reads it back.
-- MCP aggregators, HashiCorp Vault, and AWS Secrets Manager are the same class: a customer who already has them may inject an extra key in their worker. They do not replace OAuth or `/connect?device=`.
+- Official 1Password Environments MCP never returns secret values. It cannot replace `/connect?device=` or OAuth, and must not reveal the agent credential into chat. The human may store the Connections backup in a vault; the agent never reads it back.
+- MCP aggregators, HashiCorp Vault, and AWS Secrets Manager are the same class: a customer who already has them may inject an extra credential in their worker. They do not replace OAuth or `/connect?device=`.
 - CLI **>=0.21.36**.
 
 ## 0.21.58
 
-- Agents rename a card title with `cm_rename` `{file, shelf, title}` (optional `heading=` when the file has several `##` sections). File path stays. Decision numbers stay. Default key or login. Extra keys cannot. Shared shelves cannot. Humans can also rename on the Library desk.
+- Agents rename a card title with `cm_rename` `{file, shelf, title}` (optional `heading=` when the file has several `##` sections). File path stays. Decision numbers stay. Default credential or login. Extra credentials cannot. Shared shelves cannot. Humans can also rename on the Library desk.
 - CLI **>=0.21.36**.
 
 ## 0.21.57
 
-- Agents delete a single card with `cm_delete` `{file, shelf}` (library= also works). Always pass the shelf. Default key or login. Extra keys cannot. Shared shelves cannot. Leftover shelf delete stays `{id}`.
+- Agents delete a single card with `cm_delete` `{file, shelf}` (library= also works). Always pass the shelf. Default credential or login. Extra credentials cannot. Shared shelves cannot. Leftover shelf delete stays `{id}`.
 - After plugin install, if `cm_*` are missing the same reply must still send https://centricmem.com/login?signup=1 **and** a `/connect?device=` URL. Plugin `mcp.json` is not a completed connect. OAuth is additive.
 - CLI **>=0.21.36**.
 
@@ -552,25 +552,25 @@ Skill-facing notes for [centricmem-skill](https://github.com/zeyu-j/centricmem-s
 ## 0.21.54
 
 - Codex first path is `codex mcp add centricmem --url https://mem.centricmem.com/mcp` then `codex mcp login centricmem` (or the plugin `mcp.json`, same URL). Do not put a Bearer in `~/.codex/config.toml` when OAuth works.
-- Do not download or hand an agent a settings file that contains a key. A URL-only `mcp.json` or Codex toml may be copied or opened.
-- Cursor may still use Add to Cursor on https://centricmem.com (URL only). Paste-key and `/connect?device=` stay for hosts that cannot complete OAuth.
+- Do not download or hand an agent a settings file that contains a credential. A URL-only `mcp.json` or Codex toml may be copied or opened.
+- Cursor may still use Add to Cursor on https://centricmem.com (URL only). Paste-credential and `/connect?device=` stay for hosts that cannot complete OAuth.
 - CLI **>=0.21.36**.
 
 ## 0.21.53
 
-- Cursor may use **Add to Cursor** on https://centricmem.com (URL only, no Bearer in the deeplink) then finish the browser prompt. Prefer `mcp.json` with `https://mem.centricmem.com/mcp` and no `Authorization`. Paste-key and `/connect?device=` stay for hosts that cannot complete OAuth.
+- Cursor may use **Add to Cursor** on https://centricmem.com (URL only, no Bearer in the deeplink) then finish the browser prompt. Prefer `mcp.json` with `https://mem.centricmem.com/mcp` and no `Authorization`. Paste-credential and `/connect?device=` stay for hosts that cannot complete OAuth.
 - Do not curl OAuth endpoints.
 - CLI **>=0.21.36**.
 
 ## 0.21.52
 
 - If this client can complete MCP OAuth, add `https://mem.centricmem.com/mcp` **with no Bearer** and finish the browser prompt. Do not curl OAuth or librarian HTTP. Hermes, Grok, and the CLI still use `/connect?device=` or paste-Bearer.
-- After Skill install, the same reply must still send https://centricmem.com/login?signup=1 and tell them to save a backup of the key ???????? Keys shows it only once; never paste it in chat.
+- After Skill install, the same reply must still send https://centricmem.com/login?signup=1 and tell them to save a backup of the credential ???????? Connections shows it only once; never paste it in chat.
 - CLI **>=0.21.36**.
 
 ## 0.21.51
 
-- After Skill install, the same reply must send https://centricmem.com/login?signup=1 **and** a `/connect?device=` URL, **and** tell them to save a backup of the key ???????? Keys shows it only once; never paste it in chat.
+- After Skill install, the same reply must send https://centricmem.com/login?signup=1 **and** a `/connect?device=` URL, **and** tell them to save a backup of the credential ???????? Connections shows it only once; never paste it in chat.
 - CLI **>=0.21.36**.
 
 ## 0.21.50
@@ -585,8 +585,8 @@ Skill-facing notes for [centricmem-skill](https://github.com/zeyu-j/centricmem-s
 
 ## 0.21.48
 
-- Login uniquely owns card delete, billing, rotating the default key, and deleting the account (Billing). Never call account delete from MCP.
-- Named shelves: Lite/Education 1, Pro 10, Ultra 50, Lifetime 1 20, Lifetime 2 100. Extra keys are uncapped.
+- Login uniquely owns card delete, billing, rotating the default credential, and deleting the account (Billing). Never call account delete from MCP.
+- Named shelves: Lite/Education 1, Pro 10, Ultra 50, Lifetime 1 20, Lifetime 2 100. Extra credentials are uncapped.
 - CLI **>=0.21.36**.
 
 ## 0.21.47
@@ -622,17 +622,17 @@ Skill-facing notes for [centricmem-skill](https://github.com/zeyu-j/centricmem-s
 
 ## 0.21.41
 
-- `libraries=` may list `share:<accountId>:<slug>` when someone shared a named shelf with this email. Pass that id as `shelf=` exactly. Do not mint `share:`. Login and the default key (`*`) see invited shelves; extra keys do not. Copy onto a shelf you own; do not delete or move a shared shelf.
-- Attachments and named shelves: Lifetime 1 is 2GB / 20 shelves; Lifetime 2 is 50GB / 1000. Monthly extra-shelf caps are unchanged. Extra keys stay uncapped.
+- `libraries=` may list `share:<accountId>:<slug>` when someone shared a named shelf with this email. Pass that id as `shelf=` exactly. Do not mint `share:`. Login and the default credential (`*`) see invited shelves; extra credentials do not. Copy onto a shelf you own; do not delete or move a shared shelf.
+- Attachments and named shelves: Lifetime 1 is 2GB / 20 shelves; Lifetime 2 is 50GB / 1000. Monthly extra-shelf caps are unchanged. Extra credentials stay uncapped.
 
 ## 0.21.40
 
-- `cm_move` `{from,to,files}` relocates selected Markdown cards onto another named shelf. Source files are deleted. Decision numbers stay if free on dest, otherwise a new seq. Attachments re-attach on dest. Default key or owner login; extra keys cannot. Pick cards with `cm_search` / `cm_show`. Do not download originals to ???????move?????? them. `cm_copy` still copies a whole leftover shelf; card delete stays login-only.
+- `cm_move` `{from,to,files}` relocates selected Markdown cards onto another named shelf. Source files are deleted. Decision numbers stay if free on dest, otherwise a new seq. Attachments re-attach on dest. Default credential or owner login; extra credentials cannot. Pick cards with `cm_search` / `cm_show`. Do not download originals to ???????move?????? them. `cm_copy` still copies a whole leftover shelf; card delete stays login-only.
 
 ## 0.21.39
 
-- Hosted ambient/doctor: unmatched cwd or omitted `shelf=` is `library=(none)` plus `libraries=` ???????? not the hub `use` pin. Pick a named shelf this turn (or mint). Extra keys with exactly one grant still open that shelf. Guests do not `--link`.
-- After first `cm_health` this chat, say **once** which key (`*` = default / every shelf, else list extra grants). Suggest Keys grant ticks or minting an extra for another agent; authenticate default if this extra is too narrow. Never paste keys; never change grants via MCP.
+- Hosted ambient/doctor: unmatched cwd or omitted `shelf=` is `library=(none)` plus `libraries=` ???????? not the hub `use` pin. Pick a named shelf this turn (or mint). Extra credentials with exactly one grant still open that shelf. Guests do not `--link`.
+- After first `cm_health` this chat, say **once** which credential (`*` = default / every shelf, else list extra grants). Suggest Connections grant ticks or minting an extra for another agent; authenticate default if this extra is too narrow. Never paste credentials; never change grants via MCP.
 - Unmatched cwd is not a shelf. If ambient is `library=(none)`, pick from `libraries=` or mint. Do not use the hub `use` pin.
 
 ## 0.21.38
@@ -642,7 +642,7 @@ Skill-facing notes for [centricmem-skill](https://github.com/zeyu-j/centricmem-s
 
 ## 0.21.37
 
-- If the shell is blocked or `centricmem` is missing, do not retry CLI. Send https://centricmem.com/login?signup=1; the human adds `https://mem.centricmem.com/mcp` in this agent????????s MCP settings (key from Keys, never in chat). `connect --device` stays the path when CLI works.
+- If the shell is blocked or `centricmem` is missing, do not retry CLI. Send https://centricmem.com/login?signup=1; the human adds `https://mem.centricmem.com/mcp` in this agent????????s MCP settings (credential from Connections, never in chat). `connect --device` stays the path when CLI works.
 - Empty shelf: offer once to file existing durable memories as cards (capture stays; they may skip).
 - Website copy prompt is one line.
 
@@ -652,7 +652,7 @@ Skill-facing notes for [centricmem-skill](https://github.com/zeyu-j/centricmem-s
 
 ## 0.21.34
 
-- A better shelf **label** (rebrand, leftover folder slug) is renamed this turn: default key `cm_library` `{id, displayName}`. The id stays. Extra keys cannot. Do not invent a prettier name. Humans can still rename on the Library desk.
+- A better shelf **label** (rebrand, leftover folder slug) is renamed this turn: default credential `cm_library` `{id, displayName}`. The id stays. Extra credentials cannot. Do not invent a prettier name. Humans can still rename on the Library desk.
 
 ## 0.21.33
 
@@ -661,7 +661,7 @@ Skill-facing notes for [centricmem-skill](https://github.com/zeyu-j/centricmem-s
 
 ## 0.21.32
 
-- Humans rename a shelf **label** and browse every card on the Library desk. The shelf id stays (`shelf=` / folder / grants). Default key: `cm_library` `{id, displayName}` on an existing shelf updates that label. `cm_search` without `q` and with `shelf=` lists cards (one per file).
+- Humans rename a shelf **label** and browse every card on the Library desk. The shelf id stays (`shelf=` / folder / grants). Default credential: `cm_library` `{id, displayName}` on an existing shelf updates that label. `cm_search` without `q` and with `shelf=` lists cards (one per file).
 - Marketplace packaging: SkillKit well-known at `https://centricmem.com/.well-known/skills/`; HOL Plugin Scanner CI on this repo; Agent Plugins keywords include `agent-plugins` / `agent-skills`. The Agent Plugins directory already lists `centricmem-skill`.
 
 ## 0.21.31
@@ -671,28 +671,28 @@ Skill-facing notes for [centricmem-skill](https://github.com/zeyu-j/centricmem-s
 ## 0.21.30
 
 - There is no Inbox. Named shelves only. Writes without `shelf=` / `library=` / a cwd-link are 400 `LIBRARY_REQUIRED`. Leftover `unclassified` on an old hub: `cm_copy` `{from:unclassified,to:<named>}` then `cm_delete`. Never copy **to** Inbox. Dropped `cm_inbox` / `cm_classify`.
-- Leftover shelf removal is **delete**, not archive: `cm_copy` `{from,to}` then `cm_delete` `{id}`. There is no restore warehouse. The website Archive desk is the live card catalog. Extra keys may copy if both grants; only default/login may delete a leftover shelf. Card delete stays login-only.
+- Leftover shelf removal is **delete**, not archive: `cm_copy` `{from,to}` then `cm_delete` `{id}`. There is no restore warehouse. The website Archive desk is the live card catalog. Extra credentials may copy if both grants; only default/login may delete a leftover shelf. Card delete stays login-only.
 
 ## 0.21.29
 
-- Organize leftover named shelves **on the librarian**: dest must exist (`cm_library` if needed). `cm_copy` `{from,to}` copies cards and attach originals (identical skip; collisions `imported/kept/from-<id>/`). Then `cm_archive` `{id}`. Never download originals to this computer. Extra keys may copy if both grants; only default/login may archive. Card delete stays login-only.
+- Organize leftover named shelves **on the librarian**: dest must exist (`cm_library` if needed). `cm_copy` `{from,to}` copies cards and attach originals (identical skip; collisions `imported/kept/from-<id>/`). Then `cm_archive` `{id}`. Never download originals to this computer. Extra credentials may copy if both grants; only default/login may archive. Card delete stays login-only.
 
 ## 0.21.28
 
-- If a key was pasted into a chat, the owner signs in and rotates it on Keys. The old secret dies. Agents never ask for the new one in chat.
+- If a credential was pasted into a chat, the owner signs in and rotates it on Connections. The old secret dies. Agents never ask for the new one in chat.
 
 ## 0.21.27
 
-- Refresh compares `metadata.version` (not a top-level `version` key). The installed Skill path is agent-neutral.
+- Refresh compares `metadata.version` (not a top-level `version` credential). The installed Skill path is agent-neutral.
 
 ## 0.21.26
 
-- Extra keys: authenticate so the owner enters the **default** key to mint a shelf. Connect does not create shelves. Inbox drain extras can `apply`.
+- Extra credentials: authenticate so the owner enters the **default** credential to mint a shelf. Connect does not create shelves. Inbox drain extras can `apply`.
 - Packaging: Copilot CLI marketplace at `.github/plugin/marketplace.json`; Grok Build manifest at `.grok-plugin/plugin.json`; Codex `composerIcon` at `assets/icon.svg`. Swap that SVG (and the website favicon) when the logo changes.
 
 ## 0.21.25
 
-- One agent-key type. Default (`*` = every shelf) is unique and renameable; it cannot be revoked. Extra keys grant one or more shelves and are uncapped. Login uniquely owns delete and billing. Website **Billing** shows the plan; after the first Stripe customer it opens the Customer Portal.
+- One agent-credential type. Default (`*` = every shelf) is unique and renameable; it cannot be revoked. Extra credentials grant one or more shelves and are uncapped. Login uniquely owns delete and billing. Website **Billing** shows the plan; after the first Stripe customer it opens the Customer Portal.
 
 ## 0.21.24
 
@@ -700,7 +700,7 @@ Skill-facing notes for [centricmem-skill](https://github.com/zeyu-j/centricmem-s
 
 ## 0.21.23
 
-- Public names: **Library** (one per person) ???????? **Shelf** (pairing-key vault) ???????? **Card**. Agents pass `shelf=<id>` or `library=<id>`. Default account key = every shelf in this library. Pairing key = that shelf. Inbox is a system shelf, never a sweep target.
+- Public names: **Library** (one per person) ???????? **Shelf** (pairing-credential vault) ???????? **Card**. Agents pass `shelf=<id>` or `library=<id>`. Default account credential = every shelf in this library. Pairing credential = that shelf. Inbox is a system shelf, never a sweep target.
 - Sign up is open. Install copy no longer says invite-only.
 
 ## 0.21.22
@@ -711,48 +711,48 @@ Skill-facing notes for [centricmem-skill](https://github.com/zeyu-j/centricmem-s
 
 ## 0.21.21
 
-- Authenticate is always a `/connect?device=` link. The agent runs `centricmem connect --device` and sends only that URL. You have **ten minutes** to enter the key. Sign in at the website for the dashboard ???????? there is no ???????connect this computer?????? button. Never paste a key into chat.
+- Authenticate is always a `/connect?device=` link. The agent runs `centricmem connect --device` and sends only that URL. You have **ten minutes** to enter the credential. Sign in at the website for the dashboard ???????? there is no ???????connect this computer?????? button. Never paste a credential into chat.
 
 ## 0.21.20
 
-- Remote agents (VPS / Cloud Agent): the agent runs `centricmem connect --device` and sends only the printed `/connect?device=` URL. You have **ten minutes** to enter the key on that page. The secret never appears in chat. Then start a new chat there.
-- On the computer in front of you, the agent still sends `https://centricmem.com/connect` (loopback helper). Never paste a key into chat.
+- Remote agents (VPS / Cloud Agent): the agent runs `centricmem connect --device` and sends only the printed `/connect?device=` URL. You have **ten minutes** to enter the credential on that page. The secret never appears in chat. Then start a new chat there.
+- On the computer in front of you, the agent still sends `https://centricmem.com/connect` (loopback helper). Never paste a credential into chat.
 
 ## 0.21.19
 
-- Login uniquely owns delete and billing. The **default** account key (all libraries) may mint, rename, grant, and revoke other keys ???????? including every pairing key on a library. Pairing keys cannot. New tokens stay off chat (dashboard / CLI, not MCP).
+- Login uniquely owns delete and billing. The **default** account credential (all libraries) may mint, rename, grant, and revoke other credentials ???????? including every pairing credential on a library. Pairing credentials cannot. New tokens stay off chat (dashboard / CLI, not MCP).
 - Attachments are metered per plan (Lite 100MB, Education 200MB, Pro 1GB, Ultra 10GB). Markdown is unlimited. Over quota, keep fails ???????? the agent says so.
 
 ## 0.21.18
 
-- The authenticate link accepts **any** agent key: default (every library) or a pairing key (that library). Default is one choice, not the only one.
-- Not a one-click install. You enter the key on `https://centricmem.com/connect` ???????? never in chat.
+- The authenticate link accepts **any** agent credential: default (every library) or a pairing credential (that library). Default is one choice, not the only one.
+- Not a one-click install. You enter the credential on `https://centricmem.com/connect` ???????? never in chat.
 
 ## 0.21.17
 
-- When a key is needed, the agent sends the authenticate link `https://centricmem.com/connect`. You enter the key on that page ???????? never in chat. Not a one-click install. The helper on this computer (`centricmem connect`) writes MCP for every agent.
-- The owner's agents use the **default account key** (all libraries). Friend pairing keys stay one vault.
+- When a credential is needed, the agent sends the authenticate link `https://centricmem.com/connect`. You enter the credential on that page ???????? never in chat. Not a one-click install. The helper on this computer (`centricmem connect`) writes MCP for every agent.
+- The owner's agents use the **default account credential** (all libraries). Friend pairing credentials stay one vault.
 
 ## 0.21.16
 
 - `/connect` is for **every** agent: copy the same host MCP snippet (never paste a token in chat). CLI `centricmem connect` writes MCP configs it finds on this computer. Optional Cursor one-click is not the product.
-- The owner's agents use the **default account key** (all libraries). Friend pairing keys stay one vault.
+- The owner's agents use the **default account credential** (all libraries). Friend pairing credentials stay one vault.
 
 ## 0.21.15
 
-- Paste an agent key on **this computer** at `https://centricmem.com/connect` (Cursor opens an install prompt). Never paste a token in chat. CLI: `centricmem connect` writes `~/.cursor/mcp.json` from a local page.
-- Owner Cursor still uses the default account key (all libraries). Friend pairing keys stay one vault.
+- Paste an agent credential on **this computer** at `https://centricmem.com/connect` (Cursor opens an install prompt). Never paste a token in chat. CLI: `centricmem connect` writes `~/.cursor/mcp.json` from a local page.
+- Owner Cursor still uses the default account credential (all libraries). Friend pairing credentials stay one vault.
 
 ## 0.21.14
 
-- Sweep never writes Inbox (`unclassified`). Pick a named library, or mint one (`cm_library`) when none fits. Drain leftovers with classify ???????? do not leave them for the human. Pairing keys still cannot mint a library.
-- The owner's agent uses the **default account key** (all libraries). Friend pairing keys stay one vault.
-- Still no curl. Originals and key minting stay on the dashboard.
+- Sweep never writes Inbox (`unclassified`). Pick a named library, or mint one (`cm_library`) when none fits. Drain leftovers with classify ???????? do not leave them for the human. Pairing credentials still cannot mint a library.
+- The owner's agent uses the **default account credential** (all libraries). Friend pairing credentials stay one vault.
+- Still no curl. Originals and credential minting stay on the dashboard.
 
 ## 0.21.13
 
-- One MCP Bearer can be an **account key**: the owner grants which libraries it may open (`library=` / `cwd=`). Friend-style pairing keys stay one library. Isolation is one key = its grants.
-- Still no curl. Originals and key minting stay on the dashboard. Login session is not for agents.
+- One MCP Bearer can be an **account credential**: the owner grants which libraries it may open (`library=` / `cwd=`). Friend-style pairing credentials stay one library. Isolation is one credential = its grants.
+- Still no curl. Originals and credential minting stay on the dashboard. Login session is not for agents.
 
 ## 0.21.12
 
