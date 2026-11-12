@@ -8,6 +8,12 @@
 
 
 
+## 1.0.49
+
+- **Ambient says which lines are for the owner.** `Curate:` / `health_deltas=` / conflict overflow now carry an `[ops]` prefix — grooming prompts, not your task. `compact=1` on `cm_ambient` returns just routing + `Cued:` + `Warnings:` for phase-close re-checks.
+- **Missing tools means skip, not pretend.** If no `cm_*` tool exists in your list, the MCP isn't attached — the Skill now says to skip memory work and report it at wrap-up rather than simulate an ambient block. `centricmem doctor connect` shows which MCP files registered the server.
+- **Triggers name work types.** The Skill description narrows to coding/research/multi-step sessions and deliverable-close sweep points — pure Q&A chat is told to skip. Deliverables (`deliverable` tag) and durable user facts join the file-now list.
+
 ## 1.0.48
 
 - **Search hits say which shelf they're on.** Every `cm_search` result carries `shelf` — feed it straight into `cm_show` / `cm_update` / `cm_move` instead of guessing. Hits also expose provenance `meta` (`source_id`, `adapter`, `type`) next to `verified` / `provenance`, so imported or federated cards are easy to tell apart from locally verified ones.
