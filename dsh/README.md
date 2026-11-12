@@ -65,12 +65,12 @@ section), and it is one `insert`:
 The environment cannot carry a credential here: `dsh-subprocess` strips every variable matching
 `/KEY|PASSWORD|SECRET|TOKEN/i` before spawning a child, and the hooks bridge adds only `CLAUDE_PROJECT_DIR`.
 `api.json` is not the channel either - it is written by a **local hub**, so on a guest machine it never
-appears, and the CLI consults it last on purpose because it is often a stale key that makes `doctor` say the
+appears, and the CLI consults it last on purpose because it is often a stale credential that makes `doctor` say the
 token is fine while data commands answer 401.
 
 What the hooks do is what the CLI does: **environment, then the claimed Bearer in the host config**
 (`~/.cursor/mcp.json`, `~/.claude.json`, `~/.codex/config.toml`), then `api.json`. On a guest machine the
-host config is where the key actually lives, which is the difference between a silent hook and a working one.
+host config is where the credential actually lives, which is the difference between a silent hook and a working one.
 
 The credential step is `centricmem connect` ("write MCP on this computer"), not `centricmem setup` (choose a
 library, link code, install the Skill). We deliberately do **not** ship an environment name crafted to slip
@@ -87,7 +87,7 @@ That patch carries the MCP funnel with `failOnStartupError: true` - deliberately
 loudly with a named error instead of registering zero tools. Put together, on a machine with no credential
 yet, **adding this package and restarting makes dsh fail to start.** Two safe orders:
 
-1. Connect first: run `centricmem connect` until the machine has a key, then add the package, then write the
+1. Connect first: run `centricmem connect` until the machine has a credential, then add the package, then write the
    `mcp-centricmem` overlay (same `id`, restating `serverName`, `transport`, `url` and `headers`), then
    restart.
 2. Or add the package and take it back out of `dsh.profile.bundles` - keeping the *dependency* is enough for

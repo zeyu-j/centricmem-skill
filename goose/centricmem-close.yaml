@@ -4,7 +4,7 @@ title: CentricMem close-out
 description: >
   Turn the work just finished in this chat into CentricMem cards. Guided, not silent: the Skill's
   rule is that Non-Micro work is filed before yield, while Micro answers and "don't log" are skipped.
-  MCP only, so a host connected by OAuth works the same as one holding a key.
+  MCP only, so a host connected by OAuth works the same as one holding a credential.
 instructions: |
   Close out this session's work in CentricMem, following the installed centricmem-agent Skill. Use
   the MCP tools only (cm_done, cm_note, cm_log_decision). Never call the CLI, never curl, never
@@ -20,7 +20,7 @@ instructions: |
        consequences.
   3. Pass shelf={{ shelf }} (never unclassified) and tags={{ tags }} on the cm_done card - if a
      value is empty, omit that field. One card per distinct thing. Summarise; do not dump the
-     transcript, and never paste a key or any other secret.
+     transcript, and never paste a credential or any other secret.
   4. Finish by naming the tools you called and the files they wrote.
 prompt: |
   File this session's Non-Micro work in CentricMem (shelf: {{ shelf }}), or say plainly that there

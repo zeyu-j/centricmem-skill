@@ -8,14 +8,14 @@ description: >
 instructions: |
   You are checking CentricMem for this machine. Use only the CentricMem MCP tools (cm_health,
   cm_doctor, cm_ambient). Do not shell out, do not curl, do not create a hub or a local workspace,
-  do not rotate or paste a key, and do not write memory cards in this recipe.
+  do not rotate or paste a credential, and do not write memory cards in this recipe.
 
   1. cm_health - report the mode and the cli / skill_latest versions.
-  2. cm_doctor - report librarian reachability, whether this host holds a usable key, and Skill status.
+  2. cm_doctor - report librarian reachability, whether this host holds a usable credential, and Skill status.
   3. cm_ambient - pass shelf={{ shelf }} when it is not empty, otherwise omit it entirely (an
      empty value means "use the machine default"). Print the returned block unchanged.
   4. If a call fails, name the call and quote the error text. Do not retry more than once. If the
-     failure is "no key on this machine" on a host that connects by OAuth, say plainly that this is
+     failure is "no credential on this machine" on a host that connects by OAuth, say plainly that this is
      expected and that cm_* over MCP is the working path - the CLI is not.
   5. Finish with one line: OK, or the single blocking problem.
 prompt: |

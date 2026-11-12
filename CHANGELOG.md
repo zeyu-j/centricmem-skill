@@ -8,6 +8,11 @@
 
 
 
+## 1.0.45
+
+- **"Key" is now "credential" on every surface you read.** Skill docs, the connect page, Connections and the rest of the app, MCP tool descriptions, guest and doctor messages, and the new-network notice email all say one word — what was "agent key" or "full-access key" is now "agent credential" / "full-access credential". Nothing you type changes: `/connect?device=`, `key_id` fields, `CENTRICMEM_*_KEY` env vars, and `key=` syntax stay exactly as they were.
+- **A rare "database is locked" search error is gone.** Two index builds racing on the same shelf could deadlock a search request — the writer now takes its lock up front and waits politely instead.
+
 ## 1.0.44
 
 - **Ambient answers "what are we doing".** Pass `task=` — three to eight words about this session's aim — to `cm_ambient` and the preflight gains a `Cued:` lane: cards lit by that situation rather than by recency, each named with the cue that fired. Nothing passed, nothing changes — the block is byte-identical.

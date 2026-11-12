@@ -62,7 +62,7 @@ Until it is added, `cm_*` are absent even though the install succeeded and the S
 **Two recipes (MCP only)**
 
 Recipes make a goose session a well-behaved CentricMem client without shelling out to the CLI, so they work
-on OAuth-connected hosts where there is no key to give a script.
+on OAuth-connected hosts where there is no credential to give a script.
 
 ```sh
 goose run --recipe centricmem-preflight                      # health, doctor, ambient (read only)
@@ -75,7 +75,7 @@ goose's plugin format has no recipes field, and its discovery never descends int
 the YAML here is inert until something puts it where goose looks. The plugin's `SessionStart` entry does
 that: `goose/wire-recipes.mjs` runs on goose and only on goose, and copies these two files into
 `~/.config/goose/recipes/`. Measured on 1.52.0: that library is searched, and so is `~/.agents/recipes/`,
-which goose does not document. What does *not* work is `GOOSE_RECIPE_PATH`: the key is ignored in
+which goose does not document. What does *not* work is `GOOSE_RECIPE_PATH`: the credential is ignored in
 `~/.config/goose/config.yaml`, a hook cannot change goose's own environment because it runs as goose's
 child, and Goose.app launched from the dock inherits no shell profile - so an exported variable fails
 silently. The global library needs no variable at all. The wiring never replaces a file it did not write:
@@ -111,7 +111,7 @@ trustworthy to say it says so, in the file, rather than leaving something stale 
 |---|---|
 | `status=OK` plus the ambient text | a credential was found and the librarian answered |
 | `status=NO-KEY` | no credential anywhere - normal on an OAuth-connected host, where the MCP tools need none |
-| `status=REFUSED` | the key was rejected (HTTP 401/403), with the last four characters of the key and where it came from |
+| `status=REFUSED` | the credential was rejected (HTTP 401/403), with the last four characters of the credential and where it came from |
 | `status=NO-ANSWER` | the librarian did not answer - the transport case, and the one where cycling the goose extension is the fix |
 
 **Scheduling it.** The plugin's `hooks/ambient.mjs` already does this at session start on goose, so the

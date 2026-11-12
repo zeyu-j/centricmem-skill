@@ -23,7 +23,7 @@ The rules, all learned from the two implementations that came before this one:
   `CENTRICMEM_AGENT_KEY`, `CENTRICMEM_API_KEY`, then the Bearer a host already recorded for `centricmem` in
   `~/.cursor/mcp.json`, `~/.claude.json` or `~/.codex/config.toml`, and last an `api.json` beside the user's
   config. It prints nothing when it finds none - the normal case on an OAuth-connected host, where no
-  copyable key exists.
+  copyable credential exists.
 - **Never print the wrong thing.** The endpoint answers `{ok, state, text, ...}`; the hook prints `text`.
 
 Set `CENTRICMEM_SHELF` to name a shelf, otherwise it uses the library recorded in `api.json`. Set

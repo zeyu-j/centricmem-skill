@@ -2,7 +2,7 @@
 
 > A hosted librarian for AI agents: one shared Markdown memory across the clients you already use, reached
 > over MCP at `https://mem.centricmem.com/mcp`. This repository is the public skill plus the per-host
-> manifests that deliver it. It contains no keys, no service installer, and no scheduled task.
+> manifests that deliver it. It contains no credentials, no service installer, and no scheduled task.
 
 ## Start here
 

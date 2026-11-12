@@ -26,9 +26,9 @@ lines. If it is "why is it shaped like a botnet", `MANIFESTS.md` is the answer.
   Skill says so explicitly: *do not email on their behalf*.
 - **It does not install a service or a scheduled task.** Nothing in this repository registers itself with the
   operating system. A timer is an operator's decision, taken outside the repository.
-- **It talks to one host.** `mem.centricmem.com`, over HTTPS, with the user's own key or OAuth grant.
+- **It talks to one host.** `mem.centricmem.com`, over HTTPS, with the user's own credential or OAuth grant.
 - **It writes outside its own paths nowhere.** The complete list is in `hooks/README.md`.
-- **It contains no keys.** `SECURITY.md` lists what must never appear in a published version.
+- **It contains no credentials.** `SECURITY.md` lists what must never appear in a published version.
 
 ## Installing, without running anything you have not read
 

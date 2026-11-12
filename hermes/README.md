@@ -8,7 +8,7 @@ for the shelf's context; `on_session_end` observes, so the close just runs.
 
 Hermes resolves its home as `HERMES_HOME` → the platform default — which on Windows is `%LOCALAPPDATA%\hermes`
 and on macOS/Linux is `~/.hermes`. On this machine only the first is real: a `~/.hermes/config.yaml` is
-silently ignored, while `%LOCALAPPDATA%\hermes\config.yaml` (123 KB, 25 top-level keys) is the config the CLI,
+silently ignored, while `%LOCALAPPDATA%\hermes\config.yaml` (123 KB, 25 top-level credentials) is the config the CLI,
 the desktop app and the dashboard all read. `hermes hooks list` prints the file it loaded, so check rather than
 assume.
 
@@ -98,6 +98,6 @@ confirmed.
   Cursor, Claude Code and Codex hooks make. That command writes on a librarian host: on a machine talking to a
   hosted librarian it stops, so the close is silent there and the agent files the card. Same boundary as
   everywhere else, and it is deliberate rather than a fault.
-- **Stays quiet with no credential.** No key means no context, not a guess.
+- **Stays quiet with no credential.** No credential means no context, not a guess.
 - **Never fails loudly.** A hook that exits non-zero can disturb somebody's session, so every path ends in
   exit 0.
