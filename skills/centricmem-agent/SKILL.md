@@ -7,7 +7,7 @@ requirements:
 license: MIT
 compatibility: "Requires host MCP at https://mem.centricmem.com/mcp. Floors use the pre-1.0 0.21.x numbering; every 1.0.x satisfies them all. librarian >=0.21.50: a card is summary + key points (a keep stub is not a card); a folder is cm_keep card:false then cm_import items; archive zip is optional; share: shelf ids; cm_move takes whole paths (never lessons.md or #); cm_delete {file,shelf} a card, heading= for one ##; cm_rename {file,shelf,title}; omitting the cm_library id lists shelves; skipExisting and copy-aside FTS skip. >=0.21.51 Codex OAuth. >=0.21.55 applicant HTTPS callbacks. >=0.21.56 OAuth key picker and the ChatGPT Approve hop. >=1.0.6 host-ops detail (cm_ops)."
 metadata:
-  version: "1.0.43"
+  version: "1.0.44"
   compatible_cli: ">=1.0.38"
   changelog_url: https://github.com/zeyu-j/centricmem-skill/blob/main/CHANGELOG.md
 ---
@@ -53,7 +53,7 @@ Skip (Micro): typo, one-liner, no durable fact. Sweep (Non-Micro): implement / o
 
 ## 2. Start
 
-Prefer `cm_ambient` with **`shelf=`** (or `library=`) first — it already carries grants / mode / skill_latest / Recent / Session. That shapes **Recent decisions / Session tail / Curate**, not only later write routing. Ambient with only an unmatched `cwd` and no `shelf=` often shows empty Recent/Session — that is not "the shelf is empty." When ambient/doctor returns **`suggested_shelf=`** (cwd basename matches a shelf id), **use that id on every write this session** — do not wait for the human to name it. Optional durable bind (full-access `*` key): `cm_library {id, sourceDir: <absolute cwd>}` so later ambient cwd-matches. When `library=(none)` and no suggestion: pick from `libraries=` or mint (`cm_library`), same turn as the first Non-Micro write. `cm_health` only when tools are missing, connect is needed, or ambient is unhealthy / unreachable. Unreachable: say once — no bootstrap. Named shelf for writes.
+Prefer `cm_ambient` with **`shelf=`** (or `library=`) first — it already carries grants / mode / skill_latest / Recent / Session. That shapes **Recent decisions / Session tail / Curate**, not only later write routing. When you know this session's aim pass **`task=`** (3–8 words) — it drives the `Cued:` / `Warnings:` lanes. Ambient with only an unmatched `cwd` and no `shelf=` often shows empty Recent/Session — that is not "the shelf is empty." When ambient/doctor returns **`suggested_shelf=`** (cwd basename matches a shelf id), **use that id on every write this session** — do not wait for the human to name it. Optional durable bind (full-access `*` key): `cm_library {id, sourceDir: <absolute cwd>}` so later ambient cwd-matches. When `library=(none)` and no suggestion: pick from `libraries=` or mint (`cm_library`), same turn as the first Non-Micro write. `cm_health` only when tools are missing, connect is needed, or ambient is unhealthy / unreachable. Unreachable: say once — no bootstrap. Named shelf for writes.
 
 **Host parity before the first card.** `centricmem doctor` names this host and what it can do: `parity` carry on; `armed-off` say the one command that fixes it and do not claim the hook fired; `stale` = local copy older than the CLI; `ceiling` / `unprobed` are normal. Only the CLI sees this — `cm_doctor` cannot read host config. An inject surface that exists but is not live = a session that will not remember itself — fix before filing, not after.
 
@@ -76,7 +76,7 @@ No wrap-up wait; Agent close does not run this; Don't log / Skill done → skip.
 |---|---|
 | Locked decision; method-changing lesson; finished chunk | Version-tied stats; unverified conclusions |
 
-Same `lessons.md` title → 409; rewrite = `cm_delete` then write (REFERENCE). Early wrong write costs more.
+Same `lessons.md` title → 409; rewrite = `cm_delete` then write (REFERENCE). Early wrong write costs more. Writes carry **`task=` / `outcome=`** when you have them — `outcome=friction` when the work hit a pit (lands in next session's `Warnings:` lane); `task=` defaults to the last session heading.
 
 MCP down: hold **CentricMem deferred sweep**; connect (REFERENCE); file after health. Say so once, keep working without memory, and never fake a card, pick a local hub, or treat a leftover copy of the hub as the shelf.
 

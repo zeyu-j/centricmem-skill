@@ -8,6 +8,13 @@
 
 
 
+## 1.0.44
+
+- **Ambient answers "what are we doing".** Pass `task=` — three to eight words about this session's aim — to `cm_ambient` and the preflight gains a `Cued:` lane: cards lit by that situation rather than by recency, each named with the cue that fired. Nothing passed, nothing changes — the block is byte-identical.
+- **Friction gets its own lane.** Writes now accept `outcome=`; `outcome=friction` on a note, decision, or session card lands it in next session's `Warnings:` lane instead of guessing from tags. `task=` on writes is optional too — omit it and the last session heading is used.
+- **Paraphrases still find the card.** A shared lexicon canonicalizes synonyms and CJK terms at write time, so a cue of 上线 reaches a card that only ever said "release".
+- **Search order is stable.** Equal-score hits come back in a fixed order instead of reshuffling when the index rebuilds.
+
 ## 1.0.43
 
 - **Cards that looked gone are back on their own.** Shelves whose search index was missing or empty (restores, schema resets) used to read as "no cards" until an agent touched the shelf first — the librarian now rebuilds them at boot and whenever a read finds an empty index.
