@@ -41,8 +41,8 @@ export /**
  *
  * On a guest machine this is where the credential actually is. The CLI reads it this way round -
  * env, then the claimed host config, then api.json - and api.json sits last on purpose, because it is
- * often a stale hub key. These hooks only ever read api.json, which is why they stayed silent on a
- * machine that had a perfectly good key in ~/.cursor/mcp.json all along. Same order here now.
+ * often a stale hub credential. These hooks only ever read api.json, which is why they stayed silent on a
+ * machine that had a perfectly good credential in ~/.cursor/mcp.json all along. Same order here now.
  */
 function claimedBearer() {
   const home = os.homedir();
@@ -82,7 +82,7 @@ function claimedBearer() {
 }
 
 /**
- * A `.env` file, because that is where a person will actually keep a key. Two places, nearest wins:
+ * A `.env` file, because that is where a person will actually keep a credential. Two places, nearest wins:
  * the working directory upwards (a project's own .env), then `~/.centricmem/.env` for the machine.
  * Read here rather than by a dotenv dependency: this file is copied into other people's plugins, and
  * it should stay one file with no install step. Values already in the environment always win.
@@ -258,17 +258,17 @@ const moimHeader = (status, extra = "") =>
 // Each failure says which failure it is. Conflating them is how a stale leftover hub once read as healthy.
 const MOIM_EXPLAIN = {
   "no-key": [
-    "CentricMem: no key on this machine, so the shelf could not be read.",
+    "CentricMem: no credential on this machine, so the shelf could not be read.",
     "",
-    "If this agent is connected by OAuth, that is normal: OAuth covers the MCP tools, and no copyable key",
-    "exists. Use the cm_* tools and ignore this file. If you expected a key here, mint one with",
+    "If this agent is connected by OAuth, that is normal: OAuth covers the MCP tools, and no copyable credential",
+    "exists. Use the cm_* tools and ignore this file. If you expected a credential here, mint one with",
     "`centricmem connect --device` (or /connect?device=) rather than creating a hub.",
   ],
   refused: (r) => [
-    `CentricMem: the librarian refused this machine's key (HTTP ${r.status}).`,
+    `CentricMem: the librarian refused this machine's credential (HTTP ${r.status}).`,
     `  key: ${tokenTail(r.token)} from ${r.source || "(unknown source)"}`,
     "",
-    "That is a credential problem, not a connection problem: rotate the key in Manager, then refresh this file.",
+    "That is a credential problem, not a connection problem: rotate the credential in Manager, then refresh this file.",
     "Nothing below is trustworthy.",
   ],
   "no-answer": [

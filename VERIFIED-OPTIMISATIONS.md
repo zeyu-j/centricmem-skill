@@ -28,7 +28,7 @@ what was run here and what was only read.
 cannot write the leftover hub" and points at import or the MCP tools instead. So on a machine that talks to a
 hosted librarian the hook is silent, and the card is filed by the **agent**, which the Skill requires anyway.
 The hook was left that way rather than made to post a card itself: a hook cannot read the session, and this
-project's rule is that a card's summary states the credential points rather than a placeholder. Cursor's installed
+project's rule is that a card's summary states the key points rather than a placeholder. Cursor's installed
 hooks have the same shape and the same boundary - they file on a librarian host and fall silent elsewhere.
 On dsh the close half runs as a native plugin instead, because the hooks bridge has no `SessionEnd`.
 

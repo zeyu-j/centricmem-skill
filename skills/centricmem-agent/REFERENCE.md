@@ -319,11 +319,11 @@ Hold half-finished thoughts. **chunk** / **yield** / the numbered sweep batch an
 | Type | When | MCP |
 |------|------|------|
 | Transcript | Each Non-Micro sweep | Shell-read jsonl → `cm_keep` filename + bytes (MCP does sign+PUT) |
-| Session | Same sweep | `cm_done` with `attach`; `summary=` is the credential points of this unit |
+| Session | Same sweep | `cm_done` with `attach`; `summary=` is the key points of this unit |
 | Knowledge | durable model / fact | `cm_note` — `title` = summary, `body` = key points. Same title in `lessons.md` is an error (409); pick a new title, or `cm_delete` `{file:"lessons.md", shelf, heading}` then rewrite |
 | Decision | architecture or durable host fact | `cm_log_decision` — `title` = summary; `decision` / `context` / `consequences` = key points. `refs` is a string: `1`, `0001`, `#0001`, or a comma list. Junk is 400. When an older decision is replaced, pass `supersedes=<n>` (integer); the old card becomes `status: superseded` / `supersededBy` — keep history, do not delete it |
 | Edit a card | title or body of an existing card is wrong | **No in-place edit.** Title only → `cm_rename` `{file, shelf, title}` (optional `heading=`). Body / key points → `cm_delete` `{file, shelf, heading?}` then rewrite the card (or that `##` section). Prefer `dryRun` first. Wrong `heading` returns `Heading not found` and does **not** delete the whole file |
-| Original | a file worth keeping | `cm_keep` as above, then a note/decision whose body is the credential points. Never `path=`. Never stop at the stub. Same-title stubs 另存 (`slug-2.md`) |
+| Original | a file worth keeping | `cm_keep` as above, then a note/decision whose body is the key points. Never `path=`. Never stop at the stub. Same-title stubs 另存 (`slug-2.md`) |
 | Bulk originals | many files to card | `cm_keep` `{card:false}` then one `cm_import` `{items}` (≤50). Archive zip only if they already packed one. Never zip via MCP |
 | Shelf | none of the named shelves fit | omit `cm_library` `id` to list; then `{id}` to mint (full-access credential). Extra: list grants only; authenticate so they enter a **full-access** credential to mint. Connect does not mint a shelf |
 | Shelf label | you learn a better **human** name than the current display name (rebrand, leftover folder slug, they say “that’s X”) | full-access credential: `cm_library` `{id, displayName}` **this turn** — do not wait to be asked. Id / folder / grants stay. Writes still `shelf=<id>`. Use the name they use or the public product name; do not invent a prettier one. Skip if the label already matches. Extra credential cannot: authenticate for a full-access credential (step 0.2) and say the intended label once. Humans can also rename on the Library desk |
@@ -350,7 +350,7 @@ Claude Code, Codex, Hermes, Pi, OpenClaw, Kiro, Kilo, Copilot, and other Agent S
 write the leftover hub" and points at import or the MCP tools instead. So on a machine that talks to a hosted
 librarian the hook is silent, and the card is filed by the **agent**, which is what the Skill already requires
 anyway. The hook was left alone rather than making it post a card itself: a hook cannot read the session, and
-this project's own rule is that a card's summary states the credential points, not a placeholder. Cursor's installed
+this project's own rule is that a card's summary states the key points, not a placeholder. Cursor's installed
 hooks have the same shape and the same boundary - they file on a librarian host and fall silent elsewhere.
 
 Per-host extras live in folders named after the host. Check yours before assuming there is nothing here:
