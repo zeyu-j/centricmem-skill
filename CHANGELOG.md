@@ -8,6 +8,14 @@
 
 
 
+## 1.0.48
+
+- **Search hits say which shelf they're on.** Every `cm_search` result carries `shelf` — feed it straight into `cm_show` / `cm_update` / `cm_move` instead of guessing. Hits also expose provenance `meta` (`source_id`, `adapter`, `type`) next to `verified` / `provenance`, so imported or federated cards are easy to tell apart from locally verified ones.
+- **A write's `file` is the next call's `file`.** `cm_log_decision` now returns the shelf-relative path `cm_show` / `cm_update` / `cm_move` accept — it used to return `projects/<shelf>/…`, which those verbs rejected with "file not found". The old form is still there as `path`, and write responses carry `shelf` too.
+- **Errors tell you what to pick.** "Pick a shelf" lists the shelves you can actually pick; "file not found" lists the files that exist; "heading not found" lists that file's real headings. MCP errors carry the same lists as plain lines — no more schema dumps.
+- **`cm_update` can't hit the wrong card.** New `card=` scopes an update to one card in a multi-card file like `lessons.md`; an `heading=` that matches several sections is refused instead of silently editing the first one. Section rewrites also keep the `- **Tags**:` line now, not just the meta comment.
+- **`q` also answers to `query`.** `cm_search` accepts either.
+
 ## 1.0.47
 
 - **Fix a card instead of rewriting it.** `cm_update {file, shelf, body}` rewrites a card's key points in place — `heading=` targets one `##` section (a new heading appends), `title=` renames in the same call, and the card's `task=`/`outcome=`/`status=` survive. No more delete-and-rewrite when a card goes stale.
