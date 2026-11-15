@@ -8,6 +8,11 @@
 
 
 
+## 1.0.51
+
+- **New-IP credential alerts can be muted per account.** The "a new IP is using your credential" email now links to Security → Email alerts (`/app/security#alerts`), where the owner can turn the notice off — muting asks for the account password plus MFA code and sends a confirmation email; turning it back on needs only a sign-in. Muting keeps recording new networks silently, so re-enabling does not re-fire old sightings.
+- **The site has a real Docs section.** `centricmem.com/docs` now holds getting started, connecting an agent, credentials, sharing, security, limits, import, and FAQ — generated from markdown in the repo instead of a hardcoded page.
+
 ## 1.0.50
 
 - **Big imports no longer pass through your context.** `cm_import bundle_path=` reads a bundle, an items file, or a zip straight off the librarian's disk (loopback only — remote credentials can't name host paths), and `POST /import` accepts a raw `application/octet-stream` zip or JSON upload. A folder of hundreds of cards is a path or an upload, not a paste.
